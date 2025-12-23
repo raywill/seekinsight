@@ -84,12 +84,13 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
       <div className="flex-1 overflow-auto bg-white">
         {mode === DevMode.SQL ? (
           <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full text-left text-[11px] border-collapse table-fixed">
+            {/* 修改: 去掉 table-fixed 改为 table-auto 以支持自适应宽度，但限制最大宽度 */}
+            <table className="min-w-full text-left text-[11px] border-collapse table-auto">
               <thead className="sticky top-0 bg-white shadow-sm z-10">
                 <tr className="border-b border-gray-200">
                   {result.columns.map(col => (
-                    <th key={col} className="px-2 py-1.5 font-bold text-gray-500 bg-gray-50/80 border-r border-gray-100 last:border-r-0 min-w-[120px]">
-                      <div className="flex items-center gap-1.5 uppercase tracking-tighter overflow-hidden">
+                    <th key={col} className="px-2 py-1.5 font-bold text-gray-500 bg-gray-50/80 border-r border-gray-100 last:border-r-0 min-w-[100px] max-w-[400px]">
+                      <div className="flex items-center gap-1.5 uppercase tracking-tighter">
                         <Hash size={10} className="text-gray-300 shrink-0" />
                         <span className="truncate">{col}</span>
                       </div>
@@ -103,8 +104,8 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
                     {result.columns.map(col => (
                       <td 
                         key={col} 
-                        className="px-2 py-1 text-gray-600 truncate border-r border-gray-50 last:border-r-0 leading-tight"
-                        title={row[col]?.toString() || ''}
+                        /* 修改: 移除 truncate，增加 break-words 和 whitespace-pre-wrap 支持长文本换行，并限制 max-w */
+                        className="px-2 py-1 text-gray-600 break-words whitespace-pre-wrap max-w-[400px] border-r border-gray-50 last:border-r-0 leading-tight align-top"
                       >
                         {row[col] === null || row[col] === undefined ? (
                           <span className="text-gray-300 italic opacity-50">NULL</span>
