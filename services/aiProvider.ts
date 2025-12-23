@@ -9,15 +9,19 @@ export interface AiService {
   generateAnalysis(query: string, result: any[]): Promise<string>;
 }
 
-const PROVIDERS: Record<string, AiService> = {
-  gemini: gemini as AiService,
-  aliyun: aliyun as AiService
+const getProvider = (): AiService => {
+  const providerKey = (typeof process !== 'undefined' ? process.env.AI_PROVIDER : 'aliyun') || 'aliyun';
+  if (providerKey.toLowerCase() === 'gemini') {
+    return gemini as AiService;
+  }
+  return aliyun as AiService;
 };
 
-// Default to Aliyun as requested, configurable via AI_PROVIDER environment variable
-const activeProviderKey = (process.env.AI_PROVIDER || 'aliyun').toLowerCase();
-const provider = PROVIDERS[activeProviderKey] || aliyun;
+export const generateCode = (prompt: string, mode: DevMode, tables: TableMetadata[]) => 
+  getProvider().generateCode(prompt, mode, tables);
 
-export const generateCode = provider.generateCode;
-export const inferColumnMetadata = provider.inferColumnMetadata;
-export const generateAnalysis = provider.generateAnalysis;
+export const inferColumnMetadata = (tableName: string, data: any[]) => 
+  getProvider().inferColumnMetadata(tableName, data);
+
+export const generateAnalysis = (query: string, result: any[]) => 
+  getProvider().generateAnalysis(query, result);

@@ -2,26 +2,26 @@
 import { DatabaseEngine } from "./dbService";
 import { ExecutionResult, TableMetadata, Column } from "../types";
 
-/**
- * MySQLEngine provides real access to MySQL/OceanBase via a Node.js gateway.
- */
 export class MySQLEngine implements DatabaseEngine {
   private tables: TableMetadata[] = [];
   private ready: boolean = false;
   private sessionId: string | null = null;
   
-  private config = {
-    dbHost: process.env.MYSQL_IP,
-    dbPort: process.env.MYSQL_PORT,
-    dbUser: process.env.MYSQL_USER,
-    dbName: process.env.MYSQL_DB,
-    dbPassword: (process.env as any).MYSQL_PASSWORD || ''
-  };
-
   private gatewayUrl = `http://localhost:3001`;
 
+  private getConfig() {
+    return {
+      dbHost: typeof process !== 'undefined' ? process.env.MYSQL_IP : undefined,
+      dbPort: typeof process !== 'undefined' ? process.env.MYSQL_PORT : undefined,
+      dbUser: typeof process !== 'undefined' ? process.env.MYSQL_USER : undefined,
+      dbName: typeof process !== 'undefined' ? process.env.MYSQL_DB : undefined,
+      dbPassword: typeof process !== 'undefined' ? (process.env as any).MYSQL_PASSWORD : ''
+    };
+  }
+
   async init() {
-    if (!this.config.dbHost || !this.config.dbPort) {
+    const config = this.getConfig();
+    if (!config.dbHost || !config.dbPort) {
       throw new Error("Missing MYSQL_IP or MYSQL_PORT environment variables.");
     }
 
@@ -30,11 +30,11 @@ export class MySQLEngine implements DatabaseEngine {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          host: this.config.dbHost,
-          port: this.config.dbPort,
-          user: this.config.dbUser,
-          password: this.config.dbPassword,
-          database: this.config.dbName
+          host: config.dbHost,
+          port: config.dbPort,
+          user: config.dbUser,
+          password: config.dbPassword,
+          database: config.dbName
         })
       });
 
@@ -44,7 +44,6 @@ export class MySQLEngine implements DatabaseEngine {
       this.sessionId = result.sessionId;
       this.ready = true;
       
-      // Auto-load existing tables upon initialization
       await this.loadExistingTables();
     } catch (err: any) {
       this.ready = false;
@@ -52,26 +51,21 @@ export class MySQLEngine implements DatabaseEngine {
     }
   }
 
-  /**
-   * Optimized: Scans the database for existing tables and populates the metadata using information_schema.
-   * This prevents multiple per-table calls that lead to "maximum open cursors exceeded".
-   */
   private async loadExistingTables() {
+    const config = this.getConfig();
     try {
-      // 1. 获取所有表及其行数 (TABLE_ROWS 是估算值，但在 MVP 中足够)
       const tablesInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME, TABLE_ROWS 
         FROM information_schema.TABLES 
-        WHERE TABLE_SCHEMA = '${this.config.dbName}'
+        WHERE TABLE_SCHEMA = '${config.dbName}'
       `);
       
       if (tablesInfoRes.data.length === 0) return;
 
-      // 2. 批量获取所有表的列信息
       const columnsInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_COMMENT 
         FROM information_schema.COLUMNS 
-        WHERE TABLE_SCHEMA = '${this.config.dbName}'
+        WHERE TABLE_SCHEMA = '${config.dbName}'
         ORDER BY TABLE_NAME, ORDINAL_POSITION
       `);
 
@@ -97,7 +91,6 @@ export class MySQLEngine implements DatabaseEngine {
       this.tables = loadedTables;
     } catch (err) {
       console.warn("Failed to load existing tables efficiently:", err);
-      // Fallback to basic list if bulk load fails
       try {
         const res = await this.executeQuery(`SHOW TABLES`);
         const tableNames = res.data.map(row => Object.values(row)[0] as string);

@@ -18,6 +18,15 @@ const App: React.FC = () => {
   const [dbReady, setDbReady] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+
+  // 安全获取环境变量
+  const env = {
+    MYSQL_IP: typeof process !== 'undefined' ? process.env.MYSQL_IP : 'unknown',
+    MYSQL_PORT: typeof process !== 'undefined' ? process.env.MYSQL_PORT : 'unknown',
+    MYSQL_DB: typeof process !== 'undefined' ? process.env.MYSQL_DB : 'unknown',
+    AI_PROVIDER: typeof process !== 'undefined' ? process.env.AI_PROVIDER : 'aliyun'
+  };
+
   const [project, setProject] = useState<ProjectState>({
     name: "Enterprise Data Hub",
     owner: "Lead Analyst",
@@ -42,6 +51,7 @@ const App: React.FC = () => {
         setDbReady(true);
       })
       .catch((err) => {
+        console.error("Initialization Failed:", err);
         setDbError(err.message);
       });
   }, []);
@@ -49,22 +59,20 @@ const App: React.FC = () => {
   const handleUpload = async (file: File) => {
     if (!dbReady || isUploading) return;
     setIsUploading(true);
-    const db = getDatabaseEngine();
     
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const data = e.target?.result;
-        // Large files may take time here
         const workbook = XLSX.read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet) as any[];
         
         const tableName = file.name.split('.')[0];
-        console.log(`[SeekInsight] Processing ${tableName}, inferring semantic metadata...`);
-        
         const aiComments = await ai.inferColumnMetadata(tableName, jsonData);
+        
+        const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(tableName, jsonData, aiComments);
         
         setProject(prev => ({ 
@@ -145,7 +153,7 @@ const App: React.FC = () => {
         </div>
         <h1 className="text-2xl font-black text-gray-900 mb-2">MySQL Connection Failed</h1>
         <div className="text-gray-500 text-center max-w-md font-medium mb-8">
-          The app could not connect to {process.env.MYSQL_IP}:{process.env.MYSQL_PORT}. 
+          The app could not connect to {env.MYSQL_IP}:{env.MYSQL_PORT}. 
           Ensure <code>node gateway.js</code> is running.
           <br /><br />
           <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-mono break-all text-left border border-red-100">
@@ -170,19 +178,21 @@ const App: React.FC = () => {
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
       {/* Global Uploading Overlay */}
       {isUploading && (
-        <div className="absolute inset-0 z-[200] bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-4 transition-all animate-in fade-in duration-300">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border border-blue-50">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Database size={32} className="animate-bounce" />
+        <div className="fixed inset-0 z-[1000] bg-white/70 backdrop-blur-md flex flex-col items-center justify-center transition-all animate-in fade-in duration-300">
+          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 border border-blue-50 max-w-sm text-center">
+            <div className="w-20 h-20 bg-blue-600 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-200">
+              <Database size={36} className="animate-bounce" />
             </div>
-            <div className="text-center">
-              <h2 className="text-lg font-black text-gray-900 tracking-tight">正在同步数据...</h2>
-              <p className="text-sm text-gray-400 font-medium">正在解析 Excel 并应用 AI 语义映射</p>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">正在处理大数据文件</h2>
+              <p className="text-sm text-gray-400 font-medium leading-relaxed">
+                SeekInsight 正在解析 Excel 工作表并利用 AI 提取字段语义描述，这可能需要几十秒时间...
+              </p>
             </div>
-            <div className="flex gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:0ms]"></div>
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:200ms]"></div>
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:400ms]"></div>
+            <div className="flex gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
+              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse [animation-delay:200ms]"></div>
+              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse [animation-delay:400ms]"></div>
             </div>
           </div>
         </div>
@@ -246,12 +256,12 @@ const App: React.FC = () => {
       </div>
       <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase">
         <div className="flex items-center gap-6">
-          <span className="text-green-500 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Host: {process.env.MYSQL_IP}</span>
-          <span>Port: {process.env.MYSQL_PORT}</span>
+          <span className="text-green-500 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Host: {env.MYSQL_IP}</span>
+          <span>Port: {env.MYSQL_PORT}</span>
         </div>
         <div className="flex gap-8">
-          <span>Provider: {process.env.AI_PROVIDER?.toUpperCase()}</span>
-          <span>DB: {process.env.MYSQL_DB} ({project.tables.length} Tables)</span>
+          <span>Provider: {env.AI_PROVIDER.toUpperCase()}</span>
+          <span>DB: {env.MYSQL_DB} ({project.tables.length} Tables)</span>
         </div>
       </footer>
     </div>

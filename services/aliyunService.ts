@@ -1,10 +1,10 @@
 
 import { TableMetadata, DevMode } from "../types";
 
-const API_KEY = process.env.API_KEY;
-const BASE_URL = process.env.API_BASEURL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-
 async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false) {
+  const API_KEY = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
+  const BASE_URL = (typeof process !== 'undefined' ? process.env.API_BASEURL : undefined) || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+
   if (!API_KEY) {
     throw new Error("Aliyun API Key is missing. Please check your environment variables.");
   }
@@ -88,7 +88,6 @@ Format: {"col1": "description", "col2": "description"}`;
 
   try {
     const responseText = await callAliyun(messages, 0.3, true);
-    // Extra safety: sanitize potential markdown wrappers if the model ignores json_mode instructions
     const sanitized = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(sanitized);
   } catch (err) {
