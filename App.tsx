@@ -19,12 +19,12 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
-  // 安全获取环境变量
+  // 安全获取环境变量，提供回退值防止渲染崩溃
   const env = {
-    MYSQL_IP: typeof process !== 'undefined' ? process.env.MYSQL_IP : 'unknown',
-    MYSQL_PORT: typeof process !== 'undefined' ? process.env.MYSQL_PORT : 'unknown',
-    MYSQL_DB: typeof process !== 'undefined' ? process.env.MYSQL_DB : 'unknown',
-    AI_PROVIDER: typeof process !== 'undefined' ? process.env.AI_PROVIDER : 'aliyun'
+    MYSQL_IP: (typeof process !== 'undefined' && process.env.MYSQL_IP) || '127.0.0.1',
+    MYSQL_PORT: (typeof process !== 'undefined' && process.env.MYSQL_PORT) || '3306',
+    MYSQL_DB: (typeof process !== 'undefined' && process.env.MYSQL_DB) || 'test',
+    AI_PROVIDER: (typeof process !== 'undefined' && process.env.AI_PROVIDER) || 'aliyun'
   };
 
   const [project, setProject] = useState<ProjectState>({
@@ -42,18 +42,24 @@ const App: React.FC = () => {
   } as ProjectState);
 
   useEffect(() => {
+    let mounted = true;
     const engine = new MySQLEngine();
+    
     engine.init()
       .then(async () => {
+        if (!mounted) return;
         setDatabaseEngine(engine);
         const tables = await engine.getTables();
         setProject(prev => ({ ...prev, tables }));
         setDbReady(true);
       })
       .catch((err) => {
-        console.error("Initialization Failed:", err);
-        setDbError(err.message);
+        if (!mounted) return;
+        console.error("Database Connection Failed:", err);
+        setDbError(err.message || "Failed to connect to SQL Gateway");
       });
+
+    return () => { mounted = false; };
   }, []);
 
   const handleUpload = async (file: File) => {
@@ -69,7 +75,7 @@ const App: React.FC = () => {
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet) as any[];
         
-        const tableName = file.name.split('.')[0];
+        const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
         const aiComments = await ai.inferColumnMetadata(tableName, jsonData);
         
         const db = getDatabaseEngine();
@@ -80,14 +86,15 @@ const App: React.FC = () => {
           tables: [...prev.tables.filter(t => t.tableName !== newTable.tableName), newTable] 
         }));
       } catch (err: any) {
-        alert("Upload Error: " + err.message);
+        console.error("Upload Error:", err);
+        alert("上传失败: " + err.message);
       } finally {
         setIsUploading(false);
       }
     };
     reader.onerror = () => {
       setIsUploading(false);
-      alert("File reading failed");
+      alert("文件读取失败");
     };
     reader.readAsBinaryString(file);
   };
@@ -115,7 +122,7 @@ const App: React.FC = () => {
           result = {
             data: [],
             columns: [],
-            logs: ["Python kernel active. No SQL query detected."],
+            logs: ["Python kernel active. No SQL query detected in code."],
             timestamp: new Date().toLocaleTimeString()
           };
         }
@@ -123,11 +130,12 @@ const App: React.FC = () => {
 
       const report = result.data.length > 0 
         ? await ai.generateAnalysis(project.activeMode === DevMode.SQL ? project.sqlCode : "Python Script", result.data) 
-        : "No results to analyze.";
+        : "查询未返回任何结果，无法生成分析报告。";
 
       setProject(prev => ({ ...prev, lastResult: result, isExecuting: false, analysisReport: report }));
     } catch (err: any) {
-      alert("Execution Error: " + err.message);
+      console.error("Execution Error:", err);
+      alert("执行错误: " + err.message);
       setProject(prev => ({ ...prev, isExecuting: false }));
     }
   };
@@ -151,16 +159,15 @@ const App: React.FC = () => {
         <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-red-100">
            <AlertCircle size={32} />
         </div>
-        <h1 className="text-2xl font-black text-gray-900 mb-2">MySQL Connection Failed</h1>
+        <h1 className="text-2xl font-black text-gray-900 mb-2">数据库连接失败</h1>
         <div className="text-gray-500 text-center max-w-md font-medium mb-8">
-          The app could not connect to {env.MYSQL_IP}:{env.MYSQL_PORT}. 
-          Ensure <code>node gateway.js</code> is running.
+          无法连接到后端网关 (Gateway)。请确保执行了 <code>node gateway.js</code> 且配置了正确的环境变量。
           <br /><br />
           <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-mono break-all text-left border border-red-100">
             {dbError}
           </div>
         </div>
-        <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold">Retry</button>
+        <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold transition-transform active:scale-95">重试连接</button>
       </div>
     );
   }
@@ -169,14 +176,17 @@ const App: React.FC = () => {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6">
         <Loader2 className="animate-spin text-blue-600" size={64} strokeWidth={1} />
-        <h1 className="text-2xl font-black text-gray-900 tracking-tighter">SeekInsight Connecting...</h1>
+        <div className="text-center">
+           <h1 className="text-2xl font-black text-gray-900 tracking-tighter">SeekInsight 初始化中...</h1>
+           <p className="text-xs text-gray-400 font-bold uppercase mt-1">Connecting to OceanBase via MySQL Protocol</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
-      {/* Global Uploading Overlay */}
+      {/* 全局上传遮罩层 */}
       {isUploading && (
         <div className="fixed inset-0 z-[1000] bg-white/70 backdrop-blur-md flex flex-col items-center justify-center transition-all animate-in fade-in duration-300">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 border border-blue-50 max-w-sm text-center">
@@ -184,9 +194,9 @@ const App: React.FC = () => {
               <Database size={36} className="animate-bounce" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">正在处理大数据文件</h2>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">正在同步大数据文件</h2>
               <p className="text-sm text-gray-400 font-medium leading-relaxed">
-                SeekInsight 正在解析 Excel 工作表并利用 AI 提取字段语义描述，这可能需要几十秒时间...
+                SeekInsight 正在解析工作表并利用 AI 提取字段语义，这需要一点时间...
               </p>
             </div>
             <div className="flex gap-2">
@@ -216,7 +226,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsMarketOpen(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold">
+          <button onClick={() => setIsMarketOpen(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold transition-all hover:bg-blue-100">
             <LayoutGrid size={16} /> Market
           </button>
           <div className="flex items-center gap-3">
