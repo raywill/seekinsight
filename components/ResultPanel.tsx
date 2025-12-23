@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ExecutionResult, DevMode } from '../types';
-import { Table as TableIcon, List, Clock, Hash, Play } from 'lucide-react';
+import { Table as TableIcon, List, Clock, Hash, Play, Download } from 'lucide-react';
 
 interface Props {
   mode: DevMode;
@@ -10,6 +10,34 @@ interface Props {
 }
 
 const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
+  const exportToTSV = () => {
+    if (!result || result.data.length === 0) return;
+
+    // 构建 TSV 内容
+    const headers = result.columns.join('\t');
+    const rows = result.data.map(row => 
+      result.columns.map(col => {
+        const val = row[col];
+        if (val === null || val === undefined) return '';
+        // 简单处理：如果是对象转字符串，如果是字符串则移除换行符和制表符防止格式错乱
+        const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
+        return str.replace(/\t/g, ' ').replace(/\n/g, ' ');
+      }).join('\t')
+    );
+
+    const tsvContent = [headers, ...rows].join('\n');
+    const blob = new Blob([tsvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `query_result_${new Date().getTime()}.tsv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <div className="h-64 border-t border-gray-200 bg-white flex flex-col items-center justify-center gap-3 animate-pulse">
@@ -35,9 +63,20 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
   return (
     <div className="h-80 border-t border-gray-200 bg-white flex flex-col overflow-hidden">
       <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
-          {mode === DevMode.SQL ? <TableIcon size={14} /> : <List size={14} />}
-          <span>{mode === DevMode.SQL ? `Query Result (${result.data.length} rows)` : 'Output Logs'}</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+            {mode === DevMode.SQL ? <TableIcon size={14} /> : <List size={14} />}
+            <span>{mode === DevMode.SQL ? `Query Result (${result.data.length} rows)` : 'Output Logs'}</span>
+          </div>
+          {mode === DevMode.SQL && result.data.length > 0 && (
+            <button 
+              onClick={exportToTSV}
+              className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded-md text-[10px] font-bold text-gray-500 hover:text-blue-600 hover:border-blue-200 transition-all"
+            >
+              <Download size={12} />
+              导出 TSV
+            </button>
+          )}
         </div>
         <div className="text-[10px] text-gray-400 font-mono">
           Last updated: {result.timestamp}

@@ -26,7 +26,8 @@ app.post('/connect', async (req, res) => {
       port: parseInt(port),
       user,
       password,
-      database
+      database,
+      multipleStatements: true // 关键：允许一次发送多条 SQL
     });
     
     await connection.ping();
@@ -38,7 +39,7 @@ app.post('/connect', async (req, res) => {
   }
 });
 
-// 路由 2: 执行真实 SQL
+// 路由 2: 执行 SQL
 app.post('/sql', async (req, res) => {
   const { sql } = req.body;
   
@@ -50,16 +51,25 @@ app.post('/sql', async (req, res) => {
   console.log(`[Gateway] 执行 SQL: ${sql}`);
   
   try {
-    // 使用 query 而不是 execute。
-    // execute 会在服务器端创建 Prepared Statement (Cursor)，在高并发或大量循环调用时容易触发 "maximum open cursors exceeded"。
-    // query 直接发送 SQL 文本，更适合此类动态 SQL 场景。
-    const [rows, fields] = await connection.query(sql);
+    // 处理多条语句的结果
+    let [rows, fields] = await connection.query(sql);
+    
+    // 如果是多条 SQL 执行，mysql2 返回的 rows 和 fields 都是数组的数组
+    // 我们只需要最后一条 query 的结果
+    let finalRows = rows;
+    let finalFields = fields;
+
+    if (fields && Array.isArray(fields[0])) {
+      console.log(`[Gateway] 检测到多条 SQL，提取最后一条结果集...`);
+      finalRows = rows[rows.length - 1];
+      finalFields = fields[fields.length - 1];
+    }
     
     // 提取列名
-    const columns = fields ? fields.map(f => f.name) : (Array.isArray(rows) && rows.length > 0 ? Object.keys(rows[0]) : []);
+    const columns = finalFields ? finalFields.map(f => f.name) : (Array.isArray(finalRows) && finalRows.length > 0 ? Object.keys(finalRows[0]) : []);
     
     res.json({
-      rows: Array.isArray(rows) ? rows : [rows],
+      rows: Array.isArray(finalRows) ? finalRows : [finalRows],
       columns: columns
     });
   } catch (err) {
@@ -71,5 +81,5 @@ app.post('/sql', async (req, res) => {
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`🚀 SQL Gateway 已以 ESM 模式启动: http://localhost:${PORT}`);
-  console.log(`请确保前端请求指向此地址。`);
+  console.log(`支持多语句执行 (multipleStatements: true)`);
 });
