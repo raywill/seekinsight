@@ -10,7 +10,7 @@ import EditorPanel from './components/EditorPanel';
 import ResultPanel from './components/ResultPanel';
 import PublishPanel from './components/PublishPanel';
 import AppMarket from './components/AppMarket';
-import { Boxes, LayoutGrid, Loader2, AlertCircle } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, AlertCircle, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const App: React.FC = () => {
@@ -55,6 +55,7 @@ const App: React.FC = () => {
     reader.onload = async (e) => {
       try {
         const data = e.target?.result;
+        // Large files may take time here
         const workbook = XLSX.read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
@@ -166,7 +167,27 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
+      {/* Global Uploading Overlay */}
+      {isUploading && (
+        <div className="absolute inset-0 z-[200] bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-4 transition-all animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border border-blue-50">
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Database size={32} className="animate-bounce" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-lg font-black text-gray-900 tracking-tight">正在同步数据...</h2>
+              <p className="text-sm text-gray-400 font-medium">正在解析 Excel 并应用 AI 语义映射</p>
+            </div>
+            <div className="flex gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:0ms]"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:200ms]"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:400ms]"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isMarketOpen && <AppMarket onClose={() => setIsMarketOpen(false)} />}
       <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 z-20 shadow-sm">
         <div className="flex items-center gap-8">

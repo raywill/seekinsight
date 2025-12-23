@@ -34,7 +34,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, isUploading }) => 
           {isUploading ? (
             <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">
               <Loader2 size={12} className="animate-spin" />
-              处理中
+              正在同步
             </div>
           ) : (
             <label className="cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200" title="导入数据到 MySQL">
@@ -53,15 +53,6 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, isUploading }) => 
           </div>
         )}
         
-        {isUploading && tables.length === 0 && (
-          <div className="p-8 text-center space-y-3">
-             <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-                <Loader2 size={16} className="animate-spin" />
-             </div>
-             <p className="text-[10px] text-gray-400 font-bold uppercase animate-pulse">正在解析并映射表结构...</p>
-          </div>
-        )}
-
         {tables.map(table => (
           <div key={table.id} className="group">
             <button
@@ -81,13 +72,15 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, isUploading }) => 
                 {table.columns.map(col => (
                   <div 
                     key={col.name} 
-                    className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-gray-100 group/col cursor-help relative"
-                    title={`备注: ${col.comment || '无'} | 类型: ${col.type}`}
+                    className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-blue-50 group/col cursor-help relative"
+                    title={`字段: ${col.name}\n备注: ${col.comment || '无描述'}\n类型: ${col.type}`}
                   >
-                    <span className="text-[11px] text-gray-500 font-mono font-medium truncate flex-1">{col.name}</span>
-                    <div className="flex items-center gap-2 opacity-0 group-hover/col:opacity-100 transition-opacity flex-shrink-0 ml-2">
-                      <span className="text-[9px] text-gray-300 font-black uppercase">{col.type}</span>
-                      <Info size={10} className="text-gray-300" />
+                    <span className="text-[11px] text-gray-500 font-mono font-bold truncate flex-1 group-hover/col:text-blue-600">
+                      {col.name}
+                    </span>
+                    <div className="flex items-center gap-2 opacity-0 group-hover/col:opacity-100 transition-all flex-shrink-0 ml-2">
+                      <span className="text-[9px] text-blue-400 font-black uppercase bg-blue-50 px-1 rounded">{col.type.split('(')[0]}</span>
+                      <Info size={10} className="text-blue-300" />
                     </div>
                   </div>
                 ))}
@@ -100,7 +93,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, isUploading }) => 
       <div className="p-4 bg-gray-50/50 text-[10px] text-gray-400 border-t border-gray-100 font-bold uppercase tracking-widest space-y-1">
         <p className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isUploading ? 'bg-orange-500 animate-pulse' : 'bg-blue-500'}`}></div>
-          {isUploading ? '正在写入 OceanBase...' : 'OceanBase 集群已连接'}
+          {isUploading ? '正在写入集群...' : 'OceanBase 集群已连接'}
         </p>
         <p className="flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>

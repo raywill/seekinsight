@@ -47,11 +47,11 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
       <div className="flex-1 overflow-auto bg-gray-50/20">
         {mode === DevMode.SQL ? (
           <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full text-left text-sm border-collapse table-fixed">
+            <table className="min-w-full text-left text-sm border-collapse table-auto">
               <thead className="sticky top-0 bg-white shadow-sm z-10">
                 <tr className="border-b border-gray-100">
                   {result.columns.map(col => (
-                    <th key={col} className="px-4 py-3 font-semibold text-gray-500 bg-gray-50/80 min-w-[150px]">
+                    <th key={col} className="px-4 py-3 font-semibold text-gray-500 bg-gray-50/80 min-w-[180px] max-w-md">
                       <div className="flex items-center gap-1.5 uppercase tracking-tighter text-[10px]">
                         <Hash size={10} className="flex-shrink-0" />
                         <span className="truncate">{col}</span>
@@ -66,12 +66,12 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
                     {result.columns.map(col => (
                       <td 
                         key={col} 
-                        className="px-4 py-3 text-gray-600 break-all whitespace-normal align-top leading-relaxed min-w-[150px] border-r border-gray-50 last:border-r-0"
+                        className="px-4 py-4 text-gray-600 break-words whitespace-pre-wrap align-top leading-relaxed min-w-[180px] max-w-md border-r border-gray-50 last:border-r-0"
                       >
                         {row[col] === null || row[col] === undefined ? (
                           <span className="text-gray-300 italic">NULL</span>
                         ) : typeof row[col] === 'object' ? (
-                          JSON.stringify(row[col])
+                          <span className="text-blue-500">{JSON.stringify(row[col])}</span>
                         ) : (
                           row[col].toString()
                         )}
