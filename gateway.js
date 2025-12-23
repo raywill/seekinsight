@@ -27,7 +27,7 @@ app.post('/connect', async (req, res) => {
       user,
       password,
       database,
-      multipleStatements: true // 关键：允许一次发送多条 SQL
+      multipleStatements: true // 允许一次发送多条 SQL
     });
     
     await connection.ping();
@@ -51,22 +51,33 @@ app.post('/sql', async (req, res) => {
   console.log(`[Gateway] 执行 SQL: ${sql}`);
   
   try {
-    // 处理多条语句的结果
+    // 执行查询
     let [rows, fields] = await connection.query(sql);
     
-    // 如果是多条 SQL 执行，mysql2 返回的 rows 和 fields 都是数组的数组
-    // 我们只需要最后一条 query 的结果
     let finalRows = rows;
     let finalFields = fields;
 
-    if (fields && Array.isArray(fields[0])) {
-      console.log(`[Gateway] 检测到多条 SQL，提取最后一条结果集...`);
+    /**
+     * 鲁棒的多语句检测逻辑:
+     * 在 mysql2/promise 中：
+     * - 单语句：fields 是一个包含 FieldPacket 的数组。fields[0] 是一个对象。
+     * - 多语句：fields 是一个数组的数组。其中每个元素要么是 FieldPacket 数组（SELECT），要么是 undefined（SET/INSERT/UPDATE）。
+     */
+    const isMultiStatement = Array.isArray(fields) && fields.length > 0 && 
+                             (Array.isArray(fields[0]) || fields[0] === undefined);
+
+    if (isMultiStatement) {
+      console.log(`[Gateway] 检测到多条 SQL 结果，提取最后一条结果集...`);
       finalRows = rows[rows.length - 1];
       finalFields = fields[fields.length - 1];
     }
     
     // 提取列名
-    const columns = finalFields ? finalFields.map(f => f.name) : (Array.isArray(finalRows) && finalRows.length > 0 ? Object.keys(finalRows[0]) : []);
+    // 如果 finalFields 存在，说明最后一条是 SELECT 语句，从字段元数据提取
+    // 如果不存在，说明最后一条是 DDL/DML，尝试从 finalRows 提取（如果是数组）
+    const columns = finalFields 
+      ? finalFields.map(f => f.name) 
+      : (Array.isArray(finalRows) && finalRows.length > 0 ? Object.keys(finalRows[0]) : []);
     
     res.json({
       rows: Array.isArray(finalRows) ? finalRows : [finalRows],
@@ -80,6 +91,6 @@ app.post('/sql', async (req, res) => {
 
 const PORT = 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 SQL Gateway 已以 ESM 模式启动: http://localhost:${PORT}`);
-  console.log(`支持多语句执行 (multipleStatements: true)`);
+  console.log(`🚀 SQL Gateway 已启动: http://localhost:${PORT}`);
+  console.log(`支持多语句混合执行 (e.g., SET + SELECT)`);
 });
