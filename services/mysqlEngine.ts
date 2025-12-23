@@ -85,7 +85,8 @@ export class MySQLEngine implements DatabaseEngine {
         id: Math.random().toString(36).substr(2, 9),
         tableName: row.TABLE_NAME,
         columns: columnsByTable[row.TABLE_NAME] || [],
-        rowCount: row.TABLE_ROWS || 0
+        // 如果 information_schema 返回 null 或者我们想要精确值，可以初始化为 -1
+        rowCount: row.TABLE_ROWS !== null ? row.TABLE_ROWS : -1 
       }));
 
       this.tables = loadedTables;
@@ -98,7 +99,7 @@ export class MySQLEngine implements DatabaseEngine {
           id: Math.random().toString(36).substr(2, 9),
           tableName: name,
           columns: [],
-          rowCount: 0
+          rowCount: -1 // 标记为需要手动刷新
         }));
       } catch (e) {}
     }
@@ -125,6 +126,17 @@ export class MySQLEngine implements DatabaseEngine {
       columns: result.columns || [],
       timestamp: new Date().toLocaleTimeString()
     };
+  }
+
+  async refreshTableStats(tableName: string): Promise<number> {
+    const res = await this.executeQuery(`SELECT COUNT(*) as cnt FROM \`${tableName}\``);
+    const count = parseInt(res.data[0].cnt || 0);
+    
+    // 同步更新本地缓存
+    const table = this.tables.find(t => t.tableName === tableName);
+    if (table) table.rowCount = count;
+    
+    return count;
   }
 
   async createTableFromData(name: string, data: any[], aiComments?: Record<string, string>): Promise<TableMetadata> {

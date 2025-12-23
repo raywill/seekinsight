@@ -19,7 +19,6 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
-  // 安全获取环境变量，提供回退值防止渲染崩溃
   const env = {
     MYSQL_IP: (typeof process !== 'undefined' && process.env.MYSQL_IP) || '127.0.0.1',
     MYSQL_PORT: (typeof process !== 'undefined' && process.env.MYSQL_PORT) || '3306',
@@ -97,6 +96,21 @@ const App: React.FC = () => {
       alert("文件读取失败");
     };
     reader.readAsBinaryString(file);
+  };
+
+  const handleRefreshTableStats = async (tableName: string) => {
+    try {
+      const db = getDatabaseEngine();
+      const count = await db.refreshTableStats(tableName);
+      
+      setProject(prev => ({
+        ...prev,
+        tables: prev.tables.map(t => t.tableName === tableName ? { ...t, rowCount: count } : t)
+      }));
+    } catch (err: any) {
+      console.error("Refresh Stats Error:", err);
+      alert("刷新失败: " + err.message);
+    }
   };
 
   const handleRun = async () => {
@@ -186,7 +200,6 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
-      {/* 全局上传遮罩层 */}
       {isUploading && (
         <div className="fixed inset-0 z-[1000] bg-white/70 backdrop-blur-md flex flex-col items-center justify-center transition-all animate-in fade-in duration-300">
           <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 border border-blue-50 max-w-sm text-center">
@@ -236,7 +249,12 @@ const App: React.FC = () => {
         </div>
       </header>
       <div className="flex-1 flex overflow-hidden">
-        <DataSidebar tables={project.tables} onUploadFile={handleUpload} isUploading={isUploading} />
+        <DataSidebar 
+          tables={project.tables} 
+          onUploadFile={handleUpload} 
+          onRefreshTableStats={handleRefreshTableStats}
+          isUploading={isUploading} 
+        />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
             {['SQL Editor', 'Python Scripting'].map((label, i) => (

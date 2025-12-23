@@ -1,19 +1,33 @@
 
 import React, { useState } from 'react';
 import { TableMetadata } from '../types';
-import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2 } from 'lucide-react';
+import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw } from 'lucide-react';
 
 interface Props {
   tables: TableMetadata[];
   onUploadFile: (file: File) => void;
+  onRefreshTableStats: (tableName: string) => Promise<void>; // 新增：刷新回调
   isUploading: boolean;
 }
 
-const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, isUploading }) => {
+const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, isUploading }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
 
   const toggleTable = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleRefresh = async (e: React.MouseEvent, tableName: string) => {
+    e.stopPropagation(); // 防止触发展开/收起
+    if (refreshing[tableName]) return;
+    
+    setRefreshing(prev => ({ ...prev, [tableName]: true }));
+    try {
+      await onRefreshTableStats(tableName);
+    } finally {
+      setRefreshing(prev => ({ ...prev, [tableName]: false }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,9 +76,24 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, isUploading }) => 
               {expanded[table.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <Table size={14} className="opacity-70" />
               <span className="truncate font-bold flex-1">{table.tableName}</span>
-              <span className="text-[10px] text-gray-400 font-mono group-hover:text-blue-400">
-                {table.rowCount.toLocaleString()}
-              </span>
+              
+              <div className="flex items-center gap-1.5 min-w-[32px] justify-end">
+                {table.rowCount === -1 || refreshing[table.tableName] ? (
+                  <RefreshCw 
+                    size={10} 
+                    className={`text-blue-400 cursor-pointer hover:text-blue-600 transition-colors ${refreshing[table.tableName] ? 'animate-spin' : ''}`}
+                    onClick={(e) => handleRefresh(e, table.tableName)}
+                  />
+                ) : (
+                  <span 
+                    className="text-[10px] text-gray-400 font-mono group-hover:text-blue-400 cursor-pointer hover:underline"
+                    onClick={(e) => handleRefresh(e, table.tableName)}
+                    title="点击重新计算行数"
+                  >
+                    {table.rowCount.toLocaleString()}
+                  </span>
+                )}
+              </div>
             </button>
 
             {expanded[table.id] && (
