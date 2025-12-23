@@ -23,41 +23,53 @@
             box-sizing: border-box;
             padding: 0;
             overflow: hidden;
+            background-color: #fff;
         }
-        .prism-editor-textarea {
+        
+        /* 核心修复：确保 textarea 和 pre 的属性完全镜像 */
+        .prism-editor-textarea, 
+        .prism-editor-pre {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            resize: none;
-            color: transparent;
-            background: transparent;
-            caret-color: #2563eb;
-            z-index: 1;
-            white-space: pre;
-            word-wrap: normal;
-            overflow-x: auto;
-            border: none;
-            outline: none;
-        }
-        .prism-editor-pre {
             margin: 0 !important;
-            border-radius: 0 !important;
-            height: 100%;
-            width: 100%;
-            overflow: hidden !important;
-            pointer-events: none;
-            z-index: 0;
-            background: transparent !important;
-        }
-        .prism-editor-textarea, .prism-editor-pre, .prism-editor-pre code {
+            border: 0 !important;
+            padding: 20px !important; /* 统一 Padding */
             font-family: 'JetBrains Mono', monospace !important;
             font-size: 14px !important;
-            line-height: 1.6 !important;
-            padding: 24px !important;
+            line-height: 1.5 !important;
             tab-size: 4;
-            -moz-tab-size: 4;
+            white-space: pre !important;
+            word-wrap: normal !important;
+            box-sizing: border-box !important;
+        }
+
+        .prism-editor-textarea {
+            color: transparent !important;
+            background: transparent !important;
+            caret-color: #2563eb; /* 蓝色光标 */
+            z-index: 2;
+            resize: none;
+            outline: none;
+            overflow: auto;
+        }
+
+        .prism-editor-pre {
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden !important;
+            background: transparent !important;
+        }
+
+        /* 修复首行偏移的关键：code 标签不能有额外的 padding/margin */
+        .prism-editor-pre code {
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block;
+            background: transparent !important;
+            font-family: inherit !important;
         }
     </style>
 <script type="importmap">
