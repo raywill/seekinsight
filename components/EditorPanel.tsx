@@ -1,8 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DevMode, TableMetadata } from '../types';
 import { Play, Sparkles, Code2, Terminal, RefreshCcw } from 'lucide-react';
 import * as ai from '../services/aiProvider';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-python';
 
 interface Props {
   mode: DevMode;
@@ -17,6 +20,8 @@ const EditorPanel: React.FC<Props> = ({ mode, code, onCodeChange, onRun, isExecu
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
 
   const handleAiGenerate = async () => {
     if (!prompt.trim()) return;
@@ -33,6 +38,46 @@ const EditorPanel: React.FC<Props> = ({ mode, code, onCodeChange, onRun, isExecu
     }
   };
 
+  // Synchronize scroll positions between textarea and pre block
+  const handleScroll = () => {
+    if (textareaRef.current && preRef.current) {
+      preRef.current.scrollTop = textareaRef.current.scrollTop;
+      preRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  };
+
+  const handleTab = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = e.currentTarget.selectionStart;
+      const end = e.currentTarget.selectionEnd;
+      
+      // Insert 4 spaces for tab
+      const newValue = code.substring(0, start) + '    ' + code.substring(end);
+      onCodeChange(newValue);
+      
+      // Restore cursor position after state update
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 4;
+        }
+      }, 0);
+    }
+  };
+
+  // Memoize highlighted code to optimize performance
+  const highlightedCode = useMemo(() => {
+    const langName = mode === DevMode.SQL ? 'sql' : 'python';
+    const grammar = Prism.languages[langName];
+    if (!grammar) return code;
+    return Prism.highlight(code || '', grammar, langName);
+  }, [code, mode]);
+
+  // Ensure scroll is synced after re-renders
+  useEffect(() => {
+    handleScroll();
+  }, [code, mode]);
+
   return (
     <div className="flex-1 flex flex-col bg-white overflow-hidden">
       {/* AI Prompt Bar */}
@@ -44,6 +89,7 @@ const EditorPanel: React.FC<Props> = ({ mode, code, onCodeChange, onRun, isExecu
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
+                handleAiGenerate();
               }
             }}
             placeholder={mode === DevMode.SQL ? "e.g., Calculate monthly revenue by region..." : "e.g., Create a forecast plot using pandas..."}
@@ -62,14 +108,32 @@ const EditorPanel: React.FC<Props> = ({ mode, code, onCodeChange, onRun, isExecu
         {error && <p className="mt-2 text-[10px] font-bold text-red-500 ml-2">{error}</p>}
       </div>
 
-      <div className="flex-1 relative font-mono text-sm group">
+      {/* Code Editor with Syntax Highlighting Overlay */}
+      <div className="flex-1 relative prism-editor-container group">
         <textarea
+          ref={textareaRef}
           value={code}
           onChange={(e) => onCodeChange(e.target.value)}
-          className="w-full h-full p-6 focus:outline-none resize-none bg-white text-gray-800 leading-relaxed"
+          onScroll={handleScroll}
+          onKeyDown={handleTab}
+          className="prism-editor-textarea"
           spellCheck={false}
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
         />
-        <div className="absolute top-4 right-6 px-2 py-1 bg-gray-100 text-gray-500 rounded text-[10px] uppercase font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
+        <pre 
+          ref={preRef}
+          className="prism-editor-pre"
+          aria-hidden="true"
+        >
+          <code 
+            className={`language-${mode.toLowerCase()}`}
+            dangerouslySetInnerHTML={{ __html: highlightedCode + (code.endsWith('\n') ? '\n ' : '\n') }} 
+          />
+        </pre>
+        
+        <div className="absolute top-4 right-6 px-2 py-1 bg-gray-100/80 backdrop-blur-sm text-gray-500 rounded text-[10px] uppercase font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
           {mode} Mode
         </div>
       </div>
