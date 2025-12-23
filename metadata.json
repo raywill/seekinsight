@@ -1,0 +1,5 @@
+{
+  "name": "SeekInsight MVP - AliyunAI - OceanBaseAsBackend",
+  "description": "A NotebookLLM-inspired mini data development platform for AI-assisted SQL and Python development, featuring simulated data execution and report generation.",
+  "requestFramePermissions": []
+}
