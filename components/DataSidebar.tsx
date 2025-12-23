@@ -6,7 +6,7 @@ import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, Refr
 interface Props {
   tables: TableMetadata[];
   onUploadFile: (file: File) => void;
-  onRefreshTableStats: (tableName: string) => Promise<void>; // 新增：刷新回调
+  onRefreshTableStats: (tableName: string) => Promise<void>; 
   isUploading: boolean;
 }
 
@@ -19,7 +19,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
   };
 
   const handleRefresh = async (e: React.MouseEvent, tableName: string) => {
-    e.stopPropagation(); // 防止触发展开/收起
+    e.stopPropagation(); 
     if (refreshing[tableName]) return;
     
     setRefreshing(prev => ({ ...prev, [tableName]: true }));
@@ -78,20 +78,32 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
               <span className="truncate font-bold flex-1">{table.tableName}</span>
               
               <div className="flex items-center gap-1.5 min-w-[32px] justify-end">
-                {table.rowCount === -1 || refreshing[table.tableName] ? (
-                  <RefreshCw 
-                    size={10} 
-                    className={`text-blue-400 cursor-pointer hover:text-blue-600 transition-colors ${refreshing[table.tableName] ? 'animate-spin' : ''}`}
+                {refreshing[table.tableName] ? (
+                  <RefreshCw size={10} className="text-blue-500 animate-spin" />
+                ) : table.rowCount === -1 ? (
+                  <div 
                     onClick={(e) => handleRefresh(e, table.tableName)}
-                  />
-                ) : (
-                  <span 
-                    className="text-[10px] text-gray-400 font-mono group-hover:text-blue-400 cursor-pointer hover:underline"
-                    onClick={(e) => handleRefresh(e, table.tableName)}
-                    title="点击重新计算行数"
+                    className="p-1 hover:bg-blue-100 rounded text-blue-500 transition-colors"
+                    title="点击获取行数"
                   >
-                    {table.rowCount.toLocaleString()}
-                  </span>
+                    <RefreshCw size={10} />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <span 
+                      className="text-[10px] text-gray-400 font-mono"
+                    >
+                      {table.rowCount.toLocaleString()}
+                    </span>
+                    {/* Fixed: Wrapped RefreshCw with a span to handle onClick and title since Lucide icons don't support title prop */}
+                    <span 
+                      className="text-gray-300 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-blue-500 transition-all inline-flex"
+                      onClick={(e) => handleRefresh(e, table.tableName)}
+                      title="点击更新行数"
+                    >
+                      <RefreshCw size={8} />
+                    </span>
+                  </div>
                 )}
               </div>
             </button>
