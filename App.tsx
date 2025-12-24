@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [hasUnreadSuggestions, setHasUnreadSuggestions] = useState(false);
 
   // Request trackers for cancellation/overriding
   const sqlReqId = useRef(0);
@@ -86,7 +87,13 @@ const App: React.FC = () => {
     setIsSuggesting(true);
     try {
       const newSuggestions = await ai.generateSuggestions(project.tables);
-      setProject(prev => ({ ...prev, suggestions: [...prev.suggestions, ...newSuggestions] }));
+      setProject(prev => {
+        // If we are currently NOT on Insight Hub, mark as unread
+        if (prev.activeMode !== DevMode.INSIGHT_HUB) {
+          setHasUnreadSuggestions(true);
+        }
+        return { ...prev, suggestions: [...prev.suggestions, ...newSuggestions] };
+      });
     } catch (err) { console.error(err); } 
     finally { setIsSuggesting(false); }
   };
@@ -228,6 +235,13 @@ const App: React.FC = () => {
     setProject(prev => ({ ...prev, isDeploying: false }));
   };
 
+  const handleTabChange = (tabId: DevMode) => {
+    if (tabId === DevMode.INSIGHT_HUB) {
+      setHasUnreadSuggestions(false);
+    }
+    setProject(prev => ({ ...prev, activeMode: tabId }));
+  };
+
   if (dbError) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-8 text-center">
       <AlertCircle size={32} className="text-red-500 mb-4" />
@@ -262,9 +276,21 @@ const App: React.FC = () => {
         
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
-            {[{ id: DevMode.INSIGHT_HUB, label: 'Insight Hub', icon: <Sparkles size={14} className="mr-1" /> }, { id: DevMode.SQL, label: 'SQL Editor' }, { id: DevMode.PYTHON, label: 'Python Scripting' }].map(tab => (
-              <button key={tab.id} onClick={() => setProject(prev => ({ ...prev, activeMode: tab.id }))} className={`pb-4 text-sm font-black relative flex items-center transition-all ${project.activeMode === tab.id ? 'text-blue-600' : 'text-gray-400'}`}>
-                {tab.icon}{tab.label}{project.activeMode === tab.id && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
+            {[
+              { id: DevMode.INSIGHT_HUB, label: 'Insight Hub', icon: <Sparkles size={14} className="mr-1" /> }, 
+              { id: DevMode.SQL, label: 'SQL Editor' }, 
+              { id: DevMode.PYTHON, label: 'Python Scripting' }
+            ].map(tab => (
+              <button 
+                key={tab.id} 
+                onClick={() => handleTabChange(tab.id)} 
+                className={`pb-4 text-sm font-black relative flex items-center transition-all ${project.activeMode === tab.id ? 'text-blue-600' : 'text-gray-400'}`}
+              >
+                {tab.icon}{tab.label}
+                {tab.id === DevMode.INSIGHT_HUB && hasUnreadSuggestions && (
+                  <div className="absolute top-0 -right-1.5 w-2 h-2 bg-[#ff4d4f] rounded-full border border-white shadow-sm ring-1 ring-[#ff4d4f]/20"></div>
+                )}
+                {project.activeMode === tab.id && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
               </button>
             ))}
           </div>
