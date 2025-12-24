@@ -54,7 +54,8 @@ export interface ProjectState {
   sqlAiPrompt: string;
   pythonAiPrompt: string;
   suggestions: Suggestion[];
-  lastResult: ExecutionResult | null;
+  lastSqlResult: ExecutionResult | null;
+  lastPythonResult: ExecutionResult | null;
   isExecuting: boolean;
   isDeploying: boolean;
   analysisReport: string;

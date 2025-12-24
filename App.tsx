@@ -6,12 +6,12 @@ import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
 import { MySQLEngine } from './services/mysqlEngine';
 import DataSidebar from './components/DataSidebar';
-import EditorPanel from './components/EditorPanel';
-import ResultPanel from './components/ResultPanel';
+import SqlWorkspace from './components/SqlWorkspace';
+import PythonWorkspace from './components/PythonWorkspace';
 import PublishPanel from './components/PublishPanel';
 import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
-import { Boxes, LayoutGrid, Loader2, AlertCircle, Database, RefreshCw, Sparkles } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const App: React.FC = () => {
@@ -39,7 +39,8 @@ const App: React.FC = () => {
     sqlAiPrompt: '',
     pythonAiPrompt: '',
     suggestions: [],
-    lastResult: null,
+    lastSqlResult: null,
+    lastPythonResult: null,
     isExecuting: false,
     isDeploying: false,
     analysisReport: '',
@@ -67,7 +68,6 @@ const App: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
-  // Auto-fetch suggestions on first hub view
   useEffect(() => {
     if (project.activeMode === DevMode.INSIGHT_HUB && project.suggestions.length === 0 && project.tables.length > 0) {
       handleFetchSuggestions();
@@ -152,13 +152,17 @@ const App: React.FC = () => {
 
   const handleRun = async () => {
     if (!dbReady) return;
-    setProject(prev => ({ ...prev, isExecuting: true, lastResult: null }));
+    setProject(prev => ({ ...prev, isExecuting: true }));
     
     try {
       let result: ExecutionResult;
       if (project.activeMode === DevMode.SQL) {
         const db = getDatabaseEngine();
         result = await db.executeQuery(project.sqlCode);
+        const report = result.data.length > 0 
+          ? await ai.generateAnalysis(project.sqlCode, result.data) 
+          : "SQL executed successfully.";
+        setProject(prev => ({ ...prev, lastSqlResult: result, isExecuting: false, analysisReport: report }));
       } else {
         const response = await fetch(`${env.GATEWAY_URL}/python`, {
           method: 'POST',
@@ -167,7 +171,6 @@ const App: React.FC = () => {
         });
         
         const data = await response.json();
-        
         result = {
           data: data.data || [],
           columns: data.columns || [],
@@ -178,19 +181,14 @@ const App: React.FC = () => {
         if (!response.ok) {
            setProject(prev => ({ 
              ...prev, 
-             lastResult: result, 
+             lastPythonResult: result, 
              isExecuting: false, 
-             analysisReport: "Python script execution failed. Please check the logs below for debugging information." 
+             analysisReport: "Python script failed." 
            }));
            return;
         }
+        setProject(prev => ({ ...prev, lastPythonResult: result, isExecuting: false }));
       }
-
-      const report = result.data.length > 0 
-        ? await ai.generateAnalysis(project.activeMode === DevMode.SQL ? project.sqlCode : "Python Script", result.data) 
-        : "Execution finished with no visual results to analyze.";
-
-      setProject(prev => ({ ...prev, lastResult: result, isExecuting: false, analysisReport: report }));
     } catch (err: any) {
       console.error("Execution Error:", err);
       const errorResult: ExecutionResult = {
@@ -201,9 +199,8 @@ const App: React.FC = () => {
       };
       setProject(prev => ({ 
         ...prev, 
-        lastResult: errorResult, 
-        isExecuting: false, 
-        analysisReport: "An unexpected system error occurred. See logs for details." 
+        [project.activeMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult, 
+        isExecuting: false 
       }));
     }
   };
@@ -212,20 +209,6 @@ const App: React.FC = () => {
     setProject(prev => ({ ...prev, isDeploying: true }));
     await new Promise(resolve => setTimeout(resolve, 1500));
     setProject(prev => ({ ...prev, isDeploying: false }));
-  };
-
-  const setCode = (val: string) => {
-    setProject(prev => ({
-      ...prev,
-      [project.activeMode === DevMode.SQL ? 'sqlCode' : 'pythonCode']: val
-    }));
-  };
-
-  const handlePromptChange = (val: string) => {
-    setProject(prev => ({
-      ...prev,
-      [project.activeMode === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: val
-    }));
   };
 
   if (dbError) {
@@ -269,22 +252,34 @@ const App: React.FC = () => {
             isLoading={isSuggesting}
           />
         );
-      default:
+      case DevMode.SQL:
         return (
-          <>
-            <EditorPanel 
-              mode={project.activeMode as any} 
-              code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
-              onCodeChange={setCode}
-              aiPrompt={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
-              onAiPromptChange={handlePromptChange}
-              onRun={handleRun}
-              isExecuting={project.isExecuting}
-              tables={project.tables}
-            />
-            <ResultPanel mode={project.activeMode as any} result={project.lastResult} isLoading={project.isExecuting} />
-          </>
+          <SqlWorkspace 
+            code={project.sqlCode}
+            onCodeChange={(val) => setProject(p => ({ ...p, sqlCode: val }))}
+            prompt={project.sqlAiPrompt}
+            onPromptChange={(val) => setProject(p => ({ ...p, sqlAiPrompt: val }))}
+            result={project.lastSqlResult}
+            onRun={handleRun}
+            isExecuting={project.isExecuting}
+            tables={project.tables}
+          />
         );
+      case DevMode.PYTHON:
+        return (
+          <PythonWorkspace 
+            code={project.pythonCode}
+            onCodeChange={(val) => setProject(p => ({ ...p, pythonCode: val }))}
+            prompt={project.pythonAiPrompt}
+            onPromptChange={(val) => setProject(p => ({ ...p, pythonAiPrompt: val }))}
+            result={project.lastPythonResult}
+            onRun={handleRun}
+            isExecuting={project.isExecuting}
+            tables={project.tables}
+          />
+        );
+      default:
+        return null;
     }
   };
 
@@ -362,7 +357,13 @@ const App: React.FC = () => {
           {renderContent()}
         </main>
         {project.activeMode !== DevMode.INSIGHT_HUB && (
-          <PublishPanel mode={project.activeMode as any} result={project.lastResult} analysis={project.analysisReport} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
+          <PublishPanel 
+            mode={project.activeMode as any} 
+            result={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult} 
+            analysis={project.analysisReport} 
+            onDeploy={handleDeploy} 
+            isDeploying={project.isDeploying} 
+          />
         )}
       </div>
       <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest">
