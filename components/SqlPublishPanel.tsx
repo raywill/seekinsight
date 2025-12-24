@@ -185,18 +185,18 @@ const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRec
     <div className="w-96 bg-white border-l border-gray-100 flex flex-col h-full shadow-2xl shadow-black/5">
       <div className="flex border-b border-gray-100 bg-white">
         <button 
+          onClick={() => setTab('viz')} 
+          className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'viz' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+        >
+          <BarChart3 size={14} /> CHART
+          {isRecommendingCharts && <RefreshCw size={10} className="animate-spin" />}
+        </button>
+        <button 
           onClick={() => setTab('report')} 
           className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'report' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
         >
           <FileText size={14} /> Report
           {isAnalyzing && <RefreshCw size={10} className="animate-spin" />}
-        </button>
-        <button 
-          onClick={() => setTab('viz')} 
-          className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'viz' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-        >
-          <BarChart3 size={14} /> Visualization
-          {isRecommendingCharts && <RefreshCw size={10} className="animate-spin" />}
         </button>
       </div>
 
