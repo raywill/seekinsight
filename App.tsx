@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { DevMode, ProjectState, TableMetadata, ExecutionResult } from './types';
+import { DevMode, ProjectState, TableMetadata, ExecutionResult, Suggestion } from './types';
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
@@ -10,7 +10,8 @@ import EditorPanel from './components/EditorPanel';
 import ResultPanel from './components/ResultPanel';
 import PublishPanel from './components/PublishPanel';
 import AppMarket from './components/AppMarket';
-import { Boxes, LayoutGrid, Loader2, AlertCircle, Database, RefreshCw } from 'lucide-react';
+import InsightHub from './components/InsightHub';
+import { Boxes, LayoutGrid, Loader2, AlertCircle, Database, RefreshCw, Sparkles } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const App: React.FC = () => {
@@ -18,6 +19,7 @@ const App: React.FC = () => {
   const [dbReady, setDbReady] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const env = {
     MYSQL_IP: (typeof process !== 'undefined' && process.env.MYSQL_IP) || '127.0.0.1',
@@ -34,6 +36,9 @@ const App: React.FC = () => {
     activeMode: DevMode.SQL,
     sqlCode: INITIAL_SQL,
     pythonCode: INITIAL_PYTHON,
+    sqlAiPrompt: '',
+    pythonAiPrompt: '',
+    suggestions: [],
     lastResult: null,
     isExecuting: false,
     isDeploying: false,
@@ -61,6 +66,37 @@ const App: React.FC = () => {
 
     return () => { mounted = false; };
   }, []);
+
+  // Auto-fetch suggestions on first hub view
+  useEffect(() => {
+    if (project.activeMode === DevMode.INSIGHT_HUB && project.suggestions.length === 0 && project.tables.length > 0) {
+      handleFetchSuggestions();
+    }
+  }, [project.activeMode, project.tables]);
+
+  const handleFetchSuggestions = async () => {
+    if (isSuggesting || project.tables.length === 0) return;
+    setIsSuggesting(true);
+    try {
+      const newSuggestions = await ai.generateSuggestions(project.tables);
+      setProject(prev => ({ 
+        ...prev, 
+        suggestions: [...prev.suggestions, ...newSuggestions] 
+      }));
+    } catch (err) {
+      console.error("Failed to fetch suggestions:", err);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const handleApplySuggestion = (s: Suggestion) => {
+    setProject(prev => ({
+      ...prev,
+      activeMode: s.type,
+      [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt
+    }));
+  };
 
   const handleUpload = async (file: File) => {
     if (!dbReady || isUploading) return;
@@ -124,7 +160,6 @@ const App: React.FC = () => {
         const db = getDatabaseEngine();
         result = await db.executeQuery(project.sqlCode);
       } else {
-        // Real Python execution via dynamic Gateway URL
         const response = await fetch(`${env.GATEWAY_URL}/python`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -186,6 +221,13 @@ const App: React.FC = () => {
     }));
   };
 
+  const handlePromptChange = (val: string) => {
+    setProject(prev => ({
+      ...prev,
+      [project.activeMode === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: val
+    }));
+  };
+
   if (dbError) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-8 text-center">
@@ -215,6 +257,36 @@ const App: React.FC = () => {
       </div>
     );
   }
+
+  const renderContent = () => {
+    switch (project.activeMode) {
+      case DevMode.INSIGHT_HUB:
+        return (
+          <InsightHub 
+            suggestions={project.suggestions} 
+            onApply={handleApplySuggestion} 
+            onFetchMore={handleFetchSuggestions}
+            isLoading={isSuggesting}
+          />
+        );
+      default:
+        return (
+          <>
+            <EditorPanel 
+              mode={project.activeMode as any} 
+              code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
+              onCodeChange={setCode}
+              aiPrompt={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
+              onAiPromptChange={handlePromptChange}
+              onRun={handleRun}
+              isExecuting={project.isExecuting}
+              tables={project.tables}
+            />
+            <ResultPanel mode={project.activeMode as any} result={project.lastResult} isLoading={project.isExecuting} />
+          </>
+        );
+    }
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
@@ -269,31 +341,29 @@ const App: React.FC = () => {
           isUploading={isUploading} 
         />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
-          <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
-            {['SQL Editor', 'Python Scripting'].map((label, i) => (
+          <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50 bg-white">
+            {[
+              { id: DevMode.INSIGHT_HUB, label: 'Insight Hub', icon: <Sparkles size={14} className="mr-1" /> },
+              { id: DevMode.SQL, label: 'SQL Editor' },
+              { id: DevMode.PYTHON, label: 'Python Scripting' }
+            ].map((tab) => (
               <button
-                key={label}
-                onClick={() => setProject(prev => ({ ...prev, activeMode: i === 0 ? DevMode.SQL : DevMode.PYTHON }))}
-                className={`pb-4 text-sm font-black transition-all relative ${
-                  (i === 0 && project.activeMode === DevMode.SQL) || (i === 1 && project.activeMode === DevMode.PYTHON) ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                key={tab.id}
+                onClick={() => setProject(prev => ({ ...prev, activeMode: tab.id }))}
+                className={`pb-4 text-sm font-black transition-all relative flex items-center ${
+                  project.activeMode === tab.id ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
-                {label}
-                {((i === 0 && project.activeMode === DevMode.SQL) || (i === 1 && project.activeMode === DevMode.PYTHON)) && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
+                {tab.icon}{tab.label}
+                {project.activeMode === tab.id && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
               </button>
             ))}
           </div>
-          <EditorPanel 
-            mode={project.activeMode} 
-            code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
-            onCodeChange={setCode}
-            onRun={handleRun}
-            isExecuting={project.isExecuting}
-            tables={project.tables}
-          />
-          <ResultPanel mode={project.activeMode} result={project.lastResult} isLoading={project.isExecuting} />
+          {renderContent()}
         </main>
-        <PublishPanel mode={project.activeMode} result={project.lastResult} analysis={project.analysisReport} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
+        {project.activeMode !== DevMode.INSIGHT_HUB && (
+          <PublishPanel mode={project.activeMode as any} result={project.lastResult} analysis={project.analysisReport} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
+        )}
       </div>
       <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest">
         <div className="flex items-center gap-6">

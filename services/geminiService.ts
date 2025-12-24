@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { TableMetadata, DevMode } from "../types";
+import { TableMetadata, DevMode, Suggestion } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -106,4 +106,56 @@ export const generateAnalysis = async (query: string, result: any[]): Promise<st
   });
 
   return response.text || "";
+};
+
+export const generateSuggestions = async (tables: TableMetadata[]): Promise<Suggestion[]> => {
+  const schemaStr = tables.map(t => 
+    `Table: ${t.tableName}
+Columns: ${t.columns.map(c => `${c.name} (${c.type}: ${c.comment})`).join(', ')}`
+  ).join('\n\n');
+
+  const prompt = `Based on the following schema, generate 8 data analysis ideas. 
+4 SQL-based and 4 Python-based.
+
+Schema:
+${schemaStr}`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          suggestions: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                title: { type: Type.STRING },
+                prompt: { type: Type.STRING },
+                category: { type: Type.STRING },
+                type: { type: Type.STRING, description: "Must be 'SQL' or 'PYTHON'" }
+              },
+              required: ["id", "title", "prompt", "category", "type"]
+            }
+          }
+        },
+        required: ["suggestions"]
+      }
+    }
+  });
+
+  try {
+    const data = JSON.parse(response.text || "{}");
+    return (data.suggestions || []).map((s: any) => ({
+      ...s,
+      type: s.type === 'SQL' ? DevMode.SQL : DevMode.PYTHON
+    }));
+  } catch (err) {
+    console.error("Gemini suggestion parsing failed", err);
+    return [];
+  }
 };

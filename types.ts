@@ -1,7 +1,8 @@
 
 export enum DevMode {
   SQL = 'SQL',
-  PYTHON = 'PYTHON'
+  PYTHON = 'PYTHON',
+  INSIGHT_HUB = 'INSIGHT_HUB'
 }
 
 export interface Column {
@@ -24,6 +25,14 @@ export interface ExecutionResult {
   timestamp: string;
 }
 
+export interface Suggestion {
+  id: string;
+  title: string;
+  prompt: string;
+  category: string;
+  type: DevMode.SQL | DevMode.PYTHON;
+}
+
 export interface AppMarketItem {
   id: string;
   name: string;
@@ -42,6 +51,9 @@ export interface ProjectState {
   activeMode: DevMode;
   sqlCode: string;
   pythonCode: string;
+  sqlAiPrompt: string;
+  pythonAiPrompt: string;
+  suggestions: Suggestion[];
   lastResult: ExecutionResult | null;
   isExecuting: boolean;
   isDeploying: boolean;

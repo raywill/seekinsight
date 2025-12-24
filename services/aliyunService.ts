@@ -1,5 +1,5 @@
 
-import { TableMetadata, DevMode } from "../types";
+import { TableMetadata, DevMode, Suggestion } from "../types";
 
 async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false) {
   const API_KEY = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
@@ -111,4 +111,44 @@ Provide a professional executive summary and 3 actionable data insights in Markd
   ];
 
   return await callAliyun(messages, 0.5);
+};
+
+export const generateSuggestions = async (tables: TableMetadata[]): Promise<Suggestion[]> => {
+  const schemaStr = tables.map(t => 
+    `Table: ${t.tableName}
+Columns: ${t.columns.map(c => `${c.name} (${c.type}: ${c.comment})`).join(', ')}`
+  ).join('\n\n');
+
+  const prompt = `Based on the following database schema, generate 8 creative data analysis ideas. 
+4 should be SQL-based (reporting, aggregation) and 4 should be Python-based (forecasting, correlation, advanced visualization).
+
+Return a JSON object with a "suggestions" key containing an array of objects:
+{
+  "id": "unique_string",
+  "title": "Brief catchy title of the analysis",
+  "prompt": "The actual natural language prompt to give to an AI code generator",
+  "category": "e.g., Growth, Revenue, Risk, Operations",
+  "type": "SQL" or "PYTHON"
+}
+
+Schema:
+${schemaStr}`;
+
+  const messages = [
+    { role: "system", content: "You are a strategic data consultant. Respond ONLY with a valid JSON object." },
+    { role: "user", content: prompt }
+  ];
+
+  try {
+    const responseText = await callAliyun(messages, 0.7, true);
+    const sanitized = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const data = JSON.parse(sanitized);
+    return (data.suggestions || []).map((s: any) => ({
+      ...s,
+      type: s.type === 'SQL' ? DevMode.SQL : DevMode.PYTHON
+    }));
+  } catch (err) {
+    console.error("Suggestion generation failed:", err);
+    return [];
+  }
 };

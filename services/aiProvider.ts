@@ -1,5 +1,5 @@
 
-import { TableMetadata, DevMode } from "../types";
+import { TableMetadata, DevMode, Suggestion } from "../types";
 import * as gemini from "./geminiService";
 import * as aliyun from "./aliyunService";
 
@@ -7,6 +7,7 @@ export interface AiService {
   generateCode(prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<string>;
   inferColumnMetadata(tableName: string, data: any[]): Promise<Record<string, string>>;
   generateAnalysis(query: string, result: any[]): Promise<string>;
+  generateSuggestions(tables: TableMetadata[]): Promise<Suggestion[]>;
 }
 
 const getProvider = (): AiService => {
@@ -25,3 +26,6 @@ export const inferColumnMetadata = (tableName: string, data: any[]) =>
 
 export const generateAnalysis = (query: string, result: any[]) => 
   getProvider().generateAnalysis(query, result);
+
+export const generateSuggestions = (tables: TableMetadata[]) =>
+  getProvider().generateSuggestions(tables);
