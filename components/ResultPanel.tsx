@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ExecutionResult, DevMode } from '../types';
-import { Table as TableIcon, List, Clock, Hash, Play, Download } from 'lucide-react';
+import { Table as TableIcon, List, Clock, Hash, Play, Download, AlertCircle } from 'lucide-react';
 
 interface Props {
   mode: DevMode;
@@ -58,15 +58,22 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
     );
   }
 
+  const hasError = result.logs && result.logs.length > 0 && result.data.length === 0;
+  const isSql = mode === DevMode.SQL;
+
   return (
     <div className="h-80 border-t border-gray-200 bg-white flex flex-col overflow-hidden">
-      <div className="px-4 py-1.5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between shrink-0">
+      <div className={`px-4 py-1.5 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50/50'}`}>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-[11px] font-bold text-gray-600">
-            {mode === DevMode.SQL ? <TableIcon size={12} /> : <List size={12} />}
-            <span>{mode === DevMode.SQL ? `RESULT: ${result.data.length} ROWS` : 'OUTPUT LOGS'}</span>
+          <div className={`flex items-center gap-2 text-[11px] font-bold ${hasError ? 'text-red-600' : 'text-gray-600'}`}>
+            {hasError ? <AlertCircle size={12} /> : (isSql ? <TableIcon size={12} /> : <List size={12} />)}
+            <span>
+              {hasError 
+                ? 'EXECUTION ERROR' 
+                : (isSql ? `RESULT: ${result.data.length} ROWS` : 'OUTPUT LOGS')}
+            </span>
           </div>
-          {mode === DevMode.SQL && result.data.length > 0 && (
+          {isSql && !hasError && result.data.length > 0 && (
             <button 
               onClick={exportToTSV}
               className="flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded text-[10px] font-bold text-gray-500 hover:text-blue-600 hover:border-blue-200 transition-all"
@@ -76,15 +83,14 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
             </button>
           )}
         </div>
-        <div className="text-[10px] text-gray-400 font-mono">
+        <div className={`text-[10px] font-mono ${hasError ? 'text-red-400' : 'text-gray-400'}`}>
           {result.timestamp}
         </div>
       </div>
 
       <div className="flex-1 overflow-auto bg-white">
-        {mode === DevMode.SQL ? (
+        {isSql && !hasError ? (
           <div className="inline-block min-w-full align-middle">
-            {/* 修改: 去掉 table-fixed 改为 table-auto 以支持自适应宽度，但限制最大宽度 */}
             <table className="min-w-full text-left text-[11px] border-collapse table-auto">
               <thead className="sticky top-0 bg-white shadow-sm z-10">
                 <tr className="border-b border-gray-200">
@@ -104,7 +110,6 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
                     {result.columns.map(col => (
                       <td 
                         key={col} 
-                        /* 修改: 移除 truncate，增加 break-words 和 whitespace-pre-wrap 支持长文本换行，并限制 max-w */
                         className="px-2 py-1 text-gray-600 break-words whitespace-pre-wrap max-w-[400px] border-r border-gray-50 last:border-r-0 leading-tight align-top"
                       >
                         {row[col] === null || row[col] === undefined ? (
@@ -122,16 +127,25 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
             </table>
           </div>
         ) : (
-          <div className="p-4 font-mono text-[12px] text-gray-700 space-y-1">
+          <div className={`p-4 font-mono text-[12px] space-y-1 ${hasError ? 'bg-red-50/10 text-red-700' : 'text-gray-700'}`}>
             {result.logs?.map((log, i) => (
               <div key={i} className="flex gap-4">
-                <span className="text-gray-300 select-none">[{i+1}]</span>
+                <span className={`select-none ${hasError ? 'text-red-300' : 'text-gray-300'}`}>[{i+1}]</span>
                 <span className="break-all">{log}</span>
               </div>
             ))}
-            <div className="pt-4 mt-4 border-t border-gray-100">
-               <span className="text-blue-600 font-bold">&gt;&gt;&gt; Done</span>
-            </div>
+            {!hasError && (
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                 <span className="text-blue-600 font-bold">&gt;&gt;&gt; Done</span>
+              </div>
+            )}
+            {hasError && (
+              <div className="pt-4 mt-4 border-t border-red-100">
+                 <span className="text-red-600 font-bold tracking-tight uppercase flex items-center gap-2">
+                   <AlertCircle size={14} /> Process terminated with errors
+                 </span>
+              </div>
+            )}
           </div>
         )}
       </div>
