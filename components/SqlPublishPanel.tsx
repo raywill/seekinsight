@@ -120,14 +120,33 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
             <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
             <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
             {yKeys.map((key, i) => (
-              <Line key={key} type="monotone" dataKey={key} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length], strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5 }} />
+              <Line 
+                key={key} 
+                type="monotone" 
+                dataKey={key} 
+                stroke={CHART_COLORS[i % CHART_COLORS.length]} 
+                strokeWidth={2.5} 
+                dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length], strokeWidth: 2, stroke: '#fff' }} 
+                activeDot={{ r: 5 }} 
+                isAnimationActive={false}
+              />
             ))}
           </LineChart>
         );
       case 'pie':
         return (
           <PieChart>
-            <Pie data={data} dataKey={yKeys[0]} nameKey={xKey} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={3}>
+            <Pie 
+              data={data} 
+              dataKey={yKeys[0]} 
+              nameKey={xKey} 
+              cx="50%" 
+              cy="50%" 
+              innerRadius={50} 
+              outerRadius={70} 
+              paddingAngle={3}
+              isAnimationActive={false}
+            >
               {data.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
             </Pie>
             <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
@@ -144,8 +163,23 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
             <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
             {yKeys.map((key, i) => (
               type === 'area' ? 
-                <Area key={key} type="monotone" dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.15} strokeWidth={2} /> :
-                <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[3, 3, 0, 0]} />
+                <Area 
+                  key={key} 
+                  type="monotone" 
+                  dataKey={key} 
+                  fill={CHART_COLORS[i % CHART_COLORS.length]} 
+                  stroke={CHART_COLORS[i % CHART_COLORS.length]} 
+                  fillOpacity={0.15} 
+                  strokeWidth={2} 
+                  isAnimationActive={false}
+                /> :
+                <Bar 
+                  key={key} 
+                  dataKey={key} 
+                  fill={CHART_COLORS[i % CHART_COLORS.length]} 
+                  radius={[3, 3, 0, 0]} 
+                  isAnimationActive={false}
+                />
             ))}
           </ChartComponent>
         );
