@@ -43,7 +43,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item: Suggestion) => (
           <div 
-            key={item.id} 
+            key={item.id || Math.random().toString()} 
             className="group bg-white border border-gray-100 rounded-2xl p-5 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/5 transition-all flex flex-col justify-between"
           >
             <div>
@@ -51,7 +51,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
                 <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${badgeClass}`}>
                   {item.category}
                 </span>
-                <span className="text-[10px] font-bold text-gray-300">#{item.id.slice(0, 4)}</span>
+                <span className="text-[10px] font-bold text-gray-300">#{ (item.id || 'IDEA').slice(0, 4) }</span>
               </div>
               <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-1">
                 {item.title}

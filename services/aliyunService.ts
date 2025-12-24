@@ -109,6 +109,7 @@ export const generateSuggestions = async (tables: TableMetadata[]): Promise<Sugg
     const data = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
     return (data.suggestions || []).map((s: any) => ({
       ...s,
+      id: s.id || Math.random().toString(36).substr(2, 9),
       type: s.type === 'SQL' ? DevMode.SQL : DevMode.PYTHON
     }));
   } catch (err) {

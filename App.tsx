@@ -21,6 +21,8 @@ const App: React.FC = () => {
   const [dbError, setDbError] = useState<string | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
 
+  const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
+
   const env = {
     MYSQL_IP: (typeof process !== 'undefined' && process.env.MYSQL_IP) || '127.0.0.1',
     MYSQL_PORT: (typeof process !== 'undefined' && process.env.MYSQL_PORT) || '3306',
@@ -76,6 +78,7 @@ const App: React.FC = () => {
   const handleFetchSuggestions = async () => {
     if (isSuggesting || project.tables.length === 0) return;
     setIsSuggesting(true);
+    if (IS_DEBUG) console.time('FetchSuggestions');
     try {
       const newSuggestions = await ai.generateSuggestions(project.tables);
       setProject(prev => ({ ...prev, suggestions: [...prev.suggestions, ...newSuggestions] }));
@@ -83,6 +86,7 @@ const App: React.FC = () => {
       console.error(err);
     } finally {
       setIsSuggesting(false);
+      if (IS_DEBUG) console.timeEnd('FetchSuggestions');
     }
   };
 
@@ -133,17 +137,22 @@ const App: React.FC = () => {
   const handleRun = async () => {
     if (!dbReady) return;
     setProject(prev => ({ ...prev, isExecuting: true }));
+    if (IS_DEBUG) console.time('TotalExecution');
     
     try {
       let result: ExecutionResult;
       if (project.activeMode === DevMode.SQL) {
+        if (IS_DEBUG) console.time('SQL_Gateway_Execution');
         const db = getDatabaseEngine();
         result = await db.executeQuery(project.sqlCode);
+        if (IS_DEBUG) console.timeEnd('SQL_Gateway_Execution');
         
+        if (IS_DEBUG) console.time('AI_Analysis_And_Charts');
         const [report, chartConfigs] = await Promise.all([
           result.data.length > 0 ? ai.generateAnalysis(project.sqlCode, result.data) : "SQL executed successfully.",
           (SI_ENABLE_AI_CHART && result.data.length > 0) ? ai.recommendCharts(project.sqlCode, result.data) : Promise.resolve([])
         ]);
+        if (IS_DEBUG) console.timeEnd('AI_Analysis_And_Charts');
 
         setProject(prev => ({ 
           ...prev, 
@@ -152,6 +161,7 @@ const App: React.FC = () => {
           analysisReport: report 
         }));
       } else {
+        if (IS_DEBUG) console.time('Python_Gateway_Execution');
         const response = await fetch(`${env.GATEWAY_URL}/python`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -159,6 +169,8 @@ const App: React.FC = () => {
           signal: AbortSignal.timeout(60000)
         });
         const data = await response.json();
+        if (IS_DEBUG) console.timeEnd('Python_Gateway_Execution');
+        
         result = {
           data: data.data || [],
           columns: data.columns || [],
@@ -168,7 +180,9 @@ const App: React.FC = () => {
         };
         
         if (SI_ENABLE_AI_CHART && result.data.length > 0) {
+          if (IS_DEBUG) console.time('AI_Chart_Recommendation');
           result.chartConfigs = await ai.recommendCharts(project.pythonCode, result.data);
+          if (IS_DEBUG) console.timeEnd('AI_Chart_Recommendation');
         }
 
         setProject(prev => ({ ...prev, lastPythonResult: result, isExecuting: false }));
@@ -181,6 +195,8 @@ const App: React.FC = () => {
         timestamp: new Date().toLocaleTimeString()
       };
       setProject(prev => ({ ...prev, [project.activeMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult, isExecuting: false }));
+    } finally {
+      if (IS_DEBUG) console.timeEnd('TotalExecution');
     }
   };
 
