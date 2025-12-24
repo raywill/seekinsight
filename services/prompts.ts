@@ -11,7 +11,8 @@ export const SYSTEM_PROMPTS = {
        - Prefer CTE to subquery.
        Available Schema:\n${schema}`
       : `You are a Python data scientist. Please write a python script. 
-       - Core libraries: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
+       - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
+       - \`sql(query)\` is a predefined function you can use to execute a query without declaration
        - Use sql(query) to get a DataFrame.
        - Use forge_plotly(fig) for interactive charts.
        - NEVER use matplotlib.
@@ -25,7 +26,21 @@ export const SYSTEM_PROMPTS = {
     2. Reference the available database schema to find potential column name errors or type mismatches.
     3. Provide a fixed, working version of the code.
     - Return ONLY the corrected code without any explanation or markdown formatting.
-    
+    `+ 
+    mode === DevMode.SQL 
+        ? `Basic Rules to write valid MySQL/OceanBase compatible SQL: 
+       - Always use backticks for table and column names.
+       - Use column comments to understand data semantics.
+       - Only return raw SQL code, no markdown blocks.
+       - Prefer CTE to subquery.`
+      : `Basic Rules to write a python script:
+       - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
+       - NEVER use matplotlib library.
+       - \`sql(query)\` is a predefined function you can use to execute a query without declaration
+       - Use sql(query) to get a DataFrame.
+       - Use forge_plotly(fig) for interactive charts.
+       - Only return raw Python code.
+
     Schema context:\n${schema}`,
 
   METADATA_INFER: `You are a data architect. Generate brief semantic descriptions for database columns based on headers and sample data. Respond ONLY with a valid JSON object.`,
