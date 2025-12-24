@@ -86,14 +86,14 @@ const App: React.FC = () => {
         }));
       } catch (err: any) {
         console.error("Upload Error:", err);
-        alert("上传失败: " + err.message);
+        alert("Upload failed: " + err.message);
       } finally {
         setIsUploading(false);
       }
     };
     reader.onerror = () => {
       setIsUploading(false);
-      alert("文件读取失败");
+      alert("Failed to read file");
     };
     reader.readAsBinaryString(file);
   };
@@ -109,7 +109,7 @@ const App: React.FC = () => {
       }));
     } catch (err: any) {
       console.error("Refresh Stats Error:", err);
-      alert("刷新失败: " + err.message);
+      alert("Refresh failed: " + err.message);
     }
   };
 
@@ -144,12 +144,12 @@ const App: React.FC = () => {
 
       const report = result.data.length > 0 
         ? await ai.generateAnalysis(project.activeMode === DevMode.SQL ? project.sqlCode : "Python Script", result.data) 
-        : "查询未返回任何结果，无法生成分析报告。";
+        : "Query returned no results, unable to generate analysis report.";
 
       setProject(prev => ({ ...prev, lastResult: result, isExecuting: false, analysisReport: report }));
     } catch (err: any) {
       console.error("Execution Error:", err);
-      alert("执行错误: " + err.message);
+      alert("Execution Error: " + err.message);
       setProject(prev => ({ ...prev, isExecuting: false }));
     }
   };
@@ -169,19 +169,18 @@ const App: React.FC = () => {
 
   if (dbError) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-8">
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-8 text-center">
         <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-red-100">
            <AlertCircle size={32} />
         </div>
-        <h1 className="text-2xl font-black text-gray-900 mb-2">数据库连接失败</h1>
-        <div className="text-gray-500 text-center max-w-md font-medium mb-8">
-          无法连接到后端网关 (Gateway)。请确保执行了 <code>node gateway.js</code> 且配置了正确的环境变量。
-          <br /><br />
-          <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-mono break-all text-left border border-red-100">
-            {dbError}
-          </div>
+        <h1 className="text-2xl font-black text-gray-900 mb-2">Connection Failed</h1>
+        <p className="text-gray-500 max-w-md font-medium mb-8 leading-relaxed">
+          Unable to connect to the SQL Gateway. Please ensure <code>gateway.js</code> is running and environment variables are correctly set.
+        </p>
+        <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-mono break-all text-left border border-red-100 mb-8 max-w-lg">
+          {dbError}
         </div>
-        <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold transition-transform active:scale-95">重试连接</button>
+        <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold transition-transform active:scale-95 shadow-lg">Retry Connection</button>
       </div>
     );
   }
@@ -191,8 +190,8 @@ const App: React.FC = () => {
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6">
         <Loader2 className="animate-spin text-blue-600" size={64} strokeWidth={1} />
         <div className="text-center">
-           <h1 className="text-2xl font-black text-gray-900 tracking-tighter">SeekInsight 初始化中...</h1>
-           <p className="text-xs text-gray-400 font-bold uppercase mt-1">Connecting to OceanBase via MySQL Protocol</p>
+           <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase">Initializing SeekInsight</h1>
+           <p className="text-xs text-gray-400 font-bold uppercase mt-1 tracking-widest">Establishing secure tunnel to database</p>
         </div>
       </div>
     );
@@ -200,7 +199,7 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
-      {/* 优化后的轻量级上传加载框 */}
+      {/* Refined Lightweight Upload Loading Modal */}
       {isUploading && (
         <div className="fixed inset-0 z-[1000] bg-gray-900/10 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
           <div className="bg-white px-8 py-6 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-5 max-w-sm">
@@ -208,9 +207,9 @@ const App: React.FC = () => {
               <RefreshCw size={20} className="animate-spin" />
             </div>
             <div className="flex flex-col">
-              <h2 className="text-sm font-bold text-gray-800 tracking-tight">正在同步数据</h2>
+              <h2 className="text-sm font-bold text-gray-800 tracking-tight">Syncing Data</h2>
               <p className="text-[11px] text-gray-400 font-medium leading-normal mt-0.5">
-                正在解析工作表并生成 AI 字段描述，请稍候...
+                Parsing worksheets and generating AI metadata, please wait...
               </p>
             </div>
           </div>
@@ -225,8 +224,8 @@ const App: React.FC = () => {
                <Boxes className="text-white" size={22} />
             </div>
             <div>
-              <h1 className="font-black text-gray-900 text-xl tracking-tighter">SeekInsight</h1>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">REAL DB CONNECTED</p>
+              <h1 className="font-black text-gray-900 text-xl tracking-tighter uppercase">SeekInsight</h1>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Live Cloud Connection</p>
             </div>
           </div>
           <div className="h-8 w-px bg-gray-100"></div>
@@ -236,7 +235,7 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setIsMarketOpen(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold transition-all hover:bg-blue-100">
-            <LayoutGrid size={16} /> Market
+            <LayoutGrid size={16} /> Marketplace
           </button>
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-gray-800">{project.owner}</span>
@@ -278,14 +277,14 @@ const App: React.FC = () => {
         </main>
         <PublishPanel mode={project.activeMode} result={project.lastResult} analysis={project.analysisReport} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
       </div>
-      <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase">
+      <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest">
         <div className="flex items-center gap-6">
           <span className="text-green-500 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Host: {env.MYSQL_IP}</span>
           <span>Port: {env.MYSQL_PORT}</span>
         </div>
         <div className="flex gap-8">
           <span>Provider: {env.AI_PROVIDER.toUpperCase()}</span>
-          <span>DB: {env.MYSQL_DB} ({project.tables.length} Tables)</span>
+          <span>Database: {env.MYSQL_DB} ({project.tables.length} Objects)</span>
         </div>
       </footer>
     </div>

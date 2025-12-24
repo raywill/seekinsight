@@ -40,18 +40,18 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
   return (
     <div className="w-72 bg-white border-r border-gray-200 flex flex-col h-full">
       <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
-        <h2 className="text-sm font-black text-gray-800 flex items-center gap-2">
+        <h2 className="text-sm font-black text-gray-800 flex items-center gap-2 uppercase tracking-tight">
           <Database size={16} className="text-blue-600" />
-          MySQL 数据库
+          Data Sources
         </h2>
         <div className="flex items-center gap-2">
           {isUploading ? (
             <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">
               <Loader2 size={12} className="animate-spin" />
-              正在同步
+              Syncing
             </div>
           ) : (
-            <label className="cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200" title="导入数据到 MySQL">
+            <label className="cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200" title="Import data into Database">
               <Upload size={16} className="text-gray-500" />
               <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />
             </label>
@@ -62,8 +62,8 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {tables.length === 0 && !isUploading && (
           <div className="p-8 text-center space-y-2">
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">无可用表</p>
-            <p className="text-[10px] text-gray-300">点击上传按钮将本地文件解析并同步至云端数据库</p>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">No Tables</p>
+            <p className="text-[10px] text-gray-300 font-medium">Click the upload icon to import local files to the cloud database.</p>
           </div>
         )}
         
@@ -84,7 +84,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                   <div 
                     onClick={(e) => handleRefresh(e, table.tableName)}
                     className="p-1 hover:bg-blue-100 rounded text-blue-500 transition-colors"
-                    title="点击获取行数"
+                    title="Click to fetch row count"
                   >
                     <RefreshCw size={10} />
                   </div>
@@ -95,11 +95,10 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                     >
                       {table.rowCount.toLocaleString()}
                     </span>
-                    {/* Fixed: Wrapped RefreshCw with a span to handle onClick and title since Lucide icons don't support title prop */}
                     <span 
                       className="text-gray-300 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-blue-500 transition-all inline-flex"
                       onClick={(e) => handleRefresh(e, table.tableName)}
-                      title="点击更新行数"
+                      title="Click to refresh row count"
                     >
                       <RefreshCw size={8} />
                     </span>
@@ -114,7 +113,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                   <div 
                     key={col.name} 
                     className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-blue-50 group/col cursor-help relative"
-                    title={`字段: ${col.name}\n备注: ${col.comment || '无描述'}\n类型: ${col.type}`}
+                    title={`Column: ${col.name}\nDescription: ${col.comment || 'N/A'}\nType: ${col.type}`}
                   >
                     <span className="text-[11px] text-gray-500 font-mono font-bold truncate flex-1 group-hover/col:text-blue-600">
                       {col.name}
@@ -134,11 +133,11 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
       <div className="p-4 bg-gray-50/50 text-[10px] text-gray-400 border-t border-gray-100 font-bold uppercase tracking-widest space-y-1">
         <p className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isUploading ? 'bg-orange-500 animate-pulse' : 'bg-blue-500'}`}></div>
-          {isUploading ? '正在写入集群...' : 'OceanBase 集群已连接'}
+          {isUploading ? 'Writing to Cluster...' : 'Infrastructure Connected'}
         </p>
         <p className="flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-           MySQL 5.7 协议就绪
+           MySQL 5.7 Protocol Ready
         </p>
       </div>
     </div>

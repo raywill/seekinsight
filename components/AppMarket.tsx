@@ -33,8 +33,8 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
               <LayoutGrid size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 leading-tight">应用广场</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">App Marketplace Portfolio</p>
+              <h2 className="text-xl font-bold text-gray-900 leading-tight">Marketplace</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Global Data Portfolio</p>
             </div>
           </div>
           
@@ -45,7 +45,7 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-colors text-sm font-semibold text-gray-600"
               >
                 <ChevronLeft size={16} />
-                返回列表
+                Back to List
               </button>
               <div className="h-4 w-px bg-gray-200"></div>
               <span className="text-sm font-bold text-blue-600">{selectedApp.name}</span>
@@ -58,7 +58,7 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
           className="flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-xl transition-all font-bold text-sm"
         >
           <X size={20} />
-          退出广场
+          Exit Market
         </button>
       </div>
 
@@ -67,14 +67,14 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
           {/* Search Bar Area */}
           <div className="px-8 py-10 max-w-5xl mx-auto w-full">
             <div className="text-center mb-10">
-              <h3 className="text-3xl font-black text-gray-900 mb-2">发现数据应用的力量</h3>
-              <p className="text-gray-500 font-medium">浏览由 SeekInsight 社区发布和部署的精选应用场景</p>
+              <h3 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Discover the Power of Data Apps</h3>
+              <p className="text-gray-500 font-medium">Browse featured use-cases published and deployed by the SeekInsight community</p>
             </div>
             <div className="relative group max-w-3xl mx-auto">
               <input 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="探索金融预测、用户分析、物流优化..."
+                placeholder="Search for finance, growth, logistics templates..."
                 className="w-full pl-14 pr-6 py-5 bg-white border-2 border-transparent rounded-3xl text-lg focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 shadow-xl shadow-gray-200/50 transition-all placeholder:text-gray-300"
               />
               <Search size={24} className="absolute left-5 top-5 text-gray-300 group-focus-within:text-blue-500 transition-colors" />
@@ -135,16 +135,16 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
               </div>
 
               <div>
-                <h3 className="text-4xl font-black text-gray-900 mb-4 tracking-tighter">{selectedApp.name}</h3>
+                <h3 className="text-4xl font-black text-gray-900 mb-4 tracking-tighter leading-tight">{selectedApp.name}</h3>
                 <p className="text-lg text-gray-500 font-medium leading-relaxed">{selectedApp.description}</p>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
                 {[
-                  { label: '开发者', value: selectedApp.author, icon: User },
-                  { label: '行业分类', value: selectedApp.category, icon: Tag },
-                  { label: '核心引擎', value: selectedApp.type === DevMode.SQL ? 'SQL Query Engine' : 'Python Runtime', icon: Code2 },
-                  { label: '最后更新', value: '2小时前', icon: Icons.Clock },
+                  { label: 'Developer', value: selectedApp.author, icon: User },
+                  { label: 'Industry', value: selectedApp.category, icon: Tag },
+                  { label: 'Core Engine', value: selectedApp.type === DevMode.SQL ? 'SQL Query Engine' : 'Python Runtime', icon: Code2 },
+                  { label: 'Last Update', value: '2 hours ago', icon: Icons.Clock },
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
@@ -162,7 +162,7 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
             <div className="p-8 bg-white border-t border-gray-100">
               <button className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 hover:shadow-2xl hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-3 active:scale-[0.98]">
                 <PlayCircle size={24} />
-                立即启动应用
+                Launch Application
               </button>
             </div>
           </div>
@@ -173,12 +173,12 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
               <div className="flex items-center justify-between mb-6">
                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
                   <Monitor size={14} />
-                  应用实时预览 (Interactive Dashboard)
+                  Live Preview Dashboard
                 </h4>
                 <div className="flex gap-2">
                    <div className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase flex items-center gap-1">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse"></div>
-                      Connected
+                      Streaming
                    </div>
                 </div>
               </div>
@@ -191,8 +191,8 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
                     <BarChart3 size={32} />
                   </div>
                   <div>
-                    <h5 className="text-xl font-black text-gray-900 mb-2">数据可视化面板加载中</h5>
-                    <p className="text-sm text-gray-500 font-medium">正在从生产集群获取实时同步数据流...</p>
+                    <h5 className="text-xl font-black text-gray-900 mb-2">Dashboard Loading</h5>
+                    <p className="text-sm text-gray-500 font-medium leading-relaxed">Connecting to production data streams for high-fidelity visualization...</p>
                   </div>
                   <div className="flex gap-2 justify-center">
                     <div className="w-3 h-3 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]"></div>
@@ -207,13 +207,13 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
                <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100">
                   <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                     <ShieldCheck size={14} />
-                    安全与合规审计
+                    Security & Compliance
                   </h5>
                   <div className="space-y-4">
                     {[
-                      { l: '数据加密', s: 'AES-256 Enabled' },
-                      { l: '访问权限', s: 'OAuth 2.0 / SSO' },
-                      { l: '合规性', s: 'GDPR / SOC2 Compliant' },
+                      { l: 'Data Encryption', s: 'AES-256 Enabled' },
+                      { l: 'Access Control', s: 'OAuth 2.0 / SSO' },
+                      { l: 'Governance', s: 'SOC2 Compliant' },
                     ].map((row, i) => (
                       <div key={i} className="flex justify-between items-center py-3 border-b border-gray-200/50">
                         <span className="text-sm text-gray-500 font-medium">{row.l}</span>
@@ -223,10 +223,10 @@ const AppMarket: React.FC<Props> = ({ onClose }) => {
                   </div>
                </div>
 
-               <div className="p-8 bg-blue-600 rounded-[2.5rem] text-white flex flex-col justify-center">
-                  <p className="text-xs font-black text-blue-100 uppercase tracking-widest mb-2">月度节约工时 (Simulated)</p>
-                  <p className="text-5xl font-black mb-4">124<span className="text-2xl ml-2 opacity-50">Hrs</span></p>
-                  <p className="text-sm font-medium text-blue-100/80">通过 AI 自动化分析流程，该应用平均每月为团队节省超过 15 个工作日的人力成本投入。</p>
+               <div className="p-8 bg-blue-600 rounded-[2.5rem] text-white flex flex-col justify-center shadow-2xl shadow-blue-500/20">
+                  <p className="text-xs font-black text-blue-100 uppercase tracking-widest mb-2">Automated Efficiency (Simulated)</p>
+                  <p className="text-5xl font-black mb-4">124<span className="text-2xl ml-2 opacity-50 font-medium uppercase">Hrs</span></p>
+                  <p className="text-sm font-medium text-blue-100/80 leading-relaxed">Estimated monthly savings by automating recurring analysis workflows with AI-driven pipelines.</p>
                </div>
             </section>
           </div>
