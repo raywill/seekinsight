@@ -240,11 +240,19 @@ const App: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: currentCode })
         });
+        
         const data = await response.json();
+        
+        // Ensure that any explicit error message from the backend is captured in logs
+        const logs = data.logs || [];
+        if (!response.ok && data.message && !logs.includes(data.message)) {
+          logs.unshift(data.message);
+        }
+
         result = { 
           data: data.data || [], 
           columns: data.columns || [], 
-          logs: data.logs || [], 
+          logs: logs, 
           plotlyData: data.plotlyData, 
           timestamp: new Date().toLocaleTimeString(),
           isError: !response.ok
