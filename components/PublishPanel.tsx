@@ -12,16 +12,81 @@ interface Props {
   isDeploying: boolean;
 }
 
-const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'];
+const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#1d4ed8', '#1e40af'];
 
 const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDeploying }) => {
-  const [tab, setTab] = useState<'report' | 'viz'>(mode === DevMode.SQL ? 'report' : 'report');
+  const [tab, setTab] = useState<'report' | 'viz'>('report');
+  const [chartType, setChartType] = useState<'Bar' | 'Line' | 'Pie'>('Bar');
   const [deploySuccess, setDeploySuccess] = useState(false);
 
   const handleDeploy = async () => {
     await onDeploy();
     setDeploySuccess(true);
     setTimeout(() => setDeploySuccess(false), 3000);
+  };
+
+  const renderChart = () => {
+    if (!result || result.data.length === 0) return null;
+
+    const xKey = result.columns[0];
+    const yKey = result.columns[1];
+
+    switch (chartType) {
+      case 'Line':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={result.data}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
+              <YAxis fontSize={10} axisLine={false} tickLine={false} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+              />
+              <Line type="monotone" dataKey={yKey} stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        );
+      case 'Pie':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={result.data}
+                dataKey={yKey}
+                nameKey={xKey}
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                label={{ fontSize: 10, fontWeight: 'bold' }}
+              >
+                {result.data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+      default:
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={result.data}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
+              <YAxis fontSize={10} axisLine={false} tickLine={false} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+              />
+              <Bar dataKey={yKey} fill="#2563eb" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        );
+    }
   };
 
   if (mode === DevMode.PYTHON) {
@@ -139,25 +204,22 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
             {result ? (
               <div className="flex-1 space-y-8">
                 <div className="h-64 bg-white rounded-xl">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={result.data}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                      <XAxis dataKey={result.columns[0]} fontSize={10} axisLine={false} tickLine={false} />
-                      <YAxis fontSize={10} axisLine={false} tickLine={false} />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                      />
-                      <Bar dataKey={result.columns[1]} fill="#2563eb" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {renderChart()}
                 </div>
 
                 <div className="p-4 bg-gray-50 rounded-xl space-y-4">
                   <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Controls</h3>
                   <div className="grid grid-cols-3 gap-2">
                     {['Bar', 'Line', 'Pie'].map(type => (
-                      <button key={type} className="py-2 text-[10px] font-bold bg-white border border-gray-200 rounded-lg hover:border-blue-500 transition-all text-gray-600 shadow-sm uppercase">
+                      <button 
+                        key={type} 
+                        onClick={() => setChartType(type as any)}
+                        className={`py-2 text-[10px] font-bold border rounded-lg transition-all shadow-sm uppercase ${
+                          chartType === type 
+                            ? 'bg-blue-600 border-blue-600 text-white' 
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-500'
+                        }`}
+                      >
                         {type}
                       </button>
                     ))}
