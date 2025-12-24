@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DevMode, ExecutionResult, AIChartConfig } from '../types';
 import { SI_ENABLE_AI_CHART } from '../constants';
 import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles, HelpCircle, RefreshCw, Layers, Clock } from 'lucide-react';
@@ -15,7 +15,17 @@ interface Props {
   isDeploying: boolean;
 }
 
-const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#1d4ed8', '#1e40af'];
+// Professional High-Contrast Palette for Data Visualization
+const CHART_COLORS = [
+  '#2563eb', // Blue 600
+  '#10b981', // Emerald 500
+  '#f59e0b', // Amber 500
+  '#8b5cf6', // Violet 500
+  '#ef4444', // Red 500
+  '#06b6d4', // Cyan 500
+  '#f43f5e', // Rose 500
+  '#64748b', // Slate 500
+];
 
 const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, isRecommendingCharts, onDeploy, isDeploying }) => {
   const [tab, setTab] = useState<'report' | 'viz'>('report');
@@ -25,6 +35,47 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
     await onDeploy();
     setDeploySuccess(true);
     setTimeout(() => setDeploySuccess(false), 3000);
+  };
+
+  /**
+   * Data Aggregator: Sums up Y-axis values by X-axis category.
+   */
+  const processChartData = (data: any[], xKey: string, yKeys: string[], limitOthers: boolean = false) => {
+    if (!data || data.length === 0) return [];
+
+    // 1. Aggregate values by xKey
+    const aggregatedMap: Record<string, any> = {};
+    data.forEach(row => {
+      const category = String(row[xKey] ?? 'Unknown');
+      if (!aggregatedMap[category]) {
+        aggregatedMap[category] = { [xKey]: category };
+        yKeys.forEach(yk => aggregatedMap[category][yk] = 0);
+      }
+      yKeys.forEach(yk => {
+        aggregatedMap[category][yk] += (Number(row[yk]) || 0);
+      });
+    });
+
+    let resultData = Object.values(aggregatedMap);
+
+    // 2. Sorting and "Others" grouping for Pie Charts
+    if (limitOthers) {
+      const primaryMetric = yKeys[0];
+      // Sort Descending
+      resultData.sort((a, b) => (b[primaryMetric] || 0) - (a[primaryMetric] || 0));
+
+      if (resultData.length > 7) {
+        const top = resultData.slice(0, 6);
+        const rest = resultData.slice(6);
+        const othersObj: any = { [xKey]: 'Others' };
+        yKeys.forEach(yk => {
+          othersObj[yk] = rest.reduce((sum, item) => sum + (Number(item[yk]) || 0), 0);
+        });
+        return [...top, othersObj];
+      }
+    }
+
+    return resultData;
   };
 
   const LoadingCard = ({ title, icon: Icon }: { title: string, icon: any }) => (
@@ -39,20 +90,49 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
     </div>
   );
 
-  const renderSingleChart = (config: AIChartConfig, data: any[]) => {
+  const renderSingleChart = (config: AIChartConfig, rawData: any[]) => {
     const { type, xKey, yKeys, title, description } = config;
     
+    // Always aggregate data before rendering to avoid cluttered axes
+    const data = useMemo(() => processChartData(rawData, xKey, yKeys, type === 'pie'), [rawData, xKey, yKeys, type]);
+
+    const CustomTooltip = ({ active, payload }: any) => {
+      if (active && payload && payload.length) {
+        const total = type === 'pie' ? data.reduce((s, c) => s + (Number(c[yKeys[0]]) || 0), 0) : 0;
+        return (
+          <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-xl">
+            <p className="text-xs font-black text-gray-900 mb-1">{payload[0].name || payload[0].payload[xKey]}</p>
+            {payload.map((p: any, i: number) => (
+              <div key={i} className="flex items-center gap-4 justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill }}></div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">{p.dataKey}:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-black text-blue-600">{p.value.toLocaleString()}</span>
+                  {type === 'pie' && (
+                    <span className="text-[9px] font-bold text-gray-400">({((p.value / total) * 100).toFixed(1)}%)</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      return null;
+    };
+
     const chart = (() => {
       switch (type) {
         case 'line':
           return (
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
-              <YAxis fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+              <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+              <Tooltip content={<CustomTooltip />} />
               {yKeys.map((key, i) => (
-                <Line key={key} type="monotone" dataKey={key} stroke={COLORS[i % COLORS.length]} strokeWidth={3} dot={{ r: 4 }} />
+                <Line key={key} type="monotone" dataKey={key} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={3} dot={{ r: 4, fill: CHART_COLORS[i % CHART_COLORS.length], strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
               ))}
             </LineChart>
           );
@@ -62,42 +142,42 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
               <YAxis fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+              <Tooltip content={<CustomTooltip />} />
               {yKeys.map((key, i) => (
-                <Area key={key} type="monotone" dataKey={key} fill={COLORS[i % COLORS.length]} stroke={COLORS[i % COLORS.length]} fillOpacity={0.3} />
+                <Area key={key} type="monotone" dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.2} strokeWidth={2} />
               ))}
             </AreaChart>
           );
         case 'pie':
-          // Process data for pie chart: Top 6 + Others to prevent clutter
-          const pieData = (() => {
-            if (!data || data.length <= 7) return data; 
-            const valueKey = yKeys[0];
-            const sorted = [...data].sort((a, b) => (Number(b[valueKey]) || 0) - (Number(a[valueKey]) || 0));
-            const top = sorted.slice(0, 6);
-            const rest = sorted.slice(6);
-            const othersSum = rest.reduce((sum, item) => sum + (Number(item[valueKey]) || 0), 0);
-            return [...top, { [xKey]: 'Others', [valueKey]: othersSum }];
-          })();
-
           return (
             <PieChart>
-              <Pie data={pieData} dataKey={yKeys[0]} nameKey={xKey} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                {pieData.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+              <Pie 
+                data={data} 
+                dataKey={yKeys[0]} 
+                nameKey={xKey} 
+                cx="50%" 
+                cy="50%" 
+                innerRadius={55} 
+                outerRadius={75} 
+                paddingAngle={4}
+                animationDuration={1000}
+              >
+                {data.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />)}
               </Pie>
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
             </PieChart>
           );
-        default:
+        default: // bar
           return (
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
-              <YAxis fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+              <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+              <Tooltip content={<CustomTooltip />} />
               {yKeys.map((key, i) => (
-                <Bar key={key} dataKey={key} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
+                // Fixed: Removed the unintentional 'type === pie' check which was causing a TS error in this 'bar' branch
+                <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />
               ))}
             </BarChart>
           );
@@ -108,14 +188,14 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
       <div key={title} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4 shadow-sm group hover:shadow-md transition-shadow">
         <div className="flex justify-between items-start">
           <div>
-            <h4 className="text-sm font-bold text-gray-800">{title}</h4>
-            {description && <p className="text-[10px] text-gray-400 font-medium leading-tight mt-1">{description}</p>}
+            <h4 className="text-sm font-black text-gray-800 tracking-tight">{title}</h4>
+            {description && <p className="text-[10px] text-gray-400 font-bold leading-tight mt-1 uppercase tracking-wide">{description}</p>}
           </div>
           <div className="p-1.5 bg-gray-50 text-gray-400 rounded-lg group-hover:text-blue-500 transition-colors">
             <BarChart3 size={14} />
           </div>
         </div>
-        <div className="h-48 w-full">
+        <div className="h-52 w-full">
           <ResponsiveContainer width="100%" height="100%">
             {chart}
           </ResponsiveContainer>
@@ -129,7 +209,7 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
       <div className="flex border-b border-gray-200 bg-gray-50/50">
         <button
           onClick={() => setTab('report')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
             tab === 'report' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
         >
@@ -138,7 +218,7 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
         </button>
         <button
           onClick={() => setTab('viz')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold transition-all border-b-2 ${
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
             tab === 'viz' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
         >
@@ -151,39 +231,39 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
         {tab === 'report' ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
+              <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
                 {isAnalyzing ? <RefreshCw size={14} className="text-blue-500 animate-spin" /> : <Sparkles size={14} className="text-blue-500" />}
-                AI Analysis Report
+                Strategic Insights
               </h2>
               {analysis && <button className="p-1.5 hover:bg-gray-100 rounded-md text-gray-400"><FileOutput size={14} /></button>}
             </div>
             
             {isAnalyzing ? (
-              <LoadingCard title="Summarizing Data" icon={RefreshCw} />
+              <LoadingCard title="Synthesizing Data" icon={RefreshCw} />
             ) : analysis ? (
               <div className="prose prose-sm prose-blue max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br/>') }} className="text-[13px] leading-relaxed text-gray-600" />
+                <div dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br/>') }} className="text-[13px] leading-relaxed text-gray-600 font-medium" />
               </div>
             ) : (
-              <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl">
+              <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
                 <Sparkles size={24} className="opacity-20" />
-                <p className="text-xs font-medium">No active analysis</p>
+                <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Analysis</p>
               </div>
             )}
           </div>
         ) : (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
+              <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
                 {isRecommendingCharts ? <RefreshCw size={14} className="text-blue-500 animate-spin" /> : <Layers size={14} className="text-blue-500" />}
-                Visual Recommendations
+                Intelligent Visuals
               </h2>
             </div>
             
             {isRecommendingCharts ? (
               <div className="space-y-4">
-                <LoadingCard title="Identifying Patterns" icon={RefreshCw} />
-                <LoadingCard title="Rendering Charts" icon={BarChart3} />
+                <LoadingCard title="Clustering Categories" icon={RefreshCw} />
+                <LoadingCard title="Optimizing Layout" icon={BarChart3} />
               </div>
             ) : result && result.data.length > 0 ? (
               <div className="space-y-6">
@@ -191,13 +271,13 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
                   result.chartConfigs.map(cfg => renderSingleChart(cfg, result.data))
                 ) : (
                   <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-4 tracking-widest text-center">Standard View</p>
+                    <p className="text-[10px] text-gray-400 font-black uppercase mb-4 tracking-widest text-center">Summary Statistics</p>
                     <div className="h-64">
                        <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={result.data}>
+                         <BarChart data={processChartData(result.data, result.columns[0], [result.columns[1]])}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                            <XAxis dataKey={result.columns[0]} fontSize={10} axisLine={false} tickLine={false} />
-                            <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                            <XAxis dataKey={result.columns[0]} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+                            <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
                             <Tooltip />
                             <Bar dataKey={result.columns[1]} fill="#2563eb" radius={[4, 4, 0, 0]} />
                          </BarChart>
@@ -207,9 +287,9 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
                 )}
               </div>
             ) : (
-              <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl">
+              <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
                 <BarChart3 size={24} className="opacity-20" />
-                <p className="text-xs font-medium">No visualization available</p>
+                <p className="text-[10px] font-black uppercase tracking-widest">No Visual Data</p>
               </div>
             )}
           </div>
@@ -220,10 +300,10 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
         <button
           onClick={handleDeploy}
           disabled={isDeploying || !result}
-          className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-50"
+          className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-black flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-50 active:scale-[0.98]"
         >
           {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : (deploySuccess ? <CheckCircle2 size={16} /> : <Rocket size={16} />)}
-          {deploySuccess ? 'App Deployed!' : 'Publish as Insight App'}
+          {deploySuccess ? 'SUCCESSFULLY DEPLOYED' : 'PUBLISH INSIGHT APP'}
         </button>
       </div>
     </div>
