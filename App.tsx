@@ -175,7 +175,7 @@ const App: React.FC = () => {
 
   const handleRun = async () => {
     if (!dbReady) return;
-    setProject(prev => ({ ...prev, isExecuting: true, isAnalyzing: false, analysisReport: '' }));
+    setProject(prev => ({ ...prev, isExecuting: true, isAnalyzing: false, isRecommendingCharts: false, analysisReport: '' }));
     try {
       let result: ExecutionResult;
       const currentMode = project.activeMode;
@@ -200,13 +200,25 @@ const App: React.FC = () => {
         isAnalyzing: currentMode === DevMode.SQL && result.data.length > 0
       }));
 
+      // Trigger AI features if SQL returned data
       if (currentMode === DevMode.SQL && result.data.length > 0) {
+        // Trigger Analysis
         ai.generateAnalysis(currentCode, result.data).then(report => {
           setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
         });
+
+        // Trigger Chart Recommendations
+        setProject(prev => ({ ...prev, isRecommendingCharts: true }));
+        ai.recommendCharts(currentCode, result.data).then(charts => {
+          setProject(prev => ({
+            ...prev,
+            lastSqlResult: { ...result, chartConfigs: charts },
+            isRecommendingCharts: false
+          }));
+        });
       }
     } catch (err: any) {
-      setProject(prev => ({ ...prev, isExecuting: false }));
+      setProject(prev => ({ ...prev, isExecuting: false, isRecommendingCharts: false, isAnalyzing: false }));
     }
   };
 
@@ -285,7 +297,14 @@ const App: React.FC = () => {
         </main>
 
         {project.activeMode === DevMode.SQL && (
-          <SqlPublishPanel result={project.lastSqlResult} analysis={project.analysisReport} isAnalyzing={project.isAnalyzing} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
+          <SqlPublishPanel 
+            result={project.lastSqlResult} 
+            analysis={project.analysisReport} 
+            isAnalyzing={project.isAnalyzing} 
+            isRecommendingCharts={project.isRecommendingCharts}
+            onDeploy={handleDeploy} 
+            isDeploying={project.isDeploying} 
+          />
         )}
         {project.activeMode === DevMode.PYTHON && (
           <PythonPublishPanel result={project.lastPythonResult} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
