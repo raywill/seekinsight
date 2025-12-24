@@ -32,6 +32,32 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
   return text.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
 };
 
+export const debugCode = async (
+  prompt: string, 
+  mode: DevMode, 
+  tables: TableMetadata[],
+  code: string,
+  error: string
+): Promise<string> => {
+  const schemaStr = tables.map(t => 
+    `Table: ${t.tableName}
+Columns:
+${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`).join('\n')}`
+  ).join('\n\n');
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${error}`,
+    config: {
+      systemInstruction: SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr),
+      temperature: 0.1,
+    },
+  });
+
+  const text = response.text || "";
+  return text.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
+};
+
 /**
  * Infers semantic comments for columns based on headers and sample data.
  */

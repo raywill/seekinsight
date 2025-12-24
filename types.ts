@@ -33,6 +33,7 @@ export interface ExecutionResult {
   plotlyData?: any;
   chartConfigs?: AIChartConfig[]; 
   timestamp: string;
+  isError?: boolean;
 }
 
 export interface Suggestion {

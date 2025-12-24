@@ -15,13 +15,14 @@ interface Props {
   isExecuting: boolean;
   isAiLoading: boolean;
   onTriggerAi: () => void;
+  onDebug: () => void;
   tables: TableMetadata[];
   onUndo?: () => void;
   showUndo?: boolean;
 }
 
 const PythonWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, tables, onUndo, showUndo 
+  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, onDebug, tables, onUndo, showUndo 
 }) => {
   const [isUndoVisible, setIsUndoVisible] = useState(false);
   const prevLoading = useRef(isAiLoading);
@@ -84,7 +85,7 @@ const PythonWorkspace: React.FC<Props> = ({
         </div>
       </div>
 
-      <PythonResultPanel result={result} isLoading={isExecuting} />
+      <PythonResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiLoading} />
     </div>
   );
 };

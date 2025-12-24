@@ -47,6 +47,20 @@ export const generateCode = async (prompt: string, mode: DevMode, tables: TableM
   return responseText.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
 };
 
+export const debugCode = async (prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string): Promise<string> => {
+  const schemaStr = tables.map(t => 
+    `Table: ${t.tableName}\nColumns:\n${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment}`).join('\n')}`
+  ).join('\n\n');
+
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr) },
+    { role: "user", content: `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${error}` }
+  ];
+
+  const responseText = await callAliyun(messages, 0.1);
+  return responseText.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
+};
+
 export const inferColumnMetadata = async (tableName: string, data: any[]): Promise<Record<string, string>> => {
   if (!data || data.length === 0) return {};
   const sample = data.slice(0, 5);

@@ -18,6 +18,16 @@ export const SYSTEM_PROMPTS = {
        - Only return raw Python code.
        Available Schema:\n${schema}`,
 
+  DEBUG_CODE: (mode: DevMode, schema: string) => 
+    `You are a senior debugger. The user provided a piece of ${mode} code that failed to execute.
+    Your task is to:
+    1. Analyze the faulty code and the provided error message.
+    2. Reference the available database schema to find potential column name errors or type mismatches.
+    3. Provide a fixed, working version of the code.
+    - Return ONLY the corrected code without any explanation or markdown formatting.
+    
+    Schema context:\n${schema}`,
+
   METADATA_INFER: `You are a data architect. Generate brief semantic descriptions for database columns based on headers and sample data. Respond ONLY with a valid JSON object.`,
 
   ANALYSIS: `You are a senior data analyst. Provide a professional executive summary and 3 actionable data insights in Markdown format based on the query and results.`,

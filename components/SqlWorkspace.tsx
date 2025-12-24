@@ -15,6 +15,7 @@ interface Props {
   isExecuting: boolean;
   isAiLoading: boolean;
   onTriggerAi: () => void;
+  onDebug: () => void;
   tables: TableMetadata[];
   onUndo?: () => void;
   showUndo?: boolean;
@@ -28,7 +29,7 @@ const SQL_KEYWORDS = [
 ];
 
 const SqlWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, tables, onUndo, showUndo 
+  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, onDebug, tables, onUndo, showUndo 
 }) => {
   const editorRef = useRef<BaseCodeEditorRef>(null);
   const [isUndoVisible, setIsUndoVisible] = useState(false);
@@ -101,7 +102,7 @@ const SqlWorkspace: React.FC<Props> = ({
         </div>
       </div>
 
-      <SqlResultPanel result={result} isLoading={isExecuting} />
+      <SqlResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiLoading} />
     </div>
   );
 };

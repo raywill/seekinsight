@@ -1,23 +1,27 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Terminal as TerminalIcon, BarChart, Clock, Play, Box } from 'lucide-react';
+import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
   result: ExecutionResult | null;
   isLoading: boolean;
+  onDebug?: () => void;
+  isAiLoading?: boolean;
 }
 
 const MIN_HEIGHT = 240;
 
-const PythonResultPanel: React.FC<Props> = ({ result, isLoading }) => {
+const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoading }) => {
   const [activeTab, setActiveTab] = useState<'console' | 'plot'>('console');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   
   const startY = useRef<number>(0);
   const startHeight = useRef<number>(0);
+
+  const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error') || l.toLowerCase().includes('traceback')));
 
   const startResize = useCallback((e: React.MouseEvent) => {
     setIsResizing(true);
@@ -73,13 +77,13 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading }) => {
         <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-purple-400"></div>
       </div>
 
-      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between shrink-0">
+      <div className={`px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50'}`}>
         <div className="flex gap-1">
-          <button onClick={() => setActiveTab('console')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}>
-            <TerminalIcon size={12} className="inline mr-1.5" /> Stdout/Stderr
+          <button onClick={() => setActiveTab('console')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
+            <TerminalIcon size={12} className="inline mr-1.5" /> {hasError ? 'Error Console' : 'Stdout/Stderr'}
           </button>
           {result.plotlyData && (
-            <button onClick={() => setActiveTab('plot')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('plot')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
               <BarChart size={12} className="inline mr-1.5" /> Interactive Plot
             </button>
           )}
@@ -87,13 +91,13 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading }) => {
         <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider">PY3.10 • {result.timestamp}</div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-white relative">
         {activeTab === 'console' ? (
-          <div className="p-4 font-mono text-[13px] text-gray-700 leading-relaxed bg-white">
+          <div className={`p-4 font-mono text-[13px] leading-relaxed h-full ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
             {result.logs?.map((log, idx) => (
               <div key={idx} className="flex gap-3 py-0.5">
                 <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
-                <span className={log.toLowerCase().includes('error') ? 'text-red-500 font-bold' : ''}>{log}</span>
+                <span className={log.toLowerCase().includes('error') || log.toLowerCase().includes('traceback') ? 'text-red-500 font-bold' : ''}>{log}</span>
               </div>
             ))}
             {result.logs?.length === 0 && <span className="text-gray-400 italic font-medium">Script completed with no stdout output.</span>}
@@ -112,6 +116,19 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading }) => {
               style={{ width: '100%', height: '100%' }}
               config={{ responsive: true, displaylogo: false }}
             />
+          </div>
+        )}
+
+        {hasError && onDebug && (
+          <div className="absolute bottom-6 right-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <button 
+              onClick={onDebug}
+              disabled={isAiLoading}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black shadow-2xl shadow-red-900/20 hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+            >
+              <Sparkles size={14} className="text-purple-400 animate-pulse" />
+              AUTO DEBUG WITH AI
+            </button>
           </div>
         )}
       </div>

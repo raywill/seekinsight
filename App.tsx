@@ -140,6 +140,40 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDebugCode = async (mode: DevMode) => {
+    const isSql = mode === DevMode.SQL;
+    const currentId = ++(isSql ? sqlReqId : pythonReqId).current;
+    const currentCode = isSql ? project.sqlCode : project.pythonCode;
+    const currentPrompt = isSql ? project.sqlAiPrompt : project.pythonAiPrompt;
+    const lastResult = isSql ? project.lastSqlResult : project.lastPythonResult;
+    const errorMessage = lastResult?.logs?.join('\n') || "Unknown error during execution.";
+
+    setProject(prev => ({ 
+      ...prev, 
+      [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: true,
+      [isSql ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: isSql ? prev.sqlCode : prev.pythonCode
+    }));
+
+    try {
+      const generated = await ai.debugCode(currentPrompt, mode, project.tables, currentCode, errorMessage);
+      
+      if (currentId === (isSql ? sqlReqId : pythonReqId).current) {
+        setProject(prev => ({
+          ...prev,
+          [isSql ? 'sqlCode' : 'pythonCode']: generated,
+          [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false
+        }));
+        // Auto run after debug
+        setTimeout(() => handleRun(), 100);
+      }
+    } catch (err) {
+      console.error("AI Debug Error:", err);
+      if (currentId === (isSql ? sqlReqId : pythonReqId).current) {
+        setProject(prev => ({ ...prev, [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false }));
+      }
+    }
+  };
+
   const handleApplySuggestion = (s: Suggestion) => {
     // 1. Switch tab and prepare prompt immediately
     setProject(prev => ({
@@ -193,11 +227,12 @@ const App: React.FC = () => {
 
   const handleRun = async () => {
     if (!dbReady) return;
+    const currentMode = project.activeMode;
+    const currentCode = currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode;
+
     setProject(prev => ({ ...prev, isExecuting: true, isAnalyzing: false, isRecommendingCharts: false, analysisReport: '' }));
     try {
       let result: ExecutionResult;
-      const currentMode = project.activeMode;
-      const currentCode = currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode;
 
       if (currentMode === DevMode.SQL) {
         result = await getDatabaseEngine().executeQuery(currentCode);
@@ -208,7 +243,14 @@ const App: React.FC = () => {
           body: JSON.stringify({ code: currentCode })
         });
         const data = await response.json();
-        result = { data: data.data || [], columns: data.columns || [], logs: data.logs || [], plotlyData: data.plotlyData, timestamp: new Date().toLocaleTimeString() };
+        result = { 
+          data: data.data || [], 
+          columns: data.columns || [], 
+          logs: data.logs || [], 
+          plotlyData: data.plotlyData, 
+          timestamp: new Date().toLocaleTimeString(),
+          isError: !response.ok
+        };
       }
 
       setProject(prev => ({ 
@@ -236,7 +278,21 @@ const App: React.FC = () => {
         });
       }
     } catch (err: any) {
-      setProject(prev => ({ ...prev, isExecuting: false, isRecommendingCharts: false, isAnalyzing: false }));
+      console.error("Execution Error:", err);
+      const errorResult: ExecutionResult = {
+        data: [],
+        columns: [],
+        logs: [err.message || "Unknown error during execution."],
+        timestamp: new Date().toLocaleTimeString(),
+        isError: true
+      };
+      setProject(prev => ({ 
+        ...prev, 
+        isExecuting: false, 
+        isRecommendingCharts: false, 
+        isAnalyzing: false,
+        [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult
+      }));
     }
   };
 
@@ -317,6 +373,7 @@ const App: React.FC = () => {
                 result={project.lastSqlResult} onRun={handleRun} isExecuting={project.isExecuting} 
                 isAiLoading={project.isSqlAiGenerating}
                 onTriggerAi={() => handleTriggerAiCode(DevMode.SQL, project.sqlAiPrompt)}
+                onDebug={() => handleDebugCode(DevMode.SQL)}
                 tables={project.tables} onUndo={() => handleUndoAi(DevMode.SQL)} showUndo={!!project.lastSqlCodeBeforeAi}
               />
             )}
@@ -327,6 +384,7 @@ const App: React.FC = () => {
                 result={project.lastPythonResult} onRun={handleRun} isExecuting={project.isExecuting} 
                 isAiLoading={project.isPythonAiGenerating}
                 onTriggerAi={() => handleTriggerAiCode(DevMode.PYTHON, project.pythonAiPrompt)}
+                onDebug={() => handleDebugCode(DevMode.PYTHON)}
                 tables={project.tables} onUndo={() => handleUndoAi(DevMode.PYTHON)} showUndo={!!project.lastPythonCodeBeforeAi}
               />
             )}
