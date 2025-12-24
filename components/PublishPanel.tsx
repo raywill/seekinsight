@@ -1,23 +1,24 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { DevMode, ExecutionResult, AIChartConfig } from '../types';
 import { SI_ENABLE_AI_CHART } from '../constants';
-import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles, HelpCircle, RefreshCw, Layers } from 'lucide-react';
+import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles, HelpCircle, RefreshCw, Layers, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 
 interface Props {
   mode: DevMode;
   result: ExecutionResult | null;
   analysis: string;
+  isAnalyzing: boolean;
+  isRecommendingCharts: boolean;
   onDeploy: () => Promise<void>;
   isDeploying: boolean;
 }
 
 const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#1d4ed8', '#1e40af'];
 
-const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDeploying }) => {
+const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, isRecommendingCharts, onDeploy, isDeploying }) => {
   const [tab, setTab] = useState<'report' | 'viz'>('report');
-  const [chartType, setChartType] = useState<'Bar' | 'Line' | 'Pie'>('Bar');
   const [deploySuccess, setDeploySuccess] = useState(false);
 
   const handleDeploy = async () => {
@@ -25,6 +26,18 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
     setDeploySuccess(true);
     setTimeout(() => setDeploySuccess(false), 3000);
   };
+
+  const LoadingCard = ({ title, icon: Icon }: { title: string, icon: any }) => (
+    <div className="bg-white border border-dashed border-blue-100 rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-4 animate-pulse">
+       <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center">
+          <Icon className="animate-spin" size={20} />
+       </div>
+       <div>
+         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{title}</h4>
+         <p className="text-[10px] text-gray-300 mt-1">Generating deep insights...</p>
+       </div>
+    </div>
+  );
 
   const renderSingleChart = (config: AIChartConfig, data: any[]) => {
     const { type, xKey, yKeys, title, description } = config;
@@ -110,6 +123,7 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
           }`}
         >
           <FileText size={14} /> Report
+          {isAnalyzing && <RefreshCw size={10} className="animate-spin text-blue-400" />}
         </button>
         <button
           onClick={() => setTab('viz')}
@@ -118,6 +132,7 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
           }`}
         >
           <BarChart3 size={14} /> Visualization
+          {isRecommendingCharts && <RefreshCw size={10} className="animate-spin text-blue-400" />}
         </button>
       </div>
 
@@ -125,19 +140,23 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
         {tab === 'report' ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight">AI Analysis</h2>
-              <button className="p-1.5 hover:bg-gray-100 rounded-md text-gray-400">
-                <FileOutput size={14} />
-              </button>
+              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
+                {isAnalyzing ? <RefreshCw size={14} className="text-blue-500 animate-spin" /> : <Sparkles size={14} className="text-blue-500" />}
+                AI Analysis Report
+              </h2>
+              {analysis && <button className="p-1.5 hover:bg-gray-100 rounded-md text-gray-400"><FileOutput size={14} /></button>}
             </div>
-            {analysis ? (
+            
+            {isAnalyzing ? (
+              <LoadingCard title="Summarizing Data" icon={RefreshCw} />
+            ) : analysis ? (
               <div className="prose prose-sm prose-blue max-w-none">
                 <div dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br/>') }} className="text-[13px] leading-relaxed text-gray-600" />
               </div>
             ) : (
               <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl">
                 <Sparkles size={24} className="opacity-20" />
-                <p className="text-xs font-medium">No results to analyze yet</p>
+                <p className="text-xs font-medium">No active analysis</p>
               </div>
             )}
           </div>
@@ -145,18 +164,23 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
-                {SI_ENABLE_AI_CHART ? <Sparkles size={14} className="text-blue-500" /> : <Layers size={14} />}
-                {SI_ENABLE_AI_CHART ? 'AI Recommended Insights' : 'Real-time Preview'}
+                {isRecommendingCharts ? <RefreshCw size={14} className="text-blue-500 animate-spin" /> : <Layers size={14} className="text-blue-500" />}
+                Visual Recommendations
               </h2>
             </div>
             
-            {result && result.data.length > 0 ? (
+            {isRecommendingCharts ? (
+              <div className="space-y-4">
+                <LoadingCard title="Identifying Patterns" icon={RefreshCw} />
+                <LoadingCard title="Rendering Charts" icon={BarChart3} />
+              </div>
+            ) : result && result.data.length > 0 ? (
               <div className="space-y-6">
                 {SI_ENABLE_AI_CHART && result.chartConfigs && result.chartConfigs.length > 0 ? (
                   result.chartConfigs.map(cfg => renderSingleChart(cfg, result.data))
                 ) : (
                   <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-4 tracking-widest text-center">Basic View</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-4 tracking-widest text-center">Standard View</p>
                     <div className="h-64">
                        <ResponsiveContainer width="100%" height="100%">
                          <BarChart data={result.data}>
@@ -170,28 +194,26 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
                     </div>
                   </div>
                 )}
-                
-                {!SI_ENABLE_AI_CHART && (
-                  <div className="p-4 bg-gray-50 rounded-xl space-y-4">
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manual Controls</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      {['Bar', 'Line', 'Pie'].map(type => (
-                        <button key={type} className="py-2 text-[10px] font-bold border rounded-lg bg-white">
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl">
                 <BarChart3 size={24} className="opacity-20" />
-                <p className="text-xs font-medium">Run data to see visualizations</p>
+                <p className="text-xs font-medium">No visualization available</p>
               </div>
             )}
           </div>
         )}
+      </div>
+
+      <div className="p-6 bg-gray-50 border-t border-gray-100">
+        <button
+          onClick={handleDeploy}
+          disabled={isDeploying || !result}
+          className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-50"
+        >
+          {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : (deploySuccess ? <CheckCircle2 size={16} /> : <Rocket size={16} />)}
+          {deploySuccess ? 'App Deployed!' : 'Publish as Insight App'}
+        </button>
       </div>
     </div>
   );

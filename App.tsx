@@ -44,6 +44,8 @@ const App: React.FC = () => {
     lastSqlResult: null,
     lastPythonResult: null,
     isExecuting: false,
+    isAnalyzing: false,
+    isRecommendingCharts: false,
     isDeploying: false,
     analysisReport: '',
     visualConfig: { chartType: 'bar' }
@@ -136,41 +138,36 @@ const App: React.FC = () => {
 
   const handleRun = async () => {
     if (!dbReady) return;
-    setProject(prev => ({ ...prev, isExecuting: true }));
-    if (IS_DEBUG) console.time('TotalExecution');
+    
+    setProject(prev => ({ 
+      ...prev, 
+      isExecuting: true, 
+      isAnalyzing: false, 
+      isRecommendingCharts: false,
+      analysisReport: '',
+      // Clear previous chart configs when running a new one
+      lastSqlResult: prev.lastSqlResult ? { ...prev.lastSqlResult, chartConfigs: [] } : null,
+      lastPythonResult: prev.lastPythonResult ? { ...prev.lastPythonResult, chartConfigs: [] } : null
+    }));
+
+    if (IS_DEBUG) console.time('DataExecutionOnly');
     
     try {
       let result: ExecutionResult;
-      if (project.activeMode === DevMode.SQL) {
-        if (IS_DEBUG) console.time('SQL_Gateway_Execution');
-        const db = getDatabaseEngine();
-        result = await db.executeQuery(project.sqlCode);
-        if (IS_DEBUG) console.timeEnd('SQL_Gateway_Execution');
-        
-        if (IS_DEBUG) console.time('AI_Analysis_And_Charts');
-        const [report, chartConfigs] = await Promise.all([
-          result.data.length > 0 ? ai.generateAnalysis(project.sqlCode, result.data) : "SQL executed successfully.",
-          (SI_ENABLE_AI_CHART && result.data.length > 0) ? ai.recommendCharts(project.sqlCode, result.data) : Promise.resolve([])
-        ]);
-        if (IS_DEBUG) console.timeEnd('AI_Analysis_And_Charts');
+      const currentMode = project.activeMode;
+      const currentCode = currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode;
 
-        setProject(prev => ({ 
-          ...prev, 
-          lastSqlResult: { ...result, chartConfigs }, 
-          isExecuting: false, 
-          analysisReport: report 
-        }));
+      if (currentMode === DevMode.SQL) {
+        const db = getDatabaseEngine();
+        result = await db.executeQuery(currentCode);
       } else {
-        if (IS_DEBUG) console.time('Python_Gateway_Execution');
         const response = await fetch(`${env.GATEWAY_URL}/python`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: project.pythonCode }),
+          body: JSON.stringify({ code: currentCode }),
           signal: AbortSignal.timeout(60000)
         });
         const data = await response.json();
-        if (IS_DEBUG) console.timeEnd('Python_Gateway_Execution');
-        
         result = {
           data: data.data || [],
           columns: data.columns || [],
@@ -178,15 +175,59 @@ const App: React.FC = () => {
           plotlyData: data.plotlyData || null,
           timestamp: data.timestamp || new Date().toLocaleTimeString()
         };
-        
-        if (SI_ENABLE_AI_CHART && result.data.length > 0) {
-          if (IS_DEBUG) console.time('AI_Chart_Recommendation');
-          result.chartConfigs = await ai.recommendCharts(project.pythonCode, result.data);
-          if (IS_DEBUG) console.timeEnd('AI_Chart_Recommendation');
-        }
-
-        setProject(prev => ({ ...prev, lastPythonResult: result, isExecuting: false }));
       }
+
+      if (IS_DEBUG) console.timeEnd('DataExecutionOnly');
+
+      // 1. Immediately show table data
+      setProject(prev => ({ 
+        ...prev, 
+        isExecuting: false, 
+        [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: result,
+        isAnalyzing: result.data.length > 0,
+        isRecommendingCharts: SI_ENABLE_AI_CHART && result.data.length > 0
+      }));
+
+      // 2. Trigger AI Analysis and Charts asynchronously
+      if (result.data.length > 0) {
+        // Run AI Analysis
+        (async () => {
+          if (IS_DEBUG) console.time('Async_AI_Analysis');
+          try {
+            const report = await ai.generateAnalysis(currentCode, result.data);
+            setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
+          } catch (e) {
+            setProject(prev => ({ ...prev, isAnalyzing: false, analysisReport: "Analysis failed." }));
+          } finally {
+            if (IS_DEBUG) console.timeEnd('Async_AI_Analysis');
+          }
+        })();
+
+        // Run AI Chart Recommendations
+        if (SI_ENABLE_AI_CHART) {
+          (async () => {
+            if (IS_DEBUG) console.time('Async_AI_Charts');
+            try {
+              const configs = await ai.recommendCharts(currentCode, result.data);
+              setProject(prev => ({
+                ...prev,
+                isRecommendingCharts: false,
+                [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: {
+                  ...(currentMode === DevMode.SQL ? (prev.lastSqlResult || result) : (prev.lastPythonResult || result)),
+                  chartConfigs: configs
+                }
+              }));
+            } catch (e) {
+              setProject(prev => ({ ...prev, isRecommendingCharts: false }));
+            } finally {
+              if (IS_DEBUG) console.timeEnd('Async_AI_Charts');
+            }
+          })();
+        }
+      } else {
+        setProject(prev => ({ ...prev, isAnalyzing: false, isRecommendingCharts: false }));
+      }
+
     } catch (err: any) {
       const errorResult: ExecutionResult = {
         data: [],
@@ -194,9 +235,13 @@ const App: React.FC = () => {
         logs: ["CRITICAL ERROR:", err.message],
         timestamp: new Date().toLocaleTimeString()
       };
-      setProject(prev => ({ ...prev, [project.activeMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult, isExecuting: false }));
-    } finally {
-      if (IS_DEBUG) console.timeEnd('TotalExecution');
+      setProject(prev => ({ 
+        ...prev, 
+        isExecuting: false,
+        isAnalyzing: false,
+        isRecommendingCharts: false,
+        [project.activeMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult 
+      }));
     }
   };
 
@@ -284,9 +329,18 @@ const App: React.FC = () => {
           )}
         </main>
         {project.activeMode !== DevMode.INSIGHT_HUB && (
-          <PublishPanel mode={project.activeMode as any} result={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult} analysis={project.analysisReport} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
+          <PublishPanel 
+            mode={project.activeMode as any} 
+            result={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult} 
+            analysis={project.analysisReport} 
+            isAnalyzing={project.isAnalyzing}
+            isRecommendingCharts={project.isRecommendingCharts}
+            onDeploy={handleDeploy} 
+            isDeploying={project.isDeploying} 
+          />
         )}
       </div>
+      {isMarketOpen && <AppMarket onClose={() => setIsMarketOpen(false)} />}
     </div>
   );
 };

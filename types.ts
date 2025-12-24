@@ -43,6 +43,7 @@ export interface Suggestion {
   type: DevMode.SQL | DevMode.PYTHON;
 }
 
+// Added AppMarketItem interface to fix "Module '"./types"' has no exported member 'AppMarketItem'" errors.
 export interface AppMarketItem {
   id: string;
   name: string;
@@ -51,7 +52,7 @@ export interface AppMarketItem {
   description: string;
   author: string;
   category: string;
-  type: DevMode;
+  type: DevMode.SQL | DevMode.PYTHON;
 }
 
 export interface ProjectState {
@@ -67,6 +68,8 @@ export interface ProjectState {
   lastSqlResult: ExecutionResult | null;
   lastPythonResult: ExecutionResult | null;
   isExecuting: boolean;
+  isAnalyzing: boolean;            // New: Analysis loading state
+  isRecommendingCharts: boolean;   // New: Chart recommendation loading state
   isDeploying: boolean;
   analysisReport: string;
   visualConfig: {
