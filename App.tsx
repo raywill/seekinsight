@@ -369,8 +369,8 @@ const App: React.FC = () => {
       </div>
       <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest">
         <div className="flex items-center gap-6">
-          <span className="text-green-500 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Gateway: {env.GATEWAY_URL}</span>
-          <span>DB Host: {env.MYSQL_IP}</span>
+          <div className="text-green-500 flex items-center gap-1.5 font-bold"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Gateway: {env.GATEWAY_URL}</div>
+          <div>DB Host: {env.MYSQL_IP}</div>
         </div>
         <div className="flex gap-8">
           <span>AI Provider: {env.AI_PROVIDER.toUpperCase()}</span>

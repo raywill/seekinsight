@@ -131,14 +131,14 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
       </div>
 
       <div className="p-4 bg-gray-50/50 text-[10px] text-gray-400 border-t border-gray-100 font-bold uppercase tracking-widest space-y-1">
-        <p className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isUploading ? 'bg-orange-500 animate-pulse' : 'bg-blue-500'}`}></div>
           {isUploading ? 'Writing to Cluster...' : 'Infrastructure Connected'}
-        </p>
-        <p className="flex items-center gap-2">
+        </div>
+        <div className="flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
            MySQL 5.7 Protocol Ready
-        </p>
+        </div>
       </div>
     </div>
   );
