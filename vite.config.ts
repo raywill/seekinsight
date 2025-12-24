@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
       'process.env.MYSQL_PASSWORD': JSON.stringify(env.MYSQL_PASSWORD),
       'process.env.API_KEY': JSON.stringify(env.API_KEY || env.GEMINI_API_KEY || env.ALIYUN_API_KEY),
       'process.env.API_BASEURL': JSON.stringify(env.API_BASEURL),
+      'process.env.GATEWAY_URL': JSON.stringify(env.GATEWAY_URL || 'http://localhost:3001'),
       // Set AI_PROVIDER to 'aliyun' or 'gemini'
       'process.env.AI_PROVIDER': JSON.stringify(env.AI_PROVIDER || 'aliyun'),
     },

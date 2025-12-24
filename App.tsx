@@ -23,7 +23,8 @@ const App: React.FC = () => {
     MYSQL_IP: (typeof process !== 'undefined' && process.env.MYSQL_IP) || '127.0.0.1',
     MYSQL_PORT: (typeof process !== 'undefined' && process.env.MYSQL_PORT) || '3306',
     MYSQL_DB: (typeof process !== 'undefined' && process.env.MYSQL_DB) || 'test',
-    AI_PROVIDER: (typeof process !== 'undefined' && process.env.AI_PROVIDER) || 'aliyun'
+    AI_PROVIDER: (typeof process !== 'undefined' && process.env.AI_PROVIDER) || 'aliyun',
+    GATEWAY_URL: (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001'
   };
 
   const [project, setProject] = useState<ProjectState>({
@@ -123,8 +124,8 @@ const App: React.FC = () => {
         const db = getDatabaseEngine();
         result = await db.executeQuery(project.sqlCode);
       } else {
-        // Real Python execution via Gateway
-        const response = await fetch('http://localhost:3001/python', {
+        // Real Python execution via dynamic Gateway URL
+        const response = await fetch(`${env.GATEWAY_URL}/python`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: project.pythonCode })
@@ -132,7 +133,6 @@ const App: React.FC = () => {
         
         const data = await response.json();
         
-        // Even if status is 500, data.logs contains the stderr we want to show
         result = {
           data: data.data || [],
           columns: data.columns || [],
@@ -141,7 +141,6 @@ const App: React.FC = () => {
         };
 
         if (!response.ok) {
-           // If error occurred, skip AI analysis and just show logs
            setProject(prev => ({ 
              ...prev, 
              lastResult: result, 
@@ -159,7 +158,6 @@ const App: React.FC = () => {
       setProject(prev => ({ ...prev, lastResult: result, isExecuting: false, analysisReport: report }));
     } catch (err: any) {
       console.error("Execution Error:", err);
-      // Instead of alert, push the error to the log console
       const errorResult: ExecutionResult = {
         data: [],
         columns: [],
@@ -196,7 +194,7 @@ const App: React.FC = () => {
         </div>
         <h1 className="text-2xl font-black text-gray-900 mb-2">Connection Failed</h1>
         <p className="text-gray-500 max-w-md font-medium mb-8 leading-relaxed">
-          Unable to connect to the SQL Gateway. Please ensure <code>gateway.js</code> is running and environment variables are correctly set.
+          Unable to connect to the SQL Gateway. Please ensure <code>gateway.js</code> is running at <strong>{env.GATEWAY_URL}</strong> and environment variables are correctly set.
         </p>
         <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-mono break-all text-left border border-red-100 mb-8 max-w-lg">
           {dbError}
@@ -212,7 +210,7 @@ const App: React.FC = () => {
         <Loader2 className="animate-spin text-blue-600" size={64} strokeWidth={1} />
         <div className="text-center">
            <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase">Initializing SeekInsight</h1>
-           <p className="text-xs text-gray-400 font-bold uppercase mt-1 tracking-widest">Establishing secure tunnel to database</p>
+           <p className="text-xs text-gray-400 font-bold uppercase mt-1 tracking-widest">Establishing secure tunnel to {env.GATEWAY_URL}</p>
         </div>
       </div>
     );
@@ -299,8 +297,8 @@ const App: React.FC = () => {
       </div>
       <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest">
         <div className="flex items-center gap-6">
-          <span className="text-green-500 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Host: {env.MYSQL_IP}</span>
-          <span>Port: {env.MYSQL_PORT}</span>
+          <span className="text-green-500 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Gateway: {env.GATEWAY_URL}</span>
+          <span>DB Host: {env.MYSQL_IP}</span>
         </div>
         <div className="flex gap-8">
           <span>AI Provider: {env.AI_PROVIDER.toUpperCase()}</span>

@@ -7,7 +7,8 @@ export class MySQLEngine implements DatabaseEngine {
   private ready: boolean = false;
   private sessionId: string | null = null;
   
-  private gatewayUrl = `http://localhost:3001`;
+  // Use the environment variable or fallback to localhost
+  private gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
   private getConfig() {
     return {
@@ -47,7 +48,7 @@ export class MySQLEngine implements DatabaseEngine {
       await this.loadExistingTables();
     } catch (err: any) {
       this.ready = false;
-      throw new Error(`Database backend connection failed: ${err.message}`);
+      throw new Error(`Database backend connection failed: ${err.message}. Ensure gateway is reachable at ${this.gatewayUrl}`);
     }
   }
 
@@ -85,7 +86,6 @@ export class MySQLEngine implements DatabaseEngine {
         id: Math.random().toString(36).substr(2, 9),
         tableName: row.TABLE_NAME,
         columns: columnsByTable[row.TABLE_NAME] || [],
-        // 核心修改：统一初始化为 -1，显示为刷新图标而非 0
         rowCount: -1 
       }));
 

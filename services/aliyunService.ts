@@ -50,10 +50,11 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
        - Only return raw SQL code, no markdown blocks.
        
        Available Schema:\n${schemaStr}`
-    : `You are a Python data scientist. Use pandas for analysis. 
+    : `You are a Python data scientist. Please write a python script. Use pandas for analysis. 
        - You have a built-in function sql(query) that returns a pandas DataFrame.
        - Use column comments to guide your logic.
        - Only return raw Python code, no markdown blocks.
+       - For a complex task, you can solve it step by step using multiple lines of code
        
        Available Schema:\n${schemaStr}`;
 
