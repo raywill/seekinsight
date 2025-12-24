@@ -51,7 +51,8 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
        - Prefer CTE to subquery
        
        Available Schema:\n${schemaStr}`
-    : `You are a Python data scientist. Please write a python script. Use pandas for analysis. 
+    : `You are a Python data scientist. Please write a python script. 
+       - Core libraries available: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
        - You have a built-in function sql(query) that returns a pandas DataFrame.
        - For visualization, use Plotly. You must call forge_plotly(fig) to send the interactive chart to the UI.
        - Example:
@@ -60,6 +61,8 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
          fig = px.bar(df, x='name', y='age')
          forge_plotly(fig)
        - Do NOT use plt.show() or fig.show().
+       - Use scikit-learn for ML tasks if requested.
+       - Use seaborn for statistical plotting (static) and plotly for interactive views.
        - Only return raw Python code, no markdown blocks.
        
        Available Schema:\n${schemaStr}`;

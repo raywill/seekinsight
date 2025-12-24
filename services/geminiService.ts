@@ -25,7 +25,8 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
        - Only return the raw SQL code without any markdown blocks or explanations.
        
        Available Schema:\n${schemaStr}`
-    : `You are a Python data scientist. Use pandas for data analysis. 
+    : `You are a Python data scientist. 
+       - Use pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, and plotly for data analysis.
        - You have a built-in function sql(query) that returns a pandas DataFrame.
        - Use Plotly for interactive visualization. Call forge_plotly(fig) to send the chart to the UI.
        - Example:
