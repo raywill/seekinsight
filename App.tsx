@@ -10,7 +10,7 @@ import EditorPanel from './components/EditorPanel';
 import ResultPanel from './components/ResultPanel';
 import PublishPanel from './components/PublishPanel';
 import AppMarket from './components/AppMarket';
-import { Boxes, LayoutGrid, Loader2, AlertCircle, Database } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, AlertCircle, Database, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const App: React.FC = () => {
@@ -200,22 +200,18 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
+      {/* 优化后的轻量级上传加载框 */}
       {isUploading && (
-        <div className="fixed inset-0 z-[1000] bg-white/70 backdrop-blur-md flex flex-col items-center justify-center transition-all animate-in fade-in duration-300">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 border border-blue-50 max-w-sm text-center">
-            <div className="w-20 h-20 bg-blue-600 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-200">
-              <Database size={36} className="animate-bounce" />
+        <div className="fixed inset-0 z-[1000] bg-gray-900/10 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
+          <div className="bg-white px-8 py-6 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-5 max-w-sm">
+            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+              <RefreshCw size={20} className="animate-spin" />
             </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">正在同步大数据文件</h2>
-              <p className="text-sm text-gray-400 font-medium leading-relaxed">
-                SeekInsight 正在解析工作表并利用 AI 提取字段语义，这需要一点时间...
+            <div className="flex flex-col">
+              <h2 className="text-sm font-bold text-gray-800 tracking-tight">正在同步数据</h2>
+              <p className="text-[11px] text-gray-400 font-medium leading-normal mt-0.5">
+                正在解析工作表并生成 AI 字段描述，请稍候...
               </p>
-            </div>
-            <div className="flex gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse [animation-delay:200ms]"></div>
-              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse [animation-delay:400ms]"></div>
             </div>
           </div>
         </div>
