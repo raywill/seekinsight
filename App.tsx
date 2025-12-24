@@ -115,36 +115,37 @@ const App: React.FC = () => {
 
   const handleRun = async () => {
     if (!dbReady) return;
-    const db = getDatabaseEngine();
     setProject(prev => ({ ...prev, isExecuting: true }));
     
     try {
       let result: ExecutionResult;
       if (project.activeMode === DevMode.SQL) {
+        const db = getDatabaseEngine();
         result = await db.executeQuery(project.sqlCode);
       } else {
-        const queryMatch = project.pythonCode.match(/sql\("(.+?)"\)/);
-        if (queryMatch) {
-          result = await db.executeQuery(queryMatch[1]);
-          result.logs = [
-            "Runtime: Python 3.10 Kernel",
-            "State: Connected to Remote MySQL Node",
-            `Action: Executing SQL via SQLBridge...`,
-            `Status: ${result.data.length} rows fetched successfully.`
-          ];
-        } else {
-          result = {
-            data: [],
-            columns: [],
-            logs: ["Python kernel active. No SQL query detected in code."],
-            timestamp: new Date().toLocaleTimeString()
-          };
+        // Real Python execution via Gateway
+        const response = await fetch('http://localhost:3001/python', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: project.pythonCode })
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+           throw new Error(data.logs?.join('\n') || "Python execution failed");
         }
+        
+        result = {
+          data: data.data || [],
+          columns: data.columns || [],
+          logs: data.logs || [],
+          timestamp: data.timestamp || new Date().toLocaleTimeString()
+        };
       }
 
       const report = result.data.length > 0 
         ? await ai.generateAnalysis(project.activeMode === DevMode.SQL ? project.sqlCode : "Python Script", result.data) 
-        : "Query returned no results, unable to generate analysis report.";
+        : "Execution finished with no visual results to analyze.";
 
       setProject(prev => ({ ...prev, lastResult: result, isExecuting: false, analysisReport: report }));
     } catch (err: any) {
@@ -199,7 +200,6 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
-      {/* Refined Lightweight Upload Loading Modal */}
       {isUploading && (
         <div className="fixed inset-0 z-[1000] bg-gray-900/10 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
           <div className="bg-white px-8 py-6 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-5 max-w-sm">
@@ -283,7 +283,7 @@ const App: React.FC = () => {
           <span>Port: {env.MYSQL_PORT}</span>
         </div>
         <div className="flex gap-8">
-          <span>Provider: {env.AI_PROVIDER.toUpperCase()}</span>
+          <span>AI Provider: {env.AI_PROVIDER.toUpperCase()}</span>
           <span>Database: {env.MYSQL_DB} ({project.tables.length} Objects)</span>
         </div>
       </footer>
