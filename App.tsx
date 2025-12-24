@@ -50,7 +50,6 @@ const App: React.FC = () => {
     lastPythonResult: null,
     isExecuting: false,
     isAnalyzing: false,
-    // Fix: Removed 'boolean =' syntax error in object literal
     isRecommendingCharts: false,
     isDeploying: false,
     isSqlAiGenerating: false,
@@ -208,14 +207,31 @@ const App: React.FC = () => {
       try {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
-        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
+        const rawJsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
+        
+        // Advanced cleaning: trim and replace consecutive non-alphanumeric characters with a single underscore
+        const jsonData = rawJsonData.map(row => {
+          const cleanedRow: any = {};
+          Object.keys(row).forEach(key => {
+            const cleanedKey = key.trim().replace(/[^a-zA-Z0-9]+/g, '_');
+            cleanedRow[cleanedKey] = row[key];
+          });
+          return cleanedRow;
+        });
+
         const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
         const aiComments = await ai.inferColumnMetadata(tableName, jsonData);
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(tableName, jsonData, aiComments);
-        setProject(prev => ({ ...prev, tables: [...prev.tables.filter(t => t.tableName !== newTable.tableName), newTable] }));
-      } catch (err: any) { alert("Upload failed: " + err.message); } 
-      finally { setIsUploading(false); }
+        setProject(prev => ({ 
+          ...prev, 
+          tables: [...prev.tables.filter(t => t.tableName !== newTable.tableName), newTable] 
+        }));
+      } catch (err: any) { 
+        alert("Upload failed: " + err.message); 
+      } finally { 
+        setIsUploading(false); 
+      }
     };
     reader.readAsBinaryString(file);
   };
