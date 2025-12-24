@@ -14,7 +14,25 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
   const sqlSuggestions = suggestions.filter(s => s.type === DevMode.SQL);
   const pythonSuggestions = suggestions.filter(s => s.type === DevMode.PYTHON);
 
-  const Section = ({ title, items, icon: Icon, colorClass, badgeClass }: any) => (
+  const GeneratingCard = ({ badgeClass }: { badgeClass: string }) => (
+    <div className="bg-white border border-dashed border-blue-200 rounded-2xl p-5 flex flex-col items-center justify-center min-h-[180px] animate-pulse relative overflow-hidden group">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent opacity-50"></div>
+      <div className="relative z-10 flex flex-col items-center gap-3">
+        <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mb-2 ${badgeClass} opacity-50`}>
+          AI Brainstorming
+        </div>
+        <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center shadow-inner">
+           <RefreshCw size={18} className="animate-spin" />
+        </div>
+        <div className="text-center">
+          <h4 className="text-sm font-bold text-gray-400">Generating Idea...</h4>
+          <p className="text-[10px] text-gray-300 font-medium mt-1">Analyzing table semantics</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const Section = ({ title, items, icon: Icon, colorClass, badgeClass, isGenerating }: any) => (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg ${colorClass} bg-opacity-10`}>
@@ -22,7 +40,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
         </div>
         <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item: Suggestion) => (
           <div 
             key={item.id} 
@@ -51,13 +69,14 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
             </button>
           </div>
         ))}
+        {isGenerating && <GeneratingCard badgeClass={badgeClass} />}
       </div>
     </div>
   );
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50/50 p-8">
-      <div className="max-w-5xl mx-auto space-y-12">
+      <div className="max-w-6xl mx-auto space-y-12">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
@@ -100,6 +119,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
               icon={Database} 
               colorClass="bg-blue-500"
               badgeClass="bg-blue-50 text-blue-600"
+              isGenerating={isLoading}
             />
             <Section 
               title="Predictive Modeling (Python)" 
@@ -107,17 +127,9 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
               icon={Terminal} 
               colorClass="bg-purple-500"
               badgeClass="bg-purple-50 text-purple-600"
+              isGenerating={isLoading}
             />
           </>
-        )}
-        
-        {isLoading && suggestions.length > 0 && (
-          <div className="flex justify-center py-8">
-            <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-xs font-bold animate-pulse">
-               <RefreshCw size={14} className="animate-spin" />
-               Brainstorming new insights...
-            </div>
-          </div>
         )}
       </div>
     </div>
