@@ -23,20 +23,20 @@ let connection = null;
 
 // Ensure Python Virtual Environment exists and has dependencies
 async function initVenv() {
-  console.log('[Venv] Checking environment...');
+  console.log('[Venv] Checking environment status...');
   if (!fs.existsSync(VENV_PATH)) {
-    console.log('[Venv] Creating virtual environment...');
+    console.log('[Venv] Environment not found. Creating virtual environment...');
     await execPromise(`python3 -m venv ${VENV_PATH}`);
   }
   
-  console.log('[Venv] Installing dependencies (pandas, sqlalchemy, mysql-connector-python)...');
-  // Use the venv's pip to install
+  console.log('[Venv] Syncing dependencies (pandas, sqlalchemy, mysql-connector-python)...');
   const pipPath = process.platform === 'win32' 
     ? path.join(VENV_PATH, 'Scripts', 'pip.exe') 
     : path.join(VENV_PATH, 'bin', 'pip');
     
-  await execPromise(`${pipPath} install pandas sqlalchemy mysql-connector-python`);
-  console.log('[Venv] Environment ready.');
+  // Using --quiet to keep logs clean
+  await execPromise(`${pipPath} install pandas sqlalchemy mysql-connector-python --quiet`);
+  console.log('[Venv] Python runtime environment is ready.');
 }
 
 app.post('/connect', async (req, res) => {
@@ -57,7 +57,7 @@ app.post('/connect', async (req, res) => {
 
 app.post('/sql', async (req, res) => {
   const { sql } = req.body;
-  if (!connection) return res.status(400).json({ message: 'No active connection' });
+  if (!connection) return res.status(400).json({ message: 'No active database connection' });
   try {
     let [rows, fields] = await connection.query(sql);
     const isMulti = Array.isArray(fields) && fields.length > 0 && (Array.isArray(fields[0]) || fields[0] === undefined);
@@ -74,30 +74,36 @@ app.post('/sql', async (req, res) => {
 
 app.post('/python', async (req, res) => {
   const { code } = req.body;
-  if (!dbConfig) return res.status(400).json({ message: 'Database not connected. Python needs DB context.' });
+  if (!dbConfig) return res.status(400).json({ message: 'Database not connected. Python runtime requires DB context.' });
 
-  // Inject bridge code to allow sql() function usage in Python
+  // Robust connection string construction for SQLAlchemy
+  // URI format: mysql+mysqlconnector://user[:password]@host:port/database
+  const passwordPart = dbConfig.password ? `:${encodeURIComponent(dbConfig.password)}` : '';
+  const authPart = `${encodeURIComponent(dbConfig.user)}${passwordPart}`;
+  const connectionString = `mysql+mysqlconnector://${authPart}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`;
+
   const bridgeCode = `
 import pandas as pd
 from sqlalchemy import create_engine
 import json
 import sys
 
-# Database Bridge
-engine = create_engine("mysql+mysqlconnector://${dbConfig.user}:${dbConfig.password}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}")
+# Securely initialized engine
+engine = create_engine("${connectionString}")
 
 def sql(query):
+    """Executes SQL and returns a Pandas DataFrame."""
     return pd.read_sql(query, engine)
 
 def forge_plot(df, type='bar'):
-    # Simple simulation of passing plot data back to UI
+    """Sends visual data back to the UI."""
     print(f"__PLOT_DATA__:{df.to_json(orient='records')}")
 
-# --- User Code Starts Here ---
+# --- User Code Execution ---
 `;
 
   const fullCode = bridgeCode + "\n" + code;
-  const tmpFile = path.join(process.cwd(), `tmp_${Date.now()}.py`);
+  const tmpFile = path.join(process.cwd(), `tmp_exec_${Date.now()}.py`);
   
   fs.writeFileSync(tmpFile, fullCode);
 
@@ -109,15 +115,16 @@ def forge_plot(df, type='bar'):
   pyProcess.stderr.on('data', (data) => stderr += data.toString());
 
   pyProcess.on('close', (code) => {
-    fs.unlinkSync(tmpFile);
+    if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     
-    // Extract potential plot data from stdout
     const plotMarker = "__PLOT_DATA__:";
     let plotData = null;
     const lines = stdout.split('\n');
     const logs = lines.filter(line => {
       if (line.startsWith(plotMarker)) {
-        plotData = JSON.parse(line.replace(plotMarker, ''));
+        try {
+          plotData = JSON.parse(line.replace(plotMarker, ''));
+        } catch(e) { console.error("Failed to parse plot data", e); }
         return false;
       }
       return true;
@@ -138,6 +145,6 @@ def forge_plot(df, type='bar'):
 
 initVenv().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 SQL & Python Gateway running at http://localhost:${PORT}`);
+    console.log(`🚀 SeekInsight Gateway (SQL & Python) running at http://localhost:${PORT}`);
   });
 });
