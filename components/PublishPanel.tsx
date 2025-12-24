@@ -27,6 +27,165 @@ const CHART_COLORS = [
   '#64748b', // Slate 500
 ];
 
+/**
+ * Data Aggregator: Sums up Y-axis values by X-axis category.
+ */
+const processChartData = (data: any[], xKey: string, yKeys: string[], limitOthers: boolean = false) => {
+  if (!data || data.length === 0) return [];
+
+  // 1. Aggregate values by xKey
+  const aggregatedMap: Record<string, any> = {};
+  data.forEach(row => {
+    const category = String(row[xKey] ?? 'Unknown');
+    if (!aggregatedMap[category]) {
+      aggregatedMap[category] = { [xKey]: category };
+      yKeys.forEach(yk => aggregatedMap[category][yk] = 0);
+    }
+    yKeys.forEach(yk => {
+      aggregatedMap[category][yk] += (Number(row[yk]) || 0);
+    });
+  });
+
+  let resultData = Object.values(aggregatedMap);
+
+  // 2. Sorting and "Others" grouping for Pie Charts
+  if (limitOthers) {
+    const primaryMetric = yKeys[0];
+    // Sort Descending
+    resultData.sort((a, b) => (b[primaryMetric] || 0) - (a[primaryMetric] || 0));
+
+    if (resultData.length > 7) {
+      const top = resultData.slice(0, 6);
+      const rest = resultData.slice(6);
+      const othersObj: any = { [xKey]: 'Others' };
+      yKeys.forEach(yk => {
+        othersObj[yk] = rest.reduce((sum, item) => sum + (Number(item[yk]) || 0), 0);
+      });
+      return [...top, othersObj];
+    }
+  }
+
+  return resultData;
+};
+
+interface ChartCardProps {
+  config: AIChartConfig;
+  rawData: any[];
+}
+
+const ChartCard: React.FC<ChartCardProps> = ({ config, rawData }) => {
+  const { type, xKey, yKeys, title, description } = config;
+
+  // Adhere to Rules of Hooks: Call useMemo inside a proper React component
+  const data = useMemo(() => processChartData(rawData, xKey, yKeys, type === 'pie'), [rawData, xKey, yKeys, type]);
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const total = type === 'pie' ? data.reduce((s, c) => s + (Number(c[yKeys[0]]) || 0), 0) : 0;
+      return (
+        <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-xl">
+          <p className="text-xs font-black text-gray-900 mb-1">{payload[0].name || payload[0].payload[xKey]}</p>
+          {payload.map((p: any, i: number) => (
+            <div key={i} className="flex items-center gap-4 justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill }}></div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase">{p.dataKey}:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-black text-blue-600">{p.value.toLocaleString()}</span>
+                {type === 'pie' && (
+                  <span className="text-[9px] font-bold text-gray-400">({((p.value / total) * 100).toFixed(1)}%)</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const chart = (() => {
+    switch (type) {
+      case 'line':
+        return (
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <Tooltip content={<CustomTooltip />} />
+            {yKeys.map((key, i) => (
+              <Line key={key} type="monotone" dataKey={key} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={3} dot={{ r: 4, fill: CHART_COLORS[i % CHART_COLORS.length], strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+            ))}
+          </LineChart>
+        );
+      case 'area':
+        return (
+          <AreaChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
+            <YAxis fontSize={10} axisLine={false} tickLine={false} />
+            <Tooltip content={<CustomTooltip />} />
+            {yKeys.map((key, i) => (
+              <Area key={key} type="monotone" dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.2} strokeWidth={2} />
+            ))}
+          </AreaChart>
+        );
+      case 'pie':
+        return (
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey={yKeys[0]}
+              nameKey={xKey}
+              cx="50%"
+              cy="50%"
+              innerRadius={55}
+              outerRadius={75}
+              paddingAngle={4}
+              animationDuration={1000}
+            >
+              {data.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />)}
+            </Pie>
+            <Tooltip content={<CustomTooltip />} />
+            <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
+          </PieChart>
+        );
+      default: // bar
+        return (
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <Tooltip content={<CustomTooltip />} />
+            {yKeys.map((key, i) => (
+              <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />
+            ))}
+          </BarChart>
+        );
+    }
+  })();
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4 shadow-sm group hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start">
+        <div>
+          <h4 className="text-sm font-black text-gray-800 tracking-tight">{title}</h4>
+          {description && <p className="text-[10px] text-gray-400 font-bold leading-tight mt-1 uppercase tracking-wide">{description}</p>}
+        </div>
+        <div className="p-1.5 bg-gray-50 text-gray-400 rounded-lg group-hover:text-blue-500 transition-colors">
+          <BarChart3 size={14} />
+        </div>
+      </div>
+      <div className="h-52 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          {chart}
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
 const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, isRecommendingCharts, onDeploy, isDeploying }) => {
   const [tab, setTab] = useState<'report' | 'viz'>('report');
   const [deploySuccess, setDeploySuccess] = useState(false);
@@ -35,47 +194,6 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
     await onDeploy();
     setDeploySuccess(true);
     setTimeout(() => setDeploySuccess(false), 3000);
-  };
-
-  /**
-   * Data Aggregator: Sums up Y-axis values by X-axis category.
-   */
-  const processChartData = (data: any[], xKey: string, yKeys: string[], limitOthers: boolean = false) => {
-    if (!data || data.length === 0) return [];
-
-    // 1. Aggregate values by xKey
-    const aggregatedMap: Record<string, any> = {};
-    data.forEach(row => {
-      const category = String(row[xKey] ?? 'Unknown');
-      if (!aggregatedMap[category]) {
-        aggregatedMap[category] = { [xKey]: category };
-        yKeys.forEach(yk => aggregatedMap[category][yk] = 0);
-      }
-      yKeys.forEach(yk => {
-        aggregatedMap[category][yk] += (Number(row[yk]) || 0);
-      });
-    });
-
-    let resultData = Object.values(aggregatedMap);
-
-    // 2. Sorting and "Others" grouping for Pie Charts
-    if (limitOthers) {
-      const primaryMetric = yKeys[0];
-      // Sort Descending
-      resultData.sort((a, b) => (b[primaryMetric] || 0) - (a[primaryMetric] || 0));
-
-      if (resultData.length > 7) {
-        const top = resultData.slice(0, 6);
-        const rest = resultData.slice(6);
-        const othersObj: any = { [xKey]: 'Others' };
-        yKeys.forEach(yk => {
-          othersObj[yk] = rest.reduce((sum, item) => sum + (Number(item[yk]) || 0), 0);
-        });
-        return [...top, othersObj];
-      }
-    }
-
-    return resultData;
   };
 
   const LoadingCard = ({ title, icon: Icon }: { title: string, icon: any }) => (
@@ -89,120 +207,6 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
        </div>
     </div>
   );
-
-  const renderSingleChart = (config: AIChartConfig, rawData: any[]) => {
-    const { type, xKey, yKeys, title, description } = config;
-    
-    // Always aggregate data before rendering to avoid cluttered axes
-    const data = useMemo(() => processChartData(rawData, xKey, yKeys, type === 'pie'), [rawData, xKey, yKeys, type]);
-
-    const CustomTooltip = ({ active, payload }: any) => {
-      if (active && payload && payload.length) {
-        const total = type === 'pie' ? data.reduce((s, c) => s + (Number(c[yKeys[0]]) || 0), 0) : 0;
-        return (
-          <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-xl">
-            <p className="text-xs font-black text-gray-900 mb-1">{payload[0].name || payload[0].payload[xKey]}</p>
-            {payload.map((p: any, i: number) => (
-              <div key={i} className="flex items-center gap-4 justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill }}></div>
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">{p.dataKey}:</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-black text-blue-600">{p.value.toLocaleString()}</span>
-                  {type === 'pie' && (
-                    <span className="text-[9px] font-bold text-gray-400">({((p.value / total) * 100).toFixed(1)}%)</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      }
-      return null;
-    };
-
-    const chart = (() => {
-      switch (type) {
-        case 'line':
-          return (
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-              <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-              <Tooltip content={<CustomTooltip />} />
-              {yKeys.map((key, i) => (
-                <Line key={key} type="monotone" dataKey={key} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={3} dot={{ r: 4, fill: CHART_COLORS[i % CHART_COLORS.length], strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-              ))}
-            </LineChart>
-          );
-        case 'area':
-          return (
-            <AreaChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
-              <YAxis fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              {yKeys.map((key, i) => (
-                <Area key={key} type="monotone" dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.2} strokeWidth={2} />
-              ))}
-            </AreaChart>
-          );
-        case 'pie':
-          return (
-            <PieChart>
-              <Pie 
-                data={data} 
-                dataKey={yKeys[0]} 
-                nameKey={xKey} 
-                cx="50%" 
-                cy="50%" 
-                innerRadius={55} 
-                outerRadius={75} 
-                paddingAngle={4}
-                animationDuration={1000}
-              >
-                {data.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />)}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
-            </PieChart>
-          );
-        default: // bar
-          return (
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-              <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-              <Tooltip content={<CustomTooltip />} />
-              {yKeys.map((key, i) => (
-                // Fixed: Removed the unintentional 'type === pie' check which was causing a TS error in this 'bar' branch
-                <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />
-              ))}
-            </BarChart>
-          );
-      }
-    })();
-
-    return (
-      <div key={title} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4 shadow-sm group hover:shadow-md transition-shadow">
-        <div className="flex justify-between items-start">
-          <div>
-            <h4 className="text-sm font-black text-gray-800 tracking-tight">{title}</h4>
-            {description && <p className="text-[10px] text-gray-400 font-bold leading-tight mt-1 uppercase tracking-wide">{description}</p>}
-          </div>
-          <div className="p-1.5 bg-gray-50 text-gray-400 rounded-lg group-hover:text-blue-500 transition-colors">
-            <BarChart3 size={14} />
-          </div>
-        </div>
-        <div className="h-52 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            {chart}
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full shadow-sm">
@@ -268,7 +272,9 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
             ) : result && result.data.length > 0 ? (
               <div className="space-y-6">
                 {SI_ENABLE_AI_CHART && result.chartConfigs && result.chartConfigs.length > 0 ? (
-                  result.chartConfigs.map(cfg => renderSingleChart(cfg, result.data))
+                  result.chartConfigs.map((cfg, idx) => (
+                    <ChartCard key={`${cfg.title}-${idx}`} config={cfg} rawData={result.data} />
+                  ))
                 ) : (
                   <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
                     <p className="text-[10px] text-gray-400 font-black uppercase mb-4 tracking-widest text-center">Summary Statistics</p>
