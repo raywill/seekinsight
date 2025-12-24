@@ -29,13 +29,25 @@ async function initVenv() {
     await execPromise(`python3 -m venv ${VENV_PATH}`);
   }
   
-  console.log('[Venv] Syncing dependencies (pandas, sqlalchemy, mysql-connector-python)...');
+  console.log('[Venv] Syncing dependencies (pandas, scikit-learn, matplotlib, seaborn, plotly, etc.)...');
   const pipPath = process.platform === 'win32' 
     ? path.join(VENV_PATH, 'Scripts', 'pip.exe') 
     : path.join(VENV_PATH, 'bin', 'pip');
     
-  // Using --quiet to keep logs clean
-  await execPromise(`${pipPath} install pandas sqlalchemy mysql-connector-python --quiet`);
+  // Added data science and visualization powerhouses
+  const packages = [
+    'pandas', 
+    'sqlalchemy', 
+    'mysql-connector-python', 
+    'numpy', 
+    'scipy', 
+    'scikit-learn', 
+    'matplotlib', 
+    'seaborn', 
+    'plotly'
+  ].join(' ');
+  
+  await execPromise(`${pipPath} install ${packages} --quiet`);
   console.log('[Venv] Python runtime environment is ready.');
 }
 

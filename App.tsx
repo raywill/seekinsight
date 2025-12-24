@@ -68,11 +68,12 @@ const App: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
+  // Background Suggestion Logic: Trigger as soon as tables are available
   useEffect(() => {
-    if (project.activeMode === DevMode.INSIGHT_HUB && project.suggestions.length === 0 && project.tables.length > 0) {
+    if (project.suggestions.length === 0 && project.tables.length > 0 && dbReady) {
       handleFetchSuggestions();
     }
-  }, [project.activeMode, project.tables]);
+  }, [project.tables.length, dbReady]);
 
   const handleFetchSuggestions = async () => {
     if (isSuggesting || project.tables.length === 0) return;
