@@ -13,7 +13,8 @@ interface Props {
   result: ExecutionResult | null;
   onRun: () => void;
   isExecuting: boolean;
-  isAiLoading: boolean;
+  isAiGenerating: boolean;
+  isAiFixing: boolean;
   onTriggerAi: () => void;
   onDebug: () => void;
   tables: TableMetadata[];
@@ -21,33 +22,27 @@ interface Props {
   showUndo?: boolean;
 }
 
-const SQL_KEYWORDS = [
-  'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'LIMIT', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN',
-  'INNER JOIN', 'ON', 'AS', 'AND', 'OR', 'IN', 'IS', 'NOT', 'NULL', 'INSERT', 'INTO', 'VALUES',
-  'UPDATE', 'SET', 'DELETE', 'CREATE', 'TABLE', 'DATABASE', 'DROP', 'ALTER', 'ADD', 'DESC', 'ASC',
-  'SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 'HAVING', 'DISTINCT', 'UNION', 'ALL'
-];
-
 const SqlWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, onDebug, tables, onUndo, showUndo 
+  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, 
+  isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo 
 }) => {
   const editorRef = useRef<BaseCodeEditorRef>(null);
   const [isUndoVisible, setIsUndoVisible] = useState(false);
-  const prevLoading = useRef(isAiLoading);
+  const prevLoading = useRef(isAiGenerating || isAiFixing);
 
   useEffect(() => {
     // Show button only when AI loading finishes and there's history to revert to
-    if (prevLoading.current && !isAiLoading && showUndo) {
+    if (prevLoading.current && !(isAiGenerating || isAiFixing) && showUndo) {
       setIsUndoVisible(true);
       const timer = setTimeout(() => setIsUndoVisible(false), 10000);
       return () => clearTimeout(timer);
     }
     // Hide if loading starts or undo history is cleared
-    if (isAiLoading || !showUndo) {
+    if (isAiGenerating || isAiFixing || !showUndo) {
       setIsUndoVisible(false);
     }
-    prevLoading.current = isAiLoading;
-  }, [isAiLoading, showUndo]);
+    prevLoading.current = isAiGenerating || isAiFixing;
+  }, [isAiGenerating, isAiFixing, showUndo]);
 
   const handleCodeChange = (newCode: string) => {
     onCodeChange(newCode);
@@ -70,10 +65,10 @@ const SqlWorkspace: React.FC<Props> = ({
           <Database size={16} className="absolute left-3.5 top-3.5 text-blue-400" />
           <button 
             onClick={onTriggerAi} 
-            disabled={isAiLoading || !prompt} 
+            disabled={isAiGenerating || isAiFixing || !prompt} 
             className="absolute right-2 top-2 px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            {isAiLoading ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />}
             Generate SQL
           </button>
         </div>
@@ -90,19 +85,19 @@ const SqlWorkspace: React.FC<Props> = ({
             </button>
           </div>
         )}
-        <BaseCodeEditor ref={editorRef} code={code} onChange={handleCodeChange} onKeyDown={handleKeyDown} language="sql" placeholder="-- Write SQL here..." readOnly={isAiLoading} />
+        <BaseCodeEditor ref={editorRef} code={code} onChange={handleCodeChange} onKeyDown={handleKeyDown} language="sql" placeholder="-- Write SQL here..." readOnly={isAiGenerating || isAiFixing} />
         
         <div className="px-6 py-3 border-t border-gray-100 bg-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
             <div className="flex items-center gap-1.5"><Code2 size={12} className="text-blue-400" /><span>ANSI SQL</span></div>
           </div>
-          <button onClick={onRun} disabled={isExecuting || isAiLoading} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50">
+          <button onClick={onRun} disabled={isExecuting || isAiGenerating || isAiFixing} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50">
             {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Execute Query
           </button>
         </div>
       </div>
 
-      <SqlResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiLoading} />
+      <SqlResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiFixing} />
     </div>
   );
 };

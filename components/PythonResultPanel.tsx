@@ -99,36 +99,38 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
         <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider">PY3.10 • {result.timestamp}</div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-white relative">
-        {activeTab === 'console' || !result.plotlyData ? (
-          <div className={`p-4 font-mono text-[13px] leading-relaxed h-full ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
-            {result.logs?.map((log, idx) => (
-              <div key={idx} className="flex gap-3 py-0.5">
-                <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
-                <span className={log.toLowerCase().includes('error') || log.toLowerCase().includes('traceback') ? 'text-red-500 font-bold' : ''}>{log}</span>
-              </div>
-            ))}
-            {result.logs?.length === 0 && <span className="text-gray-400 italic font-medium">Script completed with no stdout output.</span>}
-          </div>
-        ) : (
-          <div className="h-full bg-white p-4">
-            <Plot
-              data={result.plotlyData?.data || []}
-              layout={{
-                ...result.plotlyData?.layout,
-                autosize: true,
-                margin: { t: 30, r: 30, b: 30, l: 30 },
-                font: { family: 'Inter', size: 10 }
-              }}
-              useResizeHandler={true}
-              style={{ width: '100%', height: '100%' }}
-              config={{ responsive: true, displaylogo: false }}
-            />
-          </div>
-        )}
+      <div className="flex-1 relative overflow-hidden bg-white">
+        <div className="absolute inset-0 overflow-auto">
+          {activeTab === 'console' || !result.plotlyData ? (
+            <div className={`p-4 font-mono text-[13px] leading-relaxed min-h-full ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
+              {result.logs?.map((log, idx) => (
+                <div key={idx} className="flex gap-3 py-0.5">
+                  <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
+                  <span className={log.toLowerCase().includes('error') || log.toLowerCase().includes('traceback') ? 'text-red-500 font-bold' : ''}>{log}</span>
+                </div>
+              ))}
+              {result.logs?.length === 0 && <span className="text-gray-400 italic font-medium">Script completed with no stdout output.</span>}
+            </div>
+          ) : (
+            <div className="h-full bg-white p-4">
+              <Plot
+                data={result.plotlyData?.data || []}
+                layout={{
+                  ...result.plotlyData?.layout,
+                  autosize: true,
+                  margin: { t: 30, r: 30, b: 30, l: 30 },
+                  font: { family: 'Inter', size: 10 }
+                }}
+                useResizeHandler={true}
+                style={{ width: '100%', height: '100%' }}
+                config={{ responsive: true, displaylogo: false }}
+              />
+            </div>
+          )}
+        </div>
 
         {hasError && onDebug && (
-          <div className="absolute bottom-8 right-8 animate-in fade-in slide-in-from-bottom-4 duration-500 z-[60]">
+          <div className="absolute bottom-6 right-6 animate-in fade-in slide-in-from-bottom-4 duration-500 z-[60]">
             <button 
               onClick={onDebug}
               disabled={isAiLoading}

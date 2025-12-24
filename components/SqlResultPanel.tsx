@@ -117,36 +117,38 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto relative bg-white">
-        {activeTab === 'table' ? (
-          <table className="min-w-full text-left text-[11px] border-collapse font-mono">
-            <thead className="sticky top-0 bg-gray-50 z-10">
-              <tr className="border-b border-gray-200">
-                {result.columns.map(col => (
-                  <th key={col} className="px-3 py-2 font-black text-gray-500 uppercase tracking-tighter">
-                    <div className="flex items-center gap-1"><Hash size={10} />{col}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {result.data.map((row, i) => (
-                <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
+      <div className="flex-1 relative overflow-hidden bg-white">
+        <div className="absolute inset-0 overflow-auto">
+          {activeTab === 'table' ? (
+            <table className="min-w-full text-left text-[11px] border-collapse font-mono">
+              <thead className="sticky top-0 bg-gray-50 z-10">
+                <tr className="border-b border-gray-200">
                   {result.columns.map(col => (
-                    <td key={col} className="px-3 py-1.5 text-gray-600 truncate max-w-xs">{String(row[col] ?? 'NULL')}</td>
+                    <th key={col} className="px-3 py-2 font-black text-gray-500 uppercase tracking-tighter">
+                      <div className="flex items-center gap-1"><Hash size={10} />{col}</div>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className={`p-4 font-mono text-xs whitespace-pre-wrap h-full ${hasError ? 'text-red-700 bg-red-50/10' : 'text-gray-500'}`}>
-            {result.logs?.join('\n') || 'No logs generated.'}
-          </div>
-        )}
+              </thead>
+              <tbody>
+                {result.data.map((row, i) => (
+                  <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
+                    {result.columns.map(col => (
+                      <td key={col} className="px-3 py-1.5 text-gray-600 truncate max-w-xs">{String(row[col] ?? 'NULL')}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className={`p-4 font-mono text-xs whitespace-pre-wrap min-h-full ${hasError ? 'text-red-700 bg-red-50/10' : 'text-gray-500'}`}>
+              {result.logs?.join('\n') || 'No logs generated.'}
+            </div>
+          )}
+        </div>
 
         {hasError && onDebug && (
-          <div className="absolute bottom-8 right-8 animate-in fade-in slide-in-from-bottom-4 duration-500 z-[60]">
+          <div className="absolute bottom-6 right-6 animate-in fade-in slide-in-from-bottom-4 duration-500 z-[60]">
             <button 
               onClick={onDebug}
               disabled={isAiLoading}

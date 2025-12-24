@@ -53,7 +53,9 @@ const App: React.FC = () => {
     isRecommendingCharts: false,
     isDeploying: false,
     isSqlAiGenerating: false,
+    isSqlAiFixing: false,
     isPythonAiGenerating: false,
+    isPythonAiFixing: false,
     analysisReport: '',
     visualConfig: { chartType: 'bar' }
   } as ProjectState);
@@ -117,8 +119,6 @@ const App: React.FC = () => {
       ...prev, 
       [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: true,
       [isSql ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: isSql ? prev.sqlCode : prev.pythonCode,
-      // CRITICAL FIX: Clear old results when starting a fresh generation. 
-      // This resets the UI and ensures the "AI Magic Fix" button from a previous error disappears.
       [isSql ? 'lastSqlResult' : 'lastPythonResult']: null
     }));
 
@@ -135,7 +135,10 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("AI Generation Error:", err);
       if (currentId === (isSql ? sqlReqId : pythonReqId).current) {
-        setProject(prev => ({ ...prev, [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false }));
+        setProject(prev => ({ 
+          ...prev, 
+          [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false 
+        }));
       }
     }
   };
@@ -150,7 +153,7 @@ const App: React.FC = () => {
 
     setProject(prev => ({ 
       ...prev, 
-      [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: true,
+      [isSql ? 'isSqlAiFixing' : 'isPythonAiFixing']: true,
       [isSql ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: isSql ? prev.sqlCode : prev.pythonCode
     }));
 
@@ -161,7 +164,7 @@ const App: React.FC = () => {
         setProject(prev => ({
           ...prev,
           [isSql ? 'sqlCode' : 'pythonCode']: generated,
-          [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false
+          [isSql ? 'isSqlAiFixing' : 'isPythonAiFixing']: false
         }));
         // Pass the 'generated' code directly to handleRun to bypass React state latency
         handleRun(generated);
@@ -169,7 +172,10 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("AI Debug Error:", err);
       if (currentId === (isSql ? sqlReqId : pythonReqId).current) {
-        setProject(prev => ({ ...prev, [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false }));
+        setProject(prev => ({ 
+          ...prev, 
+          [isSql ? 'isSqlAiFixing' : 'isPythonAiFixing']: false 
+        }));
       }
     }
   };
@@ -225,7 +231,6 @@ const App: React.FC = () => {
   const handleRun = async (codeOverride?: string) => {
     if (!dbReady) return;
     const currentMode = project.activeMode;
-    // Use override code if provided (e.g., from AI Debug), otherwise fall back to state
     const currentCode = codeOverride || (currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode);
 
     setProject(prev => ({ ...prev, isExecuting: true, isAnalyzing: false, isRecommendingCharts: false, analysisReport: '' }));
@@ -242,8 +247,6 @@ const App: React.FC = () => {
         });
         
         const data = await response.json();
-        
-        // Ensure that any explicit error message from the backend is captured in logs
         const logs = data.logs || [];
         if (!response.ok && data.message && !logs.includes(data.message)) {
           logs.unshift(data.message);
@@ -374,7 +377,8 @@ const App: React.FC = () => {
                 code={project.sqlCode} onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))} 
                 prompt={project.sqlAiPrompt} onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))} 
                 result={project.lastSqlResult} onRun={() => handleRun()} isExecuting={project.isExecuting} 
-                isAiLoading={project.isSqlAiGenerating}
+                isAiGenerating={project.isSqlAiGenerating}
+                isAiFixing={project.isSqlAiFixing}
                 onTriggerAi={() => handleTriggerAiCode(DevMode.SQL, project.sqlAiPrompt)}
                 onDebug={() => handleDebugCode(DevMode.SQL)}
                 tables={project.tables} onUndo={() => handleUndoAi(DevMode.SQL)} showUndo={!!project.lastSqlCodeBeforeAi}
@@ -385,7 +389,8 @@ const App: React.FC = () => {
                 code={project.pythonCode} onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))} 
                 prompt={project.pythonAiPrompt} onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))} 
                 result={project.lastPythonResult} onRun={() => handleRun()} isExecuting={project.isExecuting} 
-                isAiLoading={project.isPythonAiGenerating}
+                isAiGenerating={project.isPythonAiGenerating}
+                isAiFixing={project.isPythonAiFixing}
                 onTriggerAi={() => handleTriggerAiCode(DevMode.PYTHON, project.pythonAiPrompt)}
                 onDebug={() => handleDebugCode(DevMode.PYTHON)}
                 tables={project.tables} onUndo={() => handleUndoAi(DevMode.PYTHON)} showUndo={!!project.lastPythonCodeBeforeAi}

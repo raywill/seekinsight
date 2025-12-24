@@ -13,7 +13,8 @@ interface Props {
   result: ExecutionResult | null;
   onRun: () => void;
   isExecuting: boolean;
-  isAiLoading: boolean;
+  isAiGenerating: boolean;
+  isAiFixing: boolean;
   onTriggerAi: () => void;
   onDebug: () => void;
   tables: TableMetadata[];
@@ -22,22 +23,23 @@ interface Props {
 }
 
 const PythonWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, onDebug, tables, onUndo, showUndo 
+  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, 
+  isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo 
 }) => {
   const [isUndoVisible, setIsUndoVisible] = useState(false);
-  const prevLoading = useRef(isAiLoading);
+  const prevLoading = useRef(isAiGenerating || isAiFixing);
 
   useEffect(() => {
-    if (prevLoading.current && !isAiLoading && showUndo) {
+    if (prevLoading.current && !(isAiGenerating || isAiFixing) && showUndo) {
       setIsUndoVisible(true);
       const timer = setTimeout(() => setIsUndoVisible(false), 10000);
       return () => clearTimeout(timer);
     }
-    if (isAiLoading || !showUndo) {
+    if (isAiGenerating || isAiFixing || !showUndo) {
       setIsUndoVisible(false);
     }
-    prevLoading.current = isAiLoading;
-  }, [isAiLoading, showUndo]);
+    prevLoading.current = isAiGenerating || isAiFixing;
+  }, [isAiGenerating, isAiFixing, showUndo]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -52,10 +54,10 @@ const PythonWorkspace: React.FC<Props> = ({
           <Terminal size={16} className="absolute left-3.5 top-3.5 text-purple-400" />
           <button 
             onClick={onTriggerAi} 
-            disabled={isAiLoading || !prompt} 
+            disabled={isAiGenerating || isAiFixing || !prompt} 
             className="absolute right-2 top-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
-            {isAiLoading ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} 
+            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} 
             Script with AI
           </button>
         </div>
@@ -73,19 +75,19 @@ const PythonWorkspace: React.FC<Props> = ({
           </div>
         )}
 
-        <BaseCodeEditor code={code} onChange={onCodeChange} language="python" placeholder="# Write Python here..." readOnly={isAiLoading} />
+        <BaseCodeEditor code={code} onChange={onCodeChange} language="python" placeholder="# Write Python here..." readOnly={isAiGenerating || isAiFixing} />
         
         <div className="px-6 py-3 border-t border-gray-100 bg-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
             <div className="flex items-center gap-1.5"><Box size={12} className="text-purple-400" /><span>Python 3.10</span></div>
           </div>
-          <button onClick={onRun} disabled={isExecuting || isAiLoading} className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50">
+          <button onClick={onRun} disabled={isExecuting || isAiGenerating || isAiFixing} className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50">
             {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Run Analysis
           </button>
         </div>
       </div>
 
-      <PythonResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiLoading} />
+      <PythonResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiFixing} />
     </div>
   );
 };

@@ -74,9 +74,11 @@ export interface ProjectState {
   isAnalyzing: boolean;
   isRecommendingCharts: boolean;
   isDeploying: boolean;
-  // AI Generation Status
+  // AI Status split to avoid UI conflict
   isSqlAiGenerating: boolean;
+  isSqlAiFixing: boolean;
   isPythonAiGenerating: boolean;
+  isPythonAiFixing: boolean;
   analysisReport: string;
   visualConfig: {
     chartType: 'bar' | 'line' | 'pie';
