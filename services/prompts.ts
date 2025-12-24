@@ -1,6 +1,8 @@
 
 import { DevMode } from "../types";
 
+export const LANGUAGE_REQ = "Language Requirement: All string fields should be in Chinese";
+
 export const SYSTEM_PROMPTS = {
   CODE_GEN: (mode: DevMode, schema: string) => 
     mode === DevMode.SQL 
@@ -11,7 +13,7 @@ export const SYSTEM_PROMPTS = {
        - Prefer CTE to subquery.
        Available Schema:\n${schema}`
       : `You are a Python data scientist. Please write a python script. 
-       - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
+       - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, matplotlib, seaborn, plotly.
        - \`sql(query)\` is a predefined function you can use to execute a query without declaration
        - Use sql(query) to get a DataFrame.
        - Use forge_plotly(fig) for interactive charts.
@@ -45,7 +47,7 @@ export const SYSTEM_PROMPTS = {
 
   METADATA_INFER: `You are a data architect. Generate brief semantic descriptions for database columns based on headers and sample data. Respond ONLY with a valid JSON object.`,
 
-  ANALYSIS: `You are a senior data analyst. Provide a professional executive summary and 3 actionable data insights in Markdown format based on the query and results.`,
+  ANALYSIS: `You are a senior data analyst. Provide a professional executive summary and 3 actionable data insights in Markdown format based on the query and results. ${LANGUAGE_REQ}`,
 
   CHART_REC: `You are a Data Visualization Expert. Analyze the dataset structure and recommend the most insightful charts.
     Rules:
@@ -79,7 +81,8 @@ export const SYSTEM_PROMPTS = {
     - "category": A business domain (e.g., "Sales", "Inventory", "Customer", "Finance").
     - "type": MUST be either "SQL" or "PYTHON".
     
-    Balance the results: 4 SQL ideas and 4 Python ideas.`
+    Balance the results: 4 SQL ideas and 4 Python ideas.
+    ${LANGUAGE_REQ}`
 };
 
 export const USER_PROMPTS = {
