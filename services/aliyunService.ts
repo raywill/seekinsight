@@ -100,19 +100,22 @@ export const generateSuggestions = async (tables: TableMetadata[]): Promise<Sugg
   ).join('\n\n');
 
   const messages = [
-    { role: "system", content: "You are a strategic consultant. Respond with JSON object { 'suggestions': [...] }" },
-    { role: "user", content: `Generate 8 ideas based on:\n${schemaStr}` }
+    { role: "system", content: SYSTEM_PROMPTS.SUGGESTIONS },
+    { role: "user", content: `Database Schema:\n${schemaStr}` }
   ];
 
   try {
     const responseText = await callAliyun(messages, 0.7, true);
     const data = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
     return (data.suggestions || []).map((s: any) => ({
-      ...s,
       id: s.id || Math.random().toString(36).substr(2, 9),
-      type: s.type === 'SQL' ? DevMode.SQL : DevMode.PYTHON
+      title: s.title || "New Insight",
+      prompt: s.prompt || "Analyze the dataset for trends.",
+      category: s.category || "General",
+      type: s.type?.toUpperCase() === 'SQL' ? DevMode.SQL : DevMode.PYTHON
     }));
   } catch (err) {
+    console.error("Aliyun suggestion generation failed", err);
     return [];
   }
 };

@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { TableMetadata, DevMode, Suggestion } from "../types";
+import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
+import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -18,32 +19,11 @@ Columns:
 ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`).join('\n')}`
   ).join('\n\n');
 
-  const systemInstruction = mode === DevMode.SQL 
-    ? `You are an expert SQL analyst for SeekInsight. Generate valid MySQL/OceanBase compatible SQL. 
-       - Always use backticks for table and column names (e.g., \`table\`.\`column\`).
-       - Use the provided column comments to understand the semantic meaning of data.
-       - Only return the raw SQL code without any markdown blocks or explanations.
-       
-       Available Schema:\n${schemaStr}`
-    : `You are a Python data scientist. 
-       - Use pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, and plotly for data analysis.
-       - You have a built-in function sql(query) that returns a pandas DataFrame.
-       - Use Plotly for interactive visualization. Call forge_plotly(fig) to send the chart to the UI.
-       - Example:
-         import plotly.express as px
-         df = sql("SELECT * FROM sales")
-         fig = px.scatter(df, x='date', y='revenue', color='region')
-         forge_plotly(fig)
-       - Do NOT use fig.show() or plt.show().
-       - Only return the raw Python code.
-       
-       Available Schema:\n${schemaStr}`;
-
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,
     config: {
-      systemInstruction,
+      systemInstruction: SYSTEM_PROMPTS.CODE_GEN(mode, schemaStr),
       temperature: 0.1,
     },
   });
@@ -62,19 +42,12 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
   const sample = data.slice(0, sampleSize);
   const headers = Object.keys(data[0]);
 
-  const prompt = `Task: Generate brief semantic descriptions (comments) for each column in a database table.
-Table Name: ${tableName}
-Headers: ${headers.join(', ')}
-Sample Data (JSON): ${JSON.stringify(sample)}
-
-Return a JSON object where keys are column names and values are short, professional descriptions of what the data represents.
-Example: {"user_id": "Unique identifier for the customer", "amount": "Total transaction value in USD"}`;
-
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: prompt,
+      contents: USER_PROMPTS.METADATA_INFER(tableName, headers, sample),
       config: {
+        systemInstruction: SYSTEM_PROMPTS.METADATA_INFER,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -100,14 +73,12 @@ Example: {"user_id": "Unique identifier for the customer", "amount": "Total tran
  */
 export const generateAnalysis = async (query: string, result: any[]): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
-
-  const prompt = `Based on the SQL/Python logic: "${query}" and the resulting data (top 5 rows): ${JSON.stringify(result.slice(0, 5))}, provide a professional executive summary and 3 actionable data insights in Markdown format.`;
   
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: prompt,
+    contents: `Query: ${query}\nSample: ${JSON.stringify(result.slice(0, 5))}`,
     config: {
-      systemInstruction: "You are a senior data architect and business analyst. Be concise, professional, and data-driven.",
+      systemInstruction: SYSTEM_PROMPTS.ANALYSIS,
       temperature: 0.5,
     }
   });
@@ -115,51 +86,88 @@ export const generateAnalysis = async (query: string, result: any[]): Promise<st
   return response.text || "";
 };
 
-export const generateSuggestions = async (tables: TableMetadata[]): Promise<Suggestion[]> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}
-Columns: ${t.columns.map(c => `${c.name} (${c.type}: ${c.comment})`).join(', ')}`
-  ).join('\n\n');
-
-  const prompt = `Based on the following schema, generate 8 data analysis ideas. 
-4 SQL-based and 4 Python-based.
-
-Schema:
-${schemaStr}`;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          suggestions: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                title: { type: Type.STRING },
-                prompt: { type: Type.STRING },
-                category: { type: Type.STRING },
-                type: { type: Type.STRING, description: "Must be 'SQL' or 'PYTHON'" }
-              },
-              required: ["id", "title", "prompt", "category", "type"]
-            }
-          }
-        },
-        required: ["suggestions"]
-      }
-    }
-  });
+export const recommendCharts = async (query: string, result: any[]): Promise<AIChartConfig[]> => {
+  if (!result || result.length === 0) return [];
+  const columns = Object.keys(result[0]);
+  const sample = result.slice(0, 10);
 
   try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: USER_PROMPTS.CHART_REC(query, columns, sample),
+      config: {
+        systemInstruction: SYSTEM_PROMPTS.CHART_REC,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            charts: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  xKey: { type: Type.STRING },
+                  yKeys: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  title: { type: Type.STRING },
+                  description: { type: Type.STRING }
+                },
+                required: ["type", "xKey", "yKeys", "title"]
+              }
+            }
+          },
+          required: ["charts"]
+        }
+      }
+    });
+
+    const data = JSON.parse(response.text || "{}");
+    return data.charts || [];
+  } catch (err) {
+    console.error("Gemini chart recommendation failed", err);
+    return [];
+  }
+};
+
+export const generateSuggestions = async (tables: TableMetadata[]): Promise<Suggestion[]> => {
+  const schemaStr = tables.map(t => 
+    `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
+  ).join('\n\n');
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Database Schema:\n${schemaStr}`,
+      config: {
+        systemInstruction: SYSTEM_PROMPTS.SUGGESTIONS,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            suggestions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  title: { type: Type.STRING },
+                  prompt: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  type: { type: Type.STRING }
+                },
+                required: ["id", "title", "prompt", "category", "type"]
+              }
+            }
+          },
+          required: ["suggestions"]
+        }
+      }
+    });
+
     const data = JSON.parse(response.text || "{}");
     return (data.suggestions || []).map((s: any) => ({
       ...s,
-      type: s.type === 'SQL' ? DevMode.SQL : DevMode.PYTHON
+      type: s.type?.toUpperCase() === 'SQL' ? DevMode.SQL : DevMode.PYTHON
     }));
   } catch (err) {
     console.error("Gemini suggestion parsing failed", err);

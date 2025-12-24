@@ -41,7 +41,19 @@ export const SYSTEM_PROMPTS = {
           "description": "Brief explanation of why this chart is useful"
         }
       ]
-    }`
+    }`,
+
+  SUGGESTIONS: `You are a strategic data consultant. Based on the database schema, generate actionable data analysis ideas.
+    Respond ONLY with a JSON object containing a "suggestions" array.
+    
+    Each suggestion object MUST have:
+    - "id": A unique string.
+    - "title": A short, professional title for the analysis.
+    - "prompt": A detailed natural language prompt describing the analysis intent.
+    - "category": A business domain (e.g., "Sales", "Inventory", "Customer", "Finance").
+    - "type": MUST be either "SQL" or "PYTHON".
+    
+    Balance the results: 4 SQL ideas and 4 Python ideas.`
 };
 
 export const USER_PROMPTS = {
