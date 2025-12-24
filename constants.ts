@@ -58,6 +58,7 @@ GROUP BY region
 ORDER BY total_revenue DESC;`;
 
 export const INITIAL_PYTHON = `# Python Data Analysis (no table dependency)
+import plotly.express as px
 df = sql("""
 SELECT 'A' AS category, 100 AS value
 UNION ALL
@@ -70,4 +71,5 @@ print("Data Summary:")
 print(df.describe(include='all'))
 
 # Visualize with ForgePlot
-forge_plot(df, type='bar')`;
+fig = px.bar(df, x='category', y='value')
+forge_plotly(fig)`;
