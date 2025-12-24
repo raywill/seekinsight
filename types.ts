@@ -66,6 +66,9 @@ export interface ProjectState {
   lastPythonCodeBeforeAi: string | null;
   sqlAiPrompt: string;
   pythonAiPrompt: string;
+  // Unique ID to trigger useEffect on every "Apply" click
+  sqlPromptId: string | null;
+  pythonPromptId: string | null;
   suggestions: Suggestion[];
   lastSqlResult: ExecutionResult | null;
   lastPythonResult: ExecutionResult | null;

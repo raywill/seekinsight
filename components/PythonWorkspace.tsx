@@ -11,6 +11,7 @@ interface Props {
   onCodeChange: (val: string) => void;
   prompt: string;
   onPromptChange: (val: string) => void;
+  promptId?: string | null;
   result: ExecutionResult | null;
   onRun: () => void;
   isExecuting: boolean;
@@ -20,9 +21,10 @@ interface Props {
 }
 
 const PythonWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, tables, onUndo, showUndo 
+  code, onCodeChange, prompt, onPromptChange, promptId, result, onRun, isExecuting, tables, onUndo, showUndo 
 }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [undoVisible, setUndoVisible] = useState(false);
 
   const handleAiAsk = async () => {
     if (!prompt.trim()) return;
@@ -37,12 +39,25 @@ const PythonWorkspace: React.FC<Props> = ({
     }
   };
 
-  // Auto-trigger AI if prompt changed via Apply and code is default/empty
+  // Logic 1: Auto-trigger AI on unique promptId (Force Apply)
   useEffect(() => {
-    if (prompt && (code === '' || code.startsWith('# Python Data Analysis'))) {
+    if (promptId) {
       handleAiAsk();
     }
-  }, [prompt]);
+  }, [promptId]);
+
+  // Logic 2: Smart Auto-Hide for Revert Suggestion Button
+  useEffect(() => {
+    if (showUndo) {
+      setUndoVisible(true);
+      const timer = setTimeout(() => {
+        setUndoVisible(false);
+      }, 10000); // Hide after 10 seconds
+      return () => clearTimeout(timer);
+    } else {
+      setUndoVisible(false);
+    }
+  }, [showUndo]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -67,10 +82,13 @@ const PythonWorkspace: React.FC<Props> = ({
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {showUndo && (
+        {undoVisible && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 animate-in slide-in-from-top duration-300">
             <button 
-              onClick={onUndo}
+              onClick={() => {
+                if (onUndo) onUndo();
+                setUndoVisible(false);
+              }}
               className="flex items-center gap-2 px-4 py-1.5 bg-white border border-purple-200 text-purple-600 rounded-full text-xs font-black shadow-xl hover:bg-purple-50 transition-all border-b-2 active:translate-y-0.5"
             >
               <RotateCcw size={14} />

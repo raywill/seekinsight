@@ -42,6 +42,8 @@ const App: React.FC = () => {
     lastPythonCodeBeforeAi: null,
     sqlAiPrompt: '',
     pythonAiPrompt: '',
+    sqlPromptId: null,
+    pythonPromptId: null,
     suggestions: [],
     lastSqlResult: null,
     lastPythonResult: null,
@@ -93,13 +95,15 @@ const App: React.FC = () => {
   };
 
   const handleApplySuggestion = (s: Suggestion) => {
-    // We capture current code before applying the prompt for undo capability
     setProject(prev => ({
       ...prev,
       activeMode: s.type,
+      // Capture current code before applying the prompt for undo capability
       [s.type === DevMode.SQL ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: 
         s.type === DevMode.SQL ? prev.sqlCode : prev.pythonCode,
-      [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt
+      [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt,
+      // Generate a unique ID to ensure the workspace triggers AI even if prompt is same
+      [s.type === DevMode.SQL ? 'sqlPromptId' : 'pythonPromptId']: `apply_${Date.now()}`
     }));
   };
 
@@ -326,6 +330,7 @@ const App: React.FC = () => {
               onCodeChange={(val) => setProject(p => ({ ...p, sqlCode: val }))} 
               prompt={project.sqlAiPrompt} 
               onPromptChange={(val) => setProject(p => ({ ...p, sqlAiPrompt: val }))} 
+              promptId={project.sqlPromptId}
               result={project.lastSqlResult} 
               onRun={handleRun} 
               isExecuting={project.isExecuting} 
@@ -339,6 +344,7 @@ const App: React.FC = () => {
               onCodeChange={(val) => setProject(p => ({ ...p, pythonCode: val }))} 
               prompt={project.pythonAiPrompt} 
               onPromptChange={(val) => setProject(p => ({ ...p, pythonAiPrompt: val }))} 
+              promptId={project.pythonPromptId}
               result={project.lastPythonResult} 
               onRun={handleRun} 
               isExecuting={project.isExecuting} 
