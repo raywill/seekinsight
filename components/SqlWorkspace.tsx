@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ExecutionResult, TableMetadata, DevMode } from '../types';
 import BaseCodeEditor, { BaseCodeEditorRef } from './BaseCodeEditor';
 import ResultPanel from './ResultPanel';
-import { Database, Play, Sparkles, RefreshCcw, Code2, Hash, Table as TableIcon } from 'lucide-react';
+import { Database, Play, Sparkles, RefreshCcw, Code2, Hash, Table as TableIcon, RotateCcw } from 'lucide-react';
 import * as ai from '../services/aiProvider';
 
 interface Props {
@@ -15,6 +15,8 @@ interface Props {
   onRun: () => void;
   isExecuting: boolean;
   tables: TableMetadata[];
+  onUndo?: () => void;
+  showUndo?: boolean;
 }
 
 const SQL_KEYWORDS = [
@@ -25,7 +27,7 @@ const SQL_KEYWORDS = [
 ];
 
 const SqlWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, tables 
+  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, tables, onUndo, showUndo 
 }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -33,7 +35,6 @@ const SqlWorkspace: React.FC<Props> = ({
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const editorRef = useRef<BaseCodeEditorRef>(null);
 
-  // Fix: Comparison between string and boolean fixed by comparing against 'false' string.
   const isAutocompleteEnabled = process.env.SQL_AUTO_COMPLETE !== 'false';
 
   const allSuggestions = useMemo(() => {
@@ -86,7 +87,6 @@ const SqlWorkspace: React.FC<Props> = ({
     const textBeforeCursor = code.substring(0, cursorPosition);
     const words = textBeforeCursor.split(/([\s,();]+)/);
     
-    // Replace the last word
     words[words.length - 1] = suggestion;
     
     const newTextBefore = words.join('');
@@ -95,7 +95,6 @@ const SqlWorkspace: React.FC<Props> = ({
     onCodeChange(newCode);
     setShowAutocomplete(false);
 
-    // Reset cursor position
     setTimeout(() => {
       if (textarea) {
         const newPos = newTextBefore.length;
@@ -135,6 +134,13 @@ const SqlWorkspace: React.FC<Props> = ({
     }
   };
 
+  // Auto-trigger AI if prompt changed via Apply and code is default/empty
+  useEffect(() => {
+    if (prompt && (code === '' || code.startsWith('-- Generate some insights'))) {
+      handleAiAsk();
+    }
+  }, [prompt]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
       <div className="p-4 bg-blue-50/30 border-b border-blue-100/50">
@@ -158,6 +164,18 @@ const SqlWorkspace: React.FC<Props> = ({
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
+        {showUndo && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 animate-in slide-in-from-top duration-300">
+            <button 
+              onClick={onUndo}
+              className="flex items-center gap-2 px-4 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-full text-xs font-black shadow-xl hover:bg-blue-50 transition-all border-b-2 active:translate-y-0.5"
+            >
+              <RotateCcw size={14} />
+              Revert Suggestion
+            </button>
+          </div>
+        )}
+
         <BaseCodeEditor 
           ref={editorRef}
           code={code} 
@@ -167,7 +185,6 @@ const SqlWorkspace: React.FC<Props> = ({
           placeholder="-- Write your SQL here..." 
         />
         
-        {/* Autocomplete Popup */}
         {showAutocomplete && (
           <div className="absolute left-8 bottom-16 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">

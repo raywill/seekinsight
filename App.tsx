@@ -38,6 +38,8 @@ const App: React.FC = () => {
     activeMode: DevMode.SQL,
     sqlCode: INITIAL_SQL,
     pythonCode: INITIAL_PYTHON,
+    lastSqlCodeBeforeAi: null,
+    lastPythonCodeBeforeAi: null,
     sqlAiPrompt: '',
     pythonAiPrompt: '',
     suggestions: [],
@@ -80,7 +82,6 @@ const App: React.FC = () => {
   const handleFetchSuggestions = async () => {
     if (isSuggesting || project.tables.length === 0) return;
     setIsSuggesting(true);
-    if (IS_DEBUG) console.time('FetchSuggestions');
     try {
       const newSuggestions = await ai.generateSuggestions(project.tables);
       setProject(prev => ({ ...prev, suggestions: [...prev.suggestions, ...newSuggestions] }));
@@ -88,16 +89,28 @@ const App: React.FC = () => {
       console.error(err);
     } finally {
       setIsSuggesting(false);
-      if (IS_DEBUG) console.timeEnd('FetchSuggestions');
     }
   };
 
   const handleApplySuggestion = (s: Suggestion) => {
+    // We capture current code before applying the prompt for undo capability
     setProject(prev => ({
       ...prev,
       activeMode: s.type,
+      [s.type === DevMode.SQL ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: 
+        s.type === DevMode.SQL ? prev.sqlCode : prev.pythonCode,
       [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt
     }));
+  };
+
+  const handleUndoAi = (mode: DevMode) => {
+    setProject(prev => {
+      if (mode === DevMode.SQL) {
+        return { ...prev, sqlCode: prev.lastSqlCodeBeforeAi || prev.sqlCode, lastSqlCodeBeforeAi: null };
+      } else {
+        return { ...prev, pythonCode: prev.lastPythonCodeBeforeAi || prev.pythonCode, lastPythonCodeBeforeAi: null };
+      }
+    });
   };
 
   const handleUpload = async (file: File) => {
@@ -145,13 +158,10 @@ const App: React.FC = () => {
       isAnalyzing: false, 
       isRecommendingCharts: false,
       analysisReport: '',
-      // Clear previous chart configs when running a new one
       lastSqlResult: prev.lastSqlResult ? { ...prev.lastSqlResult, chartConfigs: [] } : null,
       lastPythonResult: prev.lastPythonResult ? { ...prev.lastPythonResult, chartConfigs: [] } : null
     }));
 
-    if (IS_DEBUG) console.time('DataExecutionOnly');
-    
     try {
       let result: ExecutionResult;
       const currentMode = project.activeMode;
@@ -177,9 +187,6 @@ const App: React.FC = () => {
         };
       }
 
-      if (IS_DEBUG) console.timeEnd('DataExecutionOnly');
-
-      // 1. Immediately show table data
       setProject(prev => ({ 
         ...prev, 
         isExecuting: false, 
@@ -188,25 +195,18 @@ const App: React.FC = () => {
         isRecommendingCharts: SI_ENABLE_AI_CHART && result.data.length > 0
       }));
 
-      // 2. Trigger AI Analysis and Charts asynchronously
       if (result.data.length > 0) {
-        // Run AI Analysis
         (async () => {
-          if (IS_DEBUG) console.time('Async_AI_Analysis');
           try {
             const report = await ai.generateAnalysis(currentCode, result.data);
             setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
           } catch (e) {
             setProject(prev => ({ ...prev, isAnalyzing: false, analysisReport: "Analysis failed." }));
-          } finally {
-            if (IS_DEBUG) console.timeEnd('Async_AI_Analysis');
           }
         })();
 
-        // Run AI Chart Recommendations
         if (SI_ENABLE_AI_CHART) {
           (async () => {
-            if (IS_DEBUG) console.time('Async_AI_Charts');
             try {
               const configs = await ai.recommendCharts(currentCode, result.data);
               setProject(prev => ({
@@ -219,8 +219,6 @@ const App: React.FC = () => {
               }));
             } catch (e) {
               setProject(prev => ({ ...prev, isRecommendingCharts: false }));
-            } finally {
-              if (IS_DEBUG) console.timeEnd('Async_AI_Charts');
             }
           })();
         }
@@ -323,9 +321,31 @@ const App: React.FC = () => {
           {project.activeMode === DevMode.INSIGHT_HUB ? (
             <InsightHub suggestions={project.suggestions} onApply={handleApplySuggestion} onFetchMore={handleFetchSuggestions} isLoading={isSuggesting} />
           ) : project.activeMode === DevMode.SQL ? (
-            <SqlWorkspace code={project.sqlCode} onCodeChange={(val) => setProject(p => ({ ...p, sqlCode: val }))} prompt={project.sqlAiPrompt} onPromptChange={(val) => setProject(p => ({ ...p, sqlAiPrompt: val }))} result={project.lastSqlResult} onRun={handleRun} isExecuting={project.isExecuting} tables={project.tables} />
+            <SqlWorkspace 
+              code={project.sqlCode} 
+              onCodeChange={(val) => setProject(p => ({ ...p, sqlCode: val }))} 
+              prompt={project.sqlAiPrompt} 
+              onPromptChange={(val) => setProject(p => ({ ...p, sqlAiPrompt: val }))} 
+              result={project.lastSqlResult} 
+              onRun={handleRun} 
+              isExecuting={project.isExecuting} 
+              tables={project.tables}
+              onUndo={() => handleUndoAi(DevMode.SQL)}
+              showUndo={!!project.lastSqlCodeBeforeAi}
+            />
           ) : (
-            <PythonWorkspace code={project.pythonCode} onCodeChange={(val) => setProject(p => ({ ...p, pythonCode: val }))} prompt={project.pythonAiPrompt} onPromptChange={(val) => setProject(p => ({ ...p, pythonAiPrompt: val }))} result={project.lastPythonResult} onRun={handleRun} isExecuting={project.isExecuting} tables={project.tables} />
+            <PythonWorkspace 
+              code={project.pythonCode} 
+              onCodeChange={(val) => setProject(p => ({ ...p, pythonCode: val }))} 
+              prompt={project.pythonAiPrompt} 
+              onPromptChange={(val) => setProject(p => ({ ...p, pythonAiPrompt: val }))} 
+              result={project.lastPythonResult} 
+              onRun={handleRun} 
+              isExecuting={project.isExecuting} 
+              tables={project.tables}
+              onUndo={() => handleUndoAi(DevMode.PYTHON)}
+              showUndo={!!project.lastPythonCodeBeforeAi}
+            />
           )}
         </main>
         {project.activeMode !== DevMode.INSIGHT_HUB && (

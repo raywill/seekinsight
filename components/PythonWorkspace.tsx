@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExecutionResult, TableMetadata, DevMode } from '../types';
 import BaseCodeEditor from './BaseCodeEditor';
 import ResultPanel from './ResultPanel';
-import { Terminal, Play, Sparkles, RefreshCcw, Box } from 'lucide-react';
+import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw } from 'lucide-react';
 import * as ai from '../services/aiProvider';
 
 interface Props {
@@ -15,10 +15,12 @@ interface Props {
   onRun: () => void;
   isExecuting: boolean;
   tables: TableMetadata[];
+  onUndo?: () => void;
+  showUndo?: boolean;
 }
 
 const PythonWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, tables 
+  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, tables, onUndo, showUndo 
 }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
@@ -34,6 +36,13 @@ const PythonWorkspace: React.FC<Props> = ({
       setIsAiLoading(false);
     }
   };
+
+  // Auto-trigger AI if prompt changed via Apply and code is default/empty
+  useEffect(() => {
+    if (prompt && (code === '' || code.startsWith('# Python Data Analysis'))) {
+      handleAiAsk();
+    }
+  }, [prompt]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -58,6 +67,18 @@ const PythonWorkspace: React.FC<Props> = ({
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
+        {showUndo && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 animate-in slide-in-from-top duration-300">
+            <button 
+              onClick={onUndo}
+              className="flex items-center gap-2 px-4 py-1.5 bg-white border border-purple-200 text-purple-600 rounded-full text-xs font-black shadow-xl hover:bg-purple-50 transition-all border-b-2 active:translate-y-0.5"
+            >
+              <RotateCcw size={14} />
+              Revert Suggestion
+            </button>
+          </div>
+        )}
+
         <BaseCodeEditor 
           code={code} 
           onChange={onCodeChange} 

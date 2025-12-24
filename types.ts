@@ -31,7 +31,7 @@ export interface ExecutionResult {
   columns: string[];
   logs?: string[];
   plotlyData?: any;
-  chartConfigs?: AIChartConfig[]; // AI recommended chart layouts
+  chartConfigs?: AIChartConfig[]; 
   timestamp: string;
 }
 
@@ -43,7 +43,6 @@ export interface Suggestion {
   type: DevMode.SQL | DevMode.PYTHON;
 }
 
-// Added AppMarketItem interface to fix "Module '"./types"' has no exported member 'AppMarketItem'" errors.
 export interface AppMarketItem {
   id: string;
   name: string;
@@ -62,14 +61,17 @@ export interface ProjectState {
   activeMode: DevMode;
   sqlCode: string;
   pythonCode: string;
+  // History for Undo
+  lastSqlCodeBeforeAi: string | null;
+  lastPythonCodeBeforeAi: string | null;
   sqlAiPrompt: string;
   pythonAiPrompt: string;
   suggestions: Suggestion[];
   lastSqlResult: ExecutionResult | null;
   lastPythonResult: ExecutionResult | null;
   isExecuting: boolean;
-  isAnalyzing: boolean;            // New: Analysis loading state
-  isRecommendingCharts: boolean;   // New: Chart recommendation loading state
+  isAnalyzing: boolean;
+  isRecommendingCharts: boolean;
   isDeploying: boolean;
   analysisReport: string;
   visualConfig: {
