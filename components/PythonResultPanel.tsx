@@ -100,7 +100,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
       </div>
 
       <div className="flex-1 overflow-auto bg-white relative">
-        {activeTab === 'console' ? (
+        {activeTab === 'console' || !result.plotlyData ? (
           <div className={`p-4 font-mono text-[13px] leading-relaxed h-full ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
             {result.logs?.map((log, idx) => (
               <div key={idx} className="flex gap-3 py-0.5">
@@ -113,9 +113,9 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
         ) : (
           <div className="h-full bg-white p-4">
             <Plot
-              data={result.plotlyData.data || []}
+              data={result.plotlyData?.data || []}
               layout={{
-                ...result.plotlyData.layout,
+                ...result.plotlyData?.layout,
                 autosize: true,
                 margin: { t: 30, r: 30, b: 30, l: 30 },
                 font: { family: 'Inter', size: 10 }
