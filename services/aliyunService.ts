@@ -48,6 +48,7 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
        - Always use backticks for table and column names (e.g., \`table\`.\`column\`).
        - Use column comments to understand data semantics.
        - Only return raw SQL code, no markdown blocks.
+       - Prefer CTE to subquery
        
        Available Schema:\n${schemaStr}`
     : `You are a Python data scientist. Please write a python script. Use pandas for analysis. 
