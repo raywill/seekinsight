@@ -27,7 +27,7 @@ export const SYSTEM_PROMPTS = {
     3. Provide a fixed, working version of the code.
     - Return ONLY the corrected code without any explanation or markdown formatting.
     `+ 
-    mode === DevMode.SQL 
+    (mode === DevMode.SQL
         ? `Basic Rules to write valid MySQL/OceanBase compatible SQL: 
        - Always use backticks for table and column names.
        - Use column comments to understand data semantics.
@@ -39,9 +39,9 @@ export const SYSTEM_PROMPTS = {
        - \`sql(query)\` is a predefined function you can use to execute a query without declaration
        - Use sql(query) to get a DataFrame.
        - Use forge_plotly(fig) for interactive charts.
-       - Only return raw Python code.
-
-    Schema context:\n${schema}`,
+       - Only return raw Python code.`) 
+      +  `
+      Schema context:\n${schema}`,
 
   METADATA_INFER: `You are a data architect. Generate brief semantic descriptions for database columns based on headers and sample data. Respond ONLY with a valid JSON object.`,
 
