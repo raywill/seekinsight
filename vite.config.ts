@@ -20,8 +20,9 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': JSON.stringify(env.API_KEY || env.GEMINI_API_KEY || env.ALIYUN_API_KEY),
       'process.env.API_BASEURL': JSON.stringify(env.API_BASEURL),
       'process.env.GATEWAY_URL': JSON.stringify(env.GATEWAY_URL || 'http://localhost:3001'),
-      // Set AI_PROVIDER to 'aliyun' or 'gemini'
       'process.env.AI_PROVIDER': JSON.stringify(env.AI_PROVIDER || 'aliyun'),
+      // Fix: Ensure SQL_AUTO_COMPLETE is defined as a string 'true' or 'false' for reliable environment variable behavior
+      'process.env.SQL_AUTO_COMPLETE': JSON.stringify(env.SQL_AUTO_COMPLETE === 'false' ? 'false' : 'true'),
     },
   };
 });

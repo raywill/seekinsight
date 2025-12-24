@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-python';
@@ -9,11 +9,22 @@ interface Props {
   onChange: (val: string) => void;
   language: 'sql' | 'python';
   placeholder?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-const BaseCodeEditor: React.FC<Props> = ({ code, onChange, language, placeholder }) => {
+export interface BaseCodeEditorRef {
+  textarea: HTMLTextAreaElement | null;
+}
+
+const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({ 
+  code, onChange, language, placeholder, onKeyDown 
+}, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    textarea: textareaRef.current
+  }));
 
   const handleScroll = () => {
     if (textareaRef.current && preRef.current) {
@@ -22,18 +33,23 @@ const BaseCodeEditor: React.FC<Props> = ({ code, onChange, language, placeholder
     }
   };
 
-  const handleTab = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleInternalKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
-      e.preventDefault();
+      // Basic Tab handling if no external onKeyDown prevents it
       const start = e.currentTarget.selectionStart;
       const end = e.currentTarget.selectionEnd;
       const newValue = code.substring(0, start) + '    ' + code.substring(end);
       onChange(newValue);
+      e.preventDefault();
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 4;
         }
       }, 0);
+    }
+    
+    if (onKeyDown) {
+      onKeyDown(e);
     }
   };
 
@@ -52,7 +68,7 @@ const BaseCodeEditor: React.FC<Props> = ({ code, onChange, language, placeholder
         value={code}
         onChange={(e) => onChange(e.target.value)}
         onScroll={handleScroll}
-        onKeyDown={handleTab}
+        onKeyDown={handleInternalKeyDown}
         className="prism-editor-textarea"
         spellCheck={false}
         autoCapitalize="off"
@@ -68,6 +84,6 @@ const BaseCodeEditor: React.FC<Props> = ({ code, onChange, language, placeholder
       </pre>
     </div>
   );
-};
+});
 
 export default BaseCodeEditor;
