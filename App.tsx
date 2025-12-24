@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DevMode, ProjectState, ExecutionResult, Suggestion } from './types';
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
@@ -22,6 +22,10 @@ const App: React.FC = () => {
   const [dbError, setDbError] = useState<string | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
 
+  // Request trackers for cancellation/overriding
+  const sqlReqId = useRef(0);
+  const pythonReqId = useRef(0);
+
   const env = {
     MYSQL_IP: (typeof process !== 'undefined' && process.env.MYSQL_IP) || '127.0.0.1',
     MYSQL_PORT: (typeof process !== 'undefined' && process.env.MYSQL_PORT) || '3306',
@@ -40,8 +44,6 @@ const App: React.FC = () => {
     lastPythonCodeBeforeAi: null,
     sqlAiPrompt: '',
     pythonAiPrompt: '',
-    sqlPromptId: null,
-    pythonPromptId: null,
     suggestions: [],
     lastSqlResult: null,
     lastPythonResult: null,
@@ -49,6 +51,8 @@ const App: React.FC = () => {
     isAnalyzing: false,
     isRecommendingCharts: false,
     isDeploying: false,
+    isSqlAiGenerating: false,
+    isPythonAiGenerating: false,
     analysisReport: '',
     visualConfig: { chartType: 'bar' }
   } as ProjectState);
@@ -87,15 +91,47 @@ const App: React.FC = () => {
     finally { setIsSuggesting(false); }
   };
 
+  const handleTriggerAiCode = async (mode: DevMode, prompt: string) => {
+    if (!prompt.trim()) return;
+
+    const isSql = mode === DevMode.SQL;
+    const currentId = ++(isSql ? sqlReqId : pythonReqId).current;
+
+    setProject(prev => ({ 
+      ...prev, 
+      [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: true,
+      [isSql ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: isSql ? prev.sqlCode : prev.pythonCode
+    }));
+
+    try {
+      const generated = await ai.generateCode(prompt, mode, project.tables);
+      
+      // Only apply if this is still the latest request for this mode
+      if (currentId === (isSql ? sqlReqId : pythonReqId).current) {
+        setProject(prev => ({
+          ...prev,
+          [isSql ? 'sqlCode' : 'pythonCode']: generated,
+          [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false
+        }));
+      }
+    } catch (err) {
+      console.error("AI Generation Error:", err);
+      if (currentId === (isSql ? sqlReqId : pythonReqId).current) {
+        setProject(prev => ({ ...prev, [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false }));
+      }
+    }
+  };
+
   const handleApplySuggestion = (s: Suggestion) => {
+    // 1. Switch tab and prepare prompt immediately
     setProject(prev => ({
       ...prev,
       activeMode: s.type,
-      [s.type === DevMode.SQL ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: 
-        s.type === DevMode.SQL ? prev.sqlCode : prev.pythonCode,
       [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt,
-      [s.type === DevMode.SQL ? 'sqlPromptId' : 'pythonPromptId']: `apply_${Date.now()}`
     }));
+    
+    // 2. Trigger the automated generation
+    handleTriggerAiCode(s.type, s.prompt);
   };
 
   const handleUndoAi = (mode: DevMode) => {
@@ -221,23 +257,31 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          {project.activeMode === DevMode.INSIGHT_HUB ? (
-            <InsightHub suggestions={project.suggestions} onApply={handleApplySuggestion} onFetchMore={handleFetchSuggestions} isLoading={isSuggesting} />
-          ) : project.activeMode === DevMode.SQL ? (
-            <SqlWorkspace 
-              code={project.sqlCode} onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))} 
-              prompt={project.sqlAiPrompt} onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))} 
-              promptId={project.sqlPromptId} result={project.lastSqlResult} onRun={handleRun} isExecuting={project.isExecuting} 
-              tables={project.tables} onUndo={() => handleUndoAi(DevMode.SQL)} showUndo={!!project.lastSqlCodeBeforeAi}
-            />
-          ) : (
-            <PythonWorkspace 
-              code={project.pythonCode} onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))} 
-              prompt={project.pythonAiPrompt} onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))} 
-              promptId={project.pythonPromptId} result={project.lastPythonResult} onRun={handleRun} isExecuting={project.isExecuting} 
-              tables={project.tables} onUndo={() => handleUndoAi(DevMode.PYTHON)} showUndo={!!project.lastPythonCodeBeforeAi}
-            />
-          )}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {project.activeMode === DevMode.INSIGHT_HUB && (
+              <InsightHub suggestions={project.suggestions} onApply={handleApplySuggestion} onFetchMore={handleFetchSuggestions} isLoading={isSuggesting} />
+            )}
+            {project.activeMode === DevMode.SQL && (
+              <SqlWorkspace 
+                code={project.sqlCode} onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))} 
+                prompt={project.sqlAiPrompt} onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))} 
+                result={project.lastSqlResult} onRun={handleRun} isExecuting={project.isExecuting} 
+                isAiLoading={project.isSqlAiGenerating}
+                onTriggerAi={() => handleTriggerAiCode(DevMode.SQL, project.sqlAiPrompt)}
+                tables={project.tables} onUndo={() => handleUndoAi(DevMode.SQL)} showUndo={!!project.lastSqlCodeBeforeAi}
+              />
+            )}
+            {project.activeMode === DevMode.PYTHON && (
+              <PythonWorkspace 
+                code={project.pythonCode} onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))} 
+                prompt={project.pythonAiPrompt} onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))} 
+                result={project.lastPythonResult} onRun={handleRun} isExecuting={project.isExecuting} 
+                isAiLoading={project.isPythonAiGenerating}
+                onTriggerAi={() => handleTriggerAiCode(DevMode.PYTHON, project.pythonAiPrompt)}
+                tables={project.tables} onUndo={() => handleUndoAi(DevMode.PYTHON)} showUndo={!!project.lastPythonCodeBeforeAi}
+              />
+            )}
+          </div>
         </main>
 
         {project.activeMode === DevMode.SQL && (

@@ -66,9 +66,6 @@ export interface ProjectState {
   lastPythonCodeBeforeAi: string | null;
   sqlAiPrompt: string;
   pythonAiPrompt: string;
-  // Unique ID to trigger useEffect on every "Apply" click
-  sqlPromptId: string | null;
-  pythonPromptId: string | null;
   suggestions: Suggestion[];
   lastSqlResult: ExecutionResult | null;
   lastPythonResult: ExecutionResult | null;
@@ -76,6 +73,9 @@ export interface ProjectState {
   isAnalyzing: boolean;
   isRecommendingCharts: boolean;
   isDeploying: boolean;
+  // AI Generation Status
+  isSqlAiGenerating: boolean;
+  isPythonAiGenerating: boolean;
   analysisReport: string;
   visualConfig: {
     chartType: 'bar' | 'line' | 'pie';

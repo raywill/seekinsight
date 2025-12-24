@@ -1,62 +1,28 @@
 
-import React, { useState, useEffect } from 'react';
-import { ExecutionResult, TableMetadata, DevMode } from '../types';
+import React from 'react';
+import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor from './BaseCodeEditor';
 import PythonResultPanel from './PythonResultPanel';
 import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw } from 'lucide-react';
-import * as ai from '../services/aiProvider';
 
 interface Props {
   code: string;
   onCodeChange: (val: string) => void;
   prompt: string;
   onPromptChange: (val: string) => void;
-  promptId?: string | null;
   result: ExecutionResult | null;
   onRun: () => void;
   isExecuting: boolean;
+  isAiLoading: boolean;
+  onTriggerAi: () => void;
   tables: TableMetadata[];
   onUndo?: () => void;
   showUndo?: boolean;
 }
 
 const PythonWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, promptId, result, onRun, isExecuting, tables, onUndo, showUndo 
+  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, tables, onUndo, showUndo 
 }) => {
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [undoVisible, setUndoVisible] = useState(false);
-
-  const handleAiAsk = async () => {
-    if (!prompt.trim()) return;
-    setIsAiLoading(true);
-    setUndoVisible(false);
-    try {
-      const generated = await ai.generateCode(prompt, DevMode.PYTHON, tables);
-      onCodeChange(generated);
-      if (showUndo) setUndoVisible(true);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (promptId) handleAiAsk();
-  }, [promptId]);
-
-  useEffect(() => {
-    let timer: any;
-    if (undoVisible) {
-      timer = setTimeout(() => setUndoVisible(false), 10000);
-    }
-    return () => clearTimeout(timer);
-  }, [undoVisible]);
-
-  useEffect(() => {
-    if (!showUndo) setUndoVisible(false);
-  }, [showUndo]);
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
       <div className="px-8 py-4 bg-purple-50/30 border-b border-purple-100/50">
@@ -69,9 +35,9 @@ const PythonWorkspace: React.FC<Props> = ({
           />
           <Terminal size={16} className="absolute left-3.5 top-3.5 text-purple-400" />
           <button 
-            onClick={handleAiAsk} 
+            onClick={onTriggerAi} 
             disabled={isAiLoading || !prompt} 
-            className="absolute right-2 top-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors"
+            className="absolute right-2 top-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
             {isAiLoading ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} 
             Script with AI
@@ -80,9 +46,9 @@ const PythonWorkspace: React.FC<Props> = ({
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {undoVisible && (
+        {showUndo && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
-            <button onClick={() => { if (onUndo) onUndo(); setUndoVisible(false); }} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-purple-200 text-purple-600 rounded-full text-xs font-black shadow-xl">
+            <button onClick={onUndo} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-purple-200 text-purple-600 rounded-full text-xs font-black shadow-xl">
               <RotateCcw size={14} /> Revert Suggestion
             </button>
           </div>
