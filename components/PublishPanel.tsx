@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DevMode, ExecutionResult } from '../types';
 import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 
 interface Props {
   mode: DevMode;
@@ -25,17 +25,39 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
     setTimeout(() => setDeploySuccess(false), 3000);
   };
 
-  const renderChart = () => {
+  // Helper to find numeric and categorical keys and sanitize data
+  const chartProps = useMemo(() => {
     if (!result || result.data.length === 0) return null;
 
-    const xKey = result.columns[0];
-    const yKey = result.columns[1];
+    // Identify first numeric column for Y-axis
+    const numericKey = result.columns.find(col => 
+      result.data.some(row => {
+        const val = row[col];
+        return typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val));
+      })
+    ) || result.columns[1] || result.columns[0];
+
+    // Identify X-axis key (usually the first column that isn't the Y-axis key)
+    const categoryKey = result.columns.find(col => col !== numericKey) || result.columns[0];
+
+    // Sanitize data: Ensure metric is always numeric for Recharts
+    const data = result.data.map(row => ({
+      ...row,
+      [numericKey]: parseFloat(row[numericKey]) || 0
+    })).filter(row => row[numericKey] !== undefined);
+
+    return { data, xKey: categoryKey, yKey: numericKey };
+  }, [result]);
+
+  const renderChart = () => {
+    if (!chartProps) return null;
+    const { data, xKey, yKey } = chartProps;
 
     switch (chartType) {
       case 'Line':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={result.data}>
+            <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
               <YAxis fontSize={10} axisLine={false} tickLine={false} />
@@ -52,29 +74,32 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={result.data}
+                data={data}
                 dataKey={yKey}
                 nameKey={xKey}
                 cx="50%"
                 cy="50%"
+                innerRadius={60}
                 outerRadius={80}
-                fill="#8884d8"
-                label={{ fontSize: 10, fontWeight: 'bold' }}
+                paddingAngle={5}
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
               >
-                {result.data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                 ))}
               </Pie>
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                formatter={(value: any) => [value.toLocaleString(), 'Value']}
               />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
             </PieChart>
           </ResponsiveContainer>
         );
       default:
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={result.data}>
+            <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
               <YAxis fontSize={10} axisLine={false} tickLine={false} />
@@ -201,9 +226,9 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight">Real-time Preview</h2>
             </div>
-            {result ? (
+            {result && chartProps ? (
               <div className="flex-1 space-y-8">
-                <div className="h-64 bg-white rounded-xl">
+                <div className="h-72 bg-white rounded-xl">
                   {renderChart()}
                 </div>
 

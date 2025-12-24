@@ -61,7 +61,7 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
 
   if (isLoading) {
     return (
-      <div className="h-80 border-t border-gray-200 bg-white flex flex-col items-center justify-center gap-3 animate-pulse">
+      <div className="h-72 border-t border-gray-200 bg-white flex flex-col items-center justify-center gap-3 animate-pulse">
         <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
           <Clock size={20} className="text-gray-300" />
         </div>
@@ -72,7 +72,7 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
 
   if (!result) {
     return (
-      <div className="h-80 border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400">
+      <div className="h-72 border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400">
         <div className="p-3 border-2 border-dashed border-gray-200 rounded-xl mb-2">
            <Play size={24} className="opacity-20" />
         </div>
@@ -82,7 +82,7 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
   }
 
   return (
-    <div className="h-96 border-t border-gray-200 bg-white flex flex-col overflow-hidden">
+    <div className="h-72 border-t border-gray-200 bg-white flex flex-col overflow-hidden">
       {/* Dynamic Header with Tabs */}
       <div className={`px-4 py-1 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50/50'}`}>
         <div className="flex items-center gap-2">
