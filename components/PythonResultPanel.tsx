@@ -54,7 +54,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading }) => {
   }, [result]);
 
   if (isLoading) return (
-    <div style={{ height }} className="border-t border-gray-200 bg-gray-900 flex flex-col items-center justify-center text-blue-400">
+    <div style={{ height }} className="border-t border-gray-200 bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse">
       <Box size={24} className="animate-spin mb-3" />
       <p className="text-[10px] font-black uppercase tracking-[0.2em]">Executing Python Runtime...</p>
     </div>
@@ -73,30 +73,30 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading }) => {
         <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-purple-400"></div>
       </div>
 
-      <div className="px-4 py-2 bg-gray-900 border-b border-gray-800 flex items-center justify-between shrink-0">
+      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex gap-1">
-          <button onClick={() => setActiveTab('console')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+          <button onClick={() => setActiveTab('console')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}>
             <TerminalIcon size={12} className="inline mr-1.5" /> Stdout/Stderr
           </button>
           {result.plotlyData && (
-            <button onClick={() => setActiveTab('plot')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+            <button onClick={() => setActiveTab('plot')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}>
               <BarChart size={12} className="inline mr-1.5" /> Interactive Plot
             </button>
           )}
         </div>
-        <div className="text-[10px] font-mono text-gray-500">PY3.10 • {result.timestamp}</div>
+        <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider">PY3.10 • {result.timestamp}</div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-gray-950">
+      <div className="flex-1 overflow-auto bg-white">
         {activeTab === 'console' ? (
-          <div className="p-4 font-mono text-[13px] text-gray-300 leading-relaxed">
+          <div className="p-4 font-mono text-[13px] text-gray-700 leading-relaxed bg-white">
             {result.logs?.map((log, idx) => (
-              <div key={idx} className="flex gap-3">
-                <span className="text-gray-700 select-none">[{idx+1}]</span>
-                <span className={log.toLowerCase().includes('error') ? 'text-red-400' : ''}>{log}</span>
+              <div key={idx} className="flex gap-3 py-0.5">
+                <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
+                <span className={log.toLowerCase().includes('error') ? 'text-red-500 font-bold' : ''}>{log}</span>
               </div>
             ))}
-            {result.logs?.length === 0 && <span className="text-gray-600 italic">Script completed with no output.</span>}
+            {result.logs?.length === 0 && <span className="text-gray-400 italic font-medium">Script completed with no stdout output.</span>}
           </div>
         ) : (
           <div className="h-full bg-white p-4">

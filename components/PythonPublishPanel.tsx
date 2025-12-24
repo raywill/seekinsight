@@ -65,15 +65,17 @@ const PythonPublishPanel: React.FC<Props> = ({ result, onDeploy, isDeploying }) 
         </section>
 
         <div className="p-5 bg-purple-600 rounded-[2rem] text-white space-y-3 shadow-xl shadow-purple-200">
-           <h4 className="text-[10px] font-black uppercase tracking-widest opacity-80">Serverless Ready</h4>
-           <p className="text-xs font-medium leading-relaxed">This script is optimized for the SeekInsight distributed runtime. You can trigger it via a web-hook once deployed.</p>
+           <h4 className="text-[10px] font-black uppercase tracking-widest opacity-80">Serverless Deployment</h4>
+           <p className="text-xs font-medium leading-relaxed">
+             Publish this script as a serverless instance. Once deployed, you can access the execution results and interactive charts directly via a public or private URL.
+           </p>
         </div>
       </div>
 
       <div className="p-6 bg-gray-50 border-t border-gray-100">
         <button onClick={handleDeploy} disabled={isDeploying || !result} className="w-full py-4 bg-purple-700 text-white rounded-2xl text-sm font-black flex items-center justify-center gap-3 hover:bg-purple-800 transition-all shadow-lg shadow-purple-100">
           {isDeploying ? <RefreshCw size={18} className="animate-spin" /> : (deployed ? <CheckCircle2 size={18} /> : <Rocket size={18} />)}
-          {deployed ? 'SCRIPT DEPLOYED' : 'PUBLISH AS MICROSERVICE'}
+          {deployed ? 'SCRIPT PUBLISHED' : 'DEPLOY TO SERVERLESS URL'}
         </button>
       </div>
     </div>

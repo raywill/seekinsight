@@ -40,7 +40,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
         </div>
         <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
         {items.map((item: Suggestion) => (
           <div 
             key={item.id || Math.random().toString()} 
@@ -76,7 +76,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50/50 p-8">
-      <div className="max-w-6xl mx-auto space-y-12">
+      <div className="w-full space-y-12">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">

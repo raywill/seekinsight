@@ -59,17 +59,22 @@ const PythonWorkspace: React.FC<Props> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      <div className="p-4 bg-purple-50/30 border-b border-purple-100/50">
-        <div className="relative group max-w-5xl mx-auto">
+      <div className="px-8 py-4 bg-purple-50/30 border-b border-purple-100/50">
+        <div className="relative group w-full">
           <input
             value={prompt}
             onChange={(e) => onPromptChange(e.target.value)}
-            placeholder="Ask AI for a Python script..."
-            className="w-full pl-10 pr-24 py-2.5 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none"
+            placeholder="Ask AI for a Python script... e.g. Analyze correlation between age and price"
+            className="w-full pl-10 pr-40 py-2.5 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all"
           />
           <Terminal size={16} className="absolute left-3.5 top-3.5 text-purple-400" />
-          <button onClick={handleAiAsk} disabled={isAiLoading || !prompt} className="absolute right-2 top-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold">
-            {isAiLoading ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} Script with AI
+          <button 
+            onClick={handleAiAsk} 
+            disabled={isAiLoading || !prompt} 
+            className="absolute right-2 top-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors"
+          >
+            {isAiLoading ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} 
+            Script with AI
           </button>
         </div>
       </div>
