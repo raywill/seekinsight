@@ -69,10 +69,21 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
             </AreaChart>
           );
         case 'pie':
+          // Process data for pie chart: Top 6 + Others to prevent clutter
+          const pieData = (() => {
+            if (!data || data.length <= 7) return data; 
+            const valueKey = yKeys[0];
+            const sorted = [...data].sort((a, b) => (Number(b[valueKey]) || 0) - (Number(a[valueKey]) || 0));
+            const top = sorted.slice(0, 6);
+            const rest = sorted.slice(6);
+            const othersSum = rest.reduce((sum, item) => sum + (Number(item[valueKey]) || 0), 0);
+            return [...top, { [xKey]: 'Others', [valueKey]: othersSum }];
+          })();
+
           return (
             <PieChart>
-              <Pie data={data} dataKey={yKeys[0]} nameKey={xKey} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                {data.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+              <Pie data={pieData} dataKey={yKeys[0]} nameKey={xKey} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                {pieData.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
               <Legend verticalAlign="bottom" height={36} iconType="circle" />
