@@ -126,9 +126,14 @@ const SqlWorkspace: React.FC<Props> = ({
   const handleAiAsk = async () => {
     if (!prompt.trim()) return;
     setIsAiLoading(true);
+    setUndoVisible(false); // Reset undo visibility when starting a new generation
     try {
       const generated = await ai.generateCode(prompt, DevMode.SQL, tables);
       onCodeChange(generated);
+      // Logic: Only show the Revert button AFTER the content is actually replaced
+      if (showUndo) {
+        setUndoVisible(true);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -143,17 +148,20 @@ const SqlWorkspace: React.FC<Props> = ({
     }
   }, [promptId]);
 
-  // Logic 2: Smart Auto-Hide for Revert Suggestion Button
+  // Logic 2: Smart Auto-Hide timer for the Undo button
   useEffect(() => {
-    if (showUndo) {
-      setUndoVisible(true);
-      const timer = setTimeout(() => {
+    let timer: any;
+    if (undoVisible) {
+      timer = setTimeout(() => {
         setUndoVisible(false);
-      }, 10000); // Hide after 10 seconds
-      return () => clearTimeout(timer);
-    } else {
-      setUndoVisible(false);
+      }, 10000); // 10s auto-hide
     }
+    return () => clearTimeout(timer);
+  }, [undoVisible]);
+
+  // Reset local undo state if showUndo prop becomes false (e.g., after successful undo or navigation)
+  useEffect(() => {
+    if (!showUndo) setUndoVisible(false);
   }, [showUndo]);
 
   return (
