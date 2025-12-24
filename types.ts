@@ -22,6 +22,7 @@ export interface ExecutionResult {
   data: any[];
   columns: string[];
   logs?: string[];
+  plotlyData?: any; // Added for Plotly JSON support
   timestamp: string;
 }
 

@@ -26,7 +26,6 @@
             background-color: #fff;
         }
         
-        /* 核心修复：确保 textarea 和 pre 的属性完全镜像 */
         .prism-editor-textarea, 
         .prism-editor-pre {
             position: absolute;
@@ -36,7 +35,7 @@
             height: 100%;
             margin: 0 !important;
             border: 0 !important;
-            padding: 20px !important; /* 统一 Padding */
+            padding: 20px !important;
             font-family: 'JetBrains Mono', monospace !important;
             font-size: 14px !important;
             line-height: 1.5 !important;
@@ -49,7 +48,7 @@
         .prism-editor-textarea {
             color: transparent !important;
             background: transparent !important;
-            caret-color: #2563eb; /* 蓝色光标 */
+            caret-color: #2563eb;
             z-index: 2;
             resize: none;
             outline: none;
@@ -63,7 +62,6 @@
             background: transparent !important;
         }
 
-        /* 修复首行偏移的关键：code 标签不能有额外的 padding/margin */
         .prism-editor-pre code {
             padding: 0 !important;
             margin: 0 !important;
@@ -95,14 +93,15 @@
     "child_process": "https://esm.sh/child_process@^1.0.2",
     "fs": "https://esm.sh/fs@^0.0.1-security",
     "path": "https://esm.sh/path@^0.12.7",
-    "util": "https://esm.sh/util@^0.12.5"
+    "util": "https://esm.sh/util@^0.12.5",
+    "react-plotly.js": "https://esm.sh/react-plotly.js@^2.6.0",
+    "plotly.js-dist-min": "https://esm.sh/plotly.js-dist-min@^2.35.2"
   }
 }
 </script>
 </head>
 <body class="bg-gray-50 text-gray-900 overflow-hidden">
     <div id="root"></div>
-    <!-- 核心入口脚本 -->
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>

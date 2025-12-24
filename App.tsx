@@ -68,7 +68,6 @@ const App: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
-  // Background Suggestion Logic: Trigger as soon as tables are available
   useEffect(() => {
     if (project.suggestions.length === 0 && project.tables.length > 0 && dbReady) {
       handleFetchSuggestions();
@@ -176,6 +175,7 @@ const App: React.FC = () => {
           data: data.data || [],
           columns: data.columns || [],
           logs: data.logs || [],
+          plotlyData: data.plotlyData || null,
           timestamp: data.timestamp || new Date().toLocaleTimeString()
         };
 

@@ -27,7 +27,13 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
        Available Schema:\n${schemaStr}`
     : `You are a Python data scientist. Use pandas for data analysis. 
        - You have a built-in function sql(query) that returns a pandas DataFrame.
-       - Use the column comments to guide your feature engineering or analysis.
+       - Use Plotly for interactive visualization. Call forge_plotly(fig) to send the chart to the UI.
+       - Example:
+         import plotly.express as px
+         df = sql("SELECT * FROM sales")
+         fig = px.scatter(df, x='date', y='revenue', color='region')
+         forge_plotly(fig)
+       - Do NOT use fig.show() or plt.show().
        - Only return the raw Python code.
        
        Available Schema:\n${schemaStr}`;

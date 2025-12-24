@@ -53,9 +53,14 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
        Available Schema:\n${schemaStr}`
     : `You are a Python data scientist. Please write a python script. Use pandas for analysis. 
        - You have a built-in function sql(query) that returns a pandas DataFrame.
-       - Use column comments to guide your logic.
+       - For visualization, use Plotly. You must call forge_plotly(fig) to send the interactive chart to the UI.
+       - Example:
+         import plotly.express as px
+         df = sql("SELECT * FROM users")
+         fig = px.bar(df, x='name', y='age')
+         forge_plotly(fig)
+       - Do NOT use plt.show() or fig.show().
        - Only return raw Python code, no markdown blocks.
-       - For a complex task, you can solve it step by step using multiple lines of code
        
        Available Schema:\n${schemaStr}`;
 

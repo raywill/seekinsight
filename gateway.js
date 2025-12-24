@@ -21,7 +21,6 @@ const PYTHON_EXE = process.platform === 'win32'
 let dbConfig = null;
 let connection = null;
 
-// Ensure Python Virtual Environment exists and has dependencies
 async function initVenv() {
   console.log('[Venv] Checking environment status...');
   if (!fs.existsSync(VENV_PATH)) {
@@ -34,7 +33,6 @@ async function initVenv() {
     ? path.join(VENV_PATH, 'Scripts', 'pip.exe') 
     : path.join(VENV_PATH, 'bin', 'pip');
     
-  // Added data science and visualization powerhouses
   const packages = [
     'pandas', 
     'sqlalchemy', 
@@ -88,8 +86,6 @@ app.post('/python', async (req, res) => {
   const { code } = req.body;
   if (!dbConfig) return res.status(400).json({ message: 'Database not connected. Python runtime requires DB context.' });
 
-  // Robust connection string construction for SQLAlchemy
-  // URI format: mysql+mysqlconnector://user[:password]@host:port/database
   const passwordPart = dbConfig.password ? `:${encodeURIComponent(dbConfig.password)}` : '';
   const authPart = `${encodeURIComponent(dbConfig.user)}${passwordPart}`;
   const connectionString = `mysql+mysqlconnector://${authPart}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`;
@@ -99,6 +95,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 import json
 import sys
+import plotly.io as pio
 
 # Securely initialized engine
 engine = create_engine("${connectionString}")
@@ -108,8 +105,12 @@ def sql(query):
     return pd.read_sql(query, engine)
 
 def forge_plot(df, type='bar'):
-    """Sends visual data back to the UI."""
+    """Sends visual data back to the UI (Legacy)."""
     print(f"__PLOT_DATA__:{df.to_json(orient='records')}")
+
+def forge_plotly(fig):
+    """Sends Plotly JSON back to the UI for interactive charting."""
+    print(f"__PLOTLY_DATA__:{pio.to_json(fig)}")
 
 # --- User Code Execution ---
 `;
@@ -130,13 +131,22 @@ def forge_plot(df, type='bar'):
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     
     const plotMarker = "__PLOT_DATA__:";
+    const plotlyMarker = "__PLOTLY_DATA__:";
     let plotData = null;
+    let plotlyData = null;
+    
     const lines = stdout.split('\n');
     const logs = lines.filter(line => {
       if (line.startsWith(plotMarker)) {
         try {
           plotData = JSON.parse(line.replace(plotMarker, ''));
         } catch(e) { console.error("Failed to parse plot data", e); }
+        return false;
+      }
+      if (line.startsWith(plotlyMarker)) {
+        try {
+          plotlyData = JSON.parse(line.replace(plotlyMarker, ''));
+        } catch(e) { console.error("Failed to parse plotly data", e); }
         return false;
       }
       return true;
@@ -148,6 +158,7 @@ def forge_plot(df, type='bar'):
       res.json({ 
         logs, 
         data: plotData || [], 
+        plotlyData: plotlyData,
         columns: plotData && plotData.length > 0 ? Object.keys(plotData[0]) : [],
         timestamp: new Date().toLocaleTimeString() 
       });

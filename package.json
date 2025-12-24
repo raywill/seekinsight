@@ -25,7 +25,9 @@
     "child_process": "^1.0.2",
     "fs": "^0.0.1-security",
     "path": "^0.12.7",
-    "util": "^0.12.5"
+    "util": "^0.12.5",
+    "react-plotly.js": "^2.6.0",
+    "plotly.js-dist-min": "^2.35.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
