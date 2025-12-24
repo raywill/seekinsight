@@ -35,6 +35,39 @@ export const MOCK_APPS: AppMarketItem[] = [
   { id: '4', name: 'Fraud Detection Engine', icon: 'ShieldAlert', color: '#DC2626', description: 'Anomaly detection for real-time transaction processing.', author: 'Security Lab', category: 'Finance', type: DevMode.PYTHON },
 ];
 
-export const INITIAL_SQL = `-- Generate some insights\nSELECT region, SUM(amount) as total_revenue\nFROM sales_data\nGROUP BY region\nORDER BY total_revenue DESC;`;
+export const INITIAL_SQL = `-- Generate regional revenue insights (pure mock data, no table dependency)
+SELECT
+    region,
+    SUM(amount) AS total_revenue,
+    ROUND(
+        SUM(amount) * 100.0 / SUM(SUM(amount)) OVER (),
+        2
+    ) AS revenue_percentage
+FROM (
+    SELECT 'North America' AS region, 1200 AS amount
+    UNION ALL
+    SELECT 'Europe',        950
+    UNION ALL
+    SELECT 'Asia',          1600
+    UNION ALL
+    SELECT 'South America', 420
+    UNION ALL
+    SELECT 'Africa',        230
+) AS mock_data
+GROUP BY region
+ORDER BY total_revenue DESC;`;
 
-export const INITIAL_PYTHON = `# Python Data Analysis\ndf = sql("SELECT * FROM sales_data LIMIT 10")\nprint("Data Summary:")\nprint(df.describe())\n\n# Visualize with ForgePlot\nforge_plot(df, type='bar')`;
+export const INITIAL_PYTHON = `# Python Data Analysis (no table dependency)
+df = sql("""
+SELECT 'A' AS category, 100 AS value
+UNION ALL
+SELECT 'B' AS category, 150 AS value
+UNION ALL
+SELECT 'C' AS category, 120 AS value
+""")
+
+print("Data Summary:")
+print(df.describe(include='all'))
+
+# Visualize with ForgePlot
+forge_plot(df, type='bar')`;
