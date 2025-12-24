@@ -105,9 +105,15 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
   }
 };
 
-export const generateAnalysis = async (query: string, result: any[]): Promise<string> => {
+export const generateAnalysis = async (query: string, result: any[], prompt?: string): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
-  const userContent = `Query: ${query}\nSample: ${JSON.stringify(result.slice(0, 5))}`;
+  
+  const userContent = `
+${prompt ? `Business Requirement: ${prompt}` : ''}
+Executed SQL: ${query}
+Result Data (Sample): ${JSON.stringify(result.slice(0, 5))}
+  `.trim();
+  
   const messages = [
     { role: "system", content: SYSTEM_PROMPTS.ANALYSIS },
     { role: "user", content: userContent }

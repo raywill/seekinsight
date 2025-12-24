@@ -7,7 +7,7 @@ export interface AiService {
   generateCode(prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<string>;
   debugCode(prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string): Promise<string>;
   inferColumnMetadata(tableName: string, data: any[]): Promise<Record<string, string>>;
-  generateAnalysis(query: string, result: any[]): Promise<string>;
+  generateAnalysis(query: string, result: any[], prompt?: string): Promise<string>;
   generateSuggestions(tables: TableMetadata[]): Promise<Suggestion[]>;
   recommendCharts(query: string, result: any[]): Promise<AIChartConfig[]>;
 }
@@ -29,8 +29,8 @@ export const debugCode = (prompt: string, mode: DevMode, tables: TableMetadata[]
 export const inferColumnMetadata = (tableName: string, data: any[]) => 
   getProvider().inferColumnMetadata(tableName, data);
 
-export const generateAnalysis = (query: string, result: any[]) => 
-  getProvider().generateAnalysis(query, result);
+export const generateAnalysis = (query: string, result: any[], prompt?: string) => 
+  getProvider().generateAnalysis(query, result, prompt);
 
 export const generateSuggestions = (tables: TableMetadata[]) =>
   getProvider().generateSuggestions(tables);

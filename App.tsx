@@ -50,6 +50,7 @@ const App: React.FC = () => {
     lastPythonResult: null,
     isExecuting: false,
     isAnalyzing: false,
+    // Fix: Removed 'boolean =' syntax error in object literal
     isRecommendingCharts: false,
     isDeploying: false,
     isSqlAiGenerating: false,
@@ -270,7 +271,8 @@ const App: React.FC = () => {
       }));
 
       if (currentMode === DevMode.SQL && result.data.length > 0) {
-        ai.generateAnalysis(currentCode, result.data).then(report => {
+        // Carry the original intent (prompt) for deeper analysis context
+        ai.generateAnalysis(currentCode, result.data, project.sqlAiPrompt).then(report => {
           setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
         });
 

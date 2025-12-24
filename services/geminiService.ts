@@ -122,9 +122,15 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
 /**
  * Uses Gemini 3 Flash for quick summarization and analysis.
  */
-export const generateAnalysis = async (query: string, result: any[]): Promise<string> => {
+export const generateAnalysis = async (query: string, result: any[], prompt?: string): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
-  const userContent = `Query: ${query}\nSample: ${JSON.stringify(result.slice(0, 5))}`;
+  
+  const userContent = `
+${prompt ? `Business Requirement: ${prompt}` : ''}
+Executed SQL: ${query}
+Result Data (Sample): ${JSON.stringify(result.slice(0, 5))}
+  `.trim();
+  
   await logPrompt('ANALYSIS', `System: ${SYSTEM_PROMPTS.ANALYSIS}\nUser: ${userContent}`);
   
   const response = await ai.models.generateContent({
