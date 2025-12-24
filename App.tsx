@@ -164,34 +164,64 @@ const App: React.FC = () => {
           : "SQL executed successfully.";
         setProject(prev => ({ ...prev, lastSqlResult: result, isExecuting: false, analysisReport: report }));
       } else {
-        const response = await fetch(`${env.GATEWAY_URL}/python`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: project.pythonCode })
-        });
-        
-        const data = await response.json();
-        result = {
-          data: data.data || [],
-          columns: data.columns || [],
-          logs: data.logs || [],
-          plotlyData: data.plotlyData || null,
-          timestamp: data.timestamp || new Date().toLocaleTimeString()
-        };
+        try {
+          const response = await fetch(`${env.GATEWAY_URL}/python`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: project.pythonCode }),
+            signal: AbortSignal.timeout(60000)
+          });
+          
+          const data = await response.json().catch(() => ({ message: "Internal server error" }));
 
-        if (!response.ok) {
-           setProject(prev => ({ 
-             ...prev, 
-             lastPythonResult: result, 
-             isExecuting: false, 
-             analysisReport: "Python script failed." 
-           }));
-           return;
+          if (!response.ok) {
+            const errorLogs = [
+              `EXECUTION FAILED (Status ${response.status})`,
+              data.message || "The gateway returned a Bad Request or Server Error.",
+              ...(data.logs || [])
+            ];
+            
+            setProject(prev => ({
+              ...prev,
+              isExecuting: false,
+              lastPythonResult: {
+                data: [],
+                columns: [],
+                logs: errorLogs,
+                timestamp: new Date().toLocaleTimeString()
+              }
+            }));
+            return;
+          }
+
+          result = {
+            data: data.data || [],
+            columns: data.columns || [],
+            logs: data.logs || [],
+            plotlyData: data.plotlyData || null,
+            timestamp: data.timestamp || new Date().toLocaleTimeString()
+          };
+          setProject(prev => ({ ...prev, lastPythonResult: result, isExecuting: false }));
+        } catch (fetchErr: any) {
+          console.error("Python Fetch Error:", fetchErr);
+          const errorMsg = fetchErr.name === 'AbortError' 
+            ? "Request timed out (60s limit exceeded)." 
+            : `Unable to connect to Python Gateway at ${env.GATEWAY_URL}. Please verify the server is running.`;
+          
+          setProject(prev => ({ 
+            ...prev, 
+            isExecuting: false,
+            lastPythonResult: {
+              data: [],
+              columns: [],
+              logs: ["CONNECTION ERROR:", errorMsg],
+              timestamp: new Date().toLocaleTimeString()
+            }
+          }));
         }
-        setProject(prev => ({ ...prev, lastPythonResult: result, isExecuting: false }));
       }
     } catch (err: any) {
-      console.error("Execution Error:", err);
+      console.error("General Execution Error:", err);
       const errorResult: ExecutionResult = {
         data: [],
         columns: [],

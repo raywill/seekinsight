@@ -42,6 +42,7 @@ async function initVenv() {
     'scikit-learn', 
     'matplotlib', 
     'seaborn', 
+    'statsmodels',
     'plotly'
   ].join(' ');
   

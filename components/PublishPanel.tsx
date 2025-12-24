@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DevMode, ExecutionResult } from '../types';
-import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles } from 'lucide-react';
+import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles, HelpCircle, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 
 interface Props {
@@ -25,32 +25,72 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
     setTimeout(() => setDeploySuccess(false), 3000);
   };
 
-  // Helper to find numeric and categorical keys and sanitize data
+  // Improved helper to find numeric and categorical keys and sanitize data
   const chartProps = useMemo(() => {
-    if (!result || result.data.length === 0) return null;
+    if (!result || !result.data || result.data.length === 0) return null;
 
-    // Identify first numeric column for Y-axis
-    const numericKey = result.columns.find(col => 
-      result.data.some(row => {
-        const val = row[col];
-        return typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val));
-      })
-    ) || result.columns[1] || result.columns[0];
+    const parseVal = (v: any) => {
+      if (v === null || v === undefined) return undefined;
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string') {
+        // Aggressively clean currency, commas, percentages and spaces
+        const cleaned = v.replace(/[$,\s%]/g, '');
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? undefined : n;
+      }
+      return undefined;
+    };
 
-    // Identify X-axis key (usually the first column that isn't the Y-axis key)
+    // Identify first column that has mostly numeric values
+    let numericKey = '';
+    for (const col of result.columns) {
+      const sample = result.data.slice(0, 10);
+      const numericCount = sample.filter(row => {
+        const p = parseVal(row[col]);
+        return p !== undefined;
+      }).length;
+      
+      if (numericCount > 0) {
+        numericKey = col;
+        break;
+      }
+    }
+
+    // Default fallback
+    if (!numericKey) numericKey = result.columns[1] || result.columns[0];
+
+    // Identify category key (prefer the first non-numeric column)
     const categoryKey = result.columns.find(col => col !== numericKey) || result.columns[0];
 
-    // Sanitize data: Ensure metric is always numeric for Recharts
-    const data = result.data.map(row => ({
+    const sanitizedData = result.data.map(row => ({
       ...row,
-      [numericKey]: parseFloat(row[numericKey]) || 0
-    })).filter(row => row[numericKey] !== undefined);
+      [numericKey]: parseVal(row[numericKey]) ?? 0
+    }));
 
-    return { data, xKey: categoryKey, yKey: numericKey };
+    // Check if we actually have useful data for a chart
+    const hasValidMetrics = sanitizedData.some(d => d[numericKey] !== 0);
+
+    return { 
+      data: sanitizedData, 
+      xKey: categoryKey, 
+      yKey: numericKey,
+      isValid: hasValidMetrics
+    };
   }, [result]);
 
   const renderChart = () => {
     if (!chartProps) return null;
+    if (!chartProps.isValid) {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+           <HelpCircle size={24} className="mb-2 opacity-30" />
+           <p className="text-[10px] font-bold uppercase tracking-widest text-center px-4">
+             Non-numeric results detected.<br/>Please select columns with numeric data to visualize.
+           </p>
+        </div>
+      );
+    }
+
     const { data, xKey, yKey } = chartProps;
 
     switch (chartType) {
@@ -90,7 +130,7 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
               </Pie>
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: any) => [value.toLocaleString(), 'Value']}
+                formatter={(value: any) => [value.toLocaleString(), yKey]}
               />
               <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
             </PieChart>
@@ -147,7 +187,7 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
               }`}
             >
               {isDeploying ? (
-                <CheckCircle2 size={18} className="animate-pulse" />
+                <RefreshCw size={18} className="animate-spin" />
               ) : deploySuccess ? (
                 <CheckCircle2 size={18} />
               ) : (
