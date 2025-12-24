@@ -250,7 +250,18 @@ const App: React.FC = () => {
     const currentMode = project.activeMode;
     const currentCode = codeOverride || (currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode);
 
-    setProject(prev => ({ ...prev, isExecuting: true, isAnalyzing: false, isRecommendingCharts: false, analysisReport: '' }));
+    // FIX: Only clear SQL-specific analysis state if we are running SQL.
+    // This prevents running Python from wiping the current SQL report.
+    setProject(prev => ({ 
+      ...prev, 
+      isExecuting: true,
+      ...(currentMode === DevMode.SQL ? {
+        isAnalyzing: false, 
+        isRecommendingCharts: false, 
+        analysisReport: '' 
+      } : {})
+    }));
+
     try {
       let result: ExecutionResult;
 
