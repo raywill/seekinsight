@@ -52,10 +52,18 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
     };
   }, [isResizing, onResize, stopResize]);
 
+  // Handle automatic tab switching for Python results
   useEffect(() => {
-    if (result?.plotlyData) setActiveTab('plot');
-    else setActiveTab('console');
-  }, [result]);
+    if (result) {
+      if (hasError) {
+        setActiveTab('console'); // Error is shown in console
+      } else if (result.plotlyData) {
+        setActiveTab('plot'); // Success with visual -> show visual
+      } else {
+        setActiveTab('console'); // Success without visual -> show console
+      }
+    }
+  }, [result, hasError]);
 
   if (isLoading) return (
     <div style={{ height }} className="border-t border-gray-200 bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse">

@@ -51,9 +51,17 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
     };
   }, [isResizing, onResize, stopResize]);
 
+  // Handle automatic tab switching based on result state
   useEffect(() => {
-    if (hasError) setActiveTab('logs');
-  }, [hasError]);
+    if (result) {
+      if (hasError) {
+        setActiveTab('logs');
+      } else if (result.data && result.data.length > 0) {
+        // Automatically switch back to data table on successful execution
+        setActiveTab('table');
+      }
+    }
+  }, [result, hasError]);
 
   const exportToTSV = () => {
     if (!result || result.data.length === 0) return;
