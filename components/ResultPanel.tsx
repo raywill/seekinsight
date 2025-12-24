@@ -13,9 +13,13 @@ interface Props {
 const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
   const [activeTab, setActiveTab] = useState<'table' | 'logs' | 'chart'>('table');
 
+  const hasError = result?.logs && result.logs.length > 0 && result.data.length === 0 && !result.plotlyData;
+
   useEffect(() => {
     if (result) {
-      if (mode === DevMode.PYTHON) {
+      if (hasError) {
+        setActiveTab('logs');
+      } else if (mode === DevMode.PYTHON) {
         if (result.plotlyData) {
           setActiveTab('chart');
         } else if (result.data.length > 0) {
@@ -27,7 +31,7 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
         setActiveTab('table');
       }
     }
-  }, [result, mode]);
+  }, [result, mode, hasError]);
 
   const exportToTSV = () => {
     if (!result || result.data.length === 0) return;
@@ -77,45 +81,35 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
     );
   }
 
-  const hasError = result.logs && result.logs.length > 0 && result.data.length === 0 && !result.plotlyData;
-  const isPython = mode === DevMode.PYTHON;
-
   return (
     <div className="h-96 border-t border-gray-200 bg-white flex flex-col overflow-hidden">
       {/* Dynamic Header with Tabs */}
       <div className={`px-4 py-1 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50/50'}`}>
         <div className="flex items-center gap-2">
-          {isPython ? (
-            <div className="flex gap-1">
-               {result.plotlyData && (
-                 <button 
-                  onClick={() => setActiveTab('chart')}
-                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'chart' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}
-                 >
-                   <BarChart size={12} /> Chart
-                 </button>
-               )}
-               {result.data.length > 0 && (
-                 <button 
-                  onClick={() => setActiveTab('table')}
-                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'table' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}
-                 >
-                   <TableIcon size={12} /> Table
-                 </button>
-               )}
+          <div className="flex gap-1">
+             {result.plotlyData && (
                <button 
-                onClick={() => setActiveTab('logs')}
-                className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'logs' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                onClick={() => setActiveTab('chart')}
+                className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'chart' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}
                >
-                 <TerminalIcon size={12} /> Console
+                 <BarChart size={12} /> Chart
                </button>
-            </div>
-          ) : (
-            <div className={`flex items-center gap-2 text-[11px] font-bold ${hasError ? 'text-red-600' : 'text-gray-600'}`}>
-              {hasError ? <AlertCircle size={12} /> : <TableIcon size={12} />}
-              <span>{hasError ? 'EXECUTION ERROR' : `RESULT: ${result.data.length} ROWS`}</span>
-            </div>
-          )}
+             )}
+             {result.data.length > 0 && (
+               <button 
+                onClick={() => setActiveTab('table')}
+                className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'table' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}
+               >
+                 <TableIcon size={12} /> Table
+               </button>
+             )}
+             <button 
+              onClick={() => setActiveTab('logs')}
+              className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'logs' ? (hasError ? 'bg-red-600 text-white' : 'bg-blue-600 text-white') : 'text-gray-400 hover:text-gray-600'}`}
+             >
+               <TerminalIcon size={12} /> {hasError ? 'Error Console' : 'Console'}
+             </button>
+          </div>
 
           {!hasError && result.data.length > 0 && activeTab === 'table' && (
             <button 
@@ -198,12 +192,12 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
         {activeTab === 'chart' && result.plotlyData && (
           <div className="w-full h-full flex items-center justify-center p-4">
             <Plot
-              data={result.plotlyData.data}
+              data={result.plotlyData.data || []}
               layout={{
                 ...result.plotlyData.layout,
                 autosize: true,
                 margin: { t: 40, r: 20, b: 40, l: 60 },
-                font: { family: 'Inter, sans-serif', size: 10 },
+                font: { family: 'Inter, sans-serif', size: 11 },
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
               }}
