@@ -1,5 +1,5 @@
 
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor, { BaseCodeEditorRef } from './BaseCodeEditor';
 import SqlResultPanel from './SqlResultPanel';
@@ -31,25 +31,29 @@ const SqlWorkspace: React.FC<Props> = ({
   code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, isAiLoading, onTriggerAi, tables, onUndo, showUndo 
 }) => {
   const editorRef = useRef<BaseCodeEditorRef>(null);
-  const isAutocompleteEnabled = process.env.SQL_AUTO_COMPLETE !== 'false';
+  const [isUndoVisible, setIsUndoVisible] = useState(false);
+  const prevLoading = useRef(isAiLoading);
 
-  const allSuggestions = useMemo(() => {
-    const tableNames = tables.map(t => t.tableName);
-    const columnNames = Array.from(new Set(tables.flatMap(t => t.columns.map(c => c.name))));
-    return {
-      keywords: SQL_KEYWORDS,
-      tables: tableNames,
-      columns: columnNames
-    };
-  }, [tables]);
+  useEffect(() => {
+    // Show button only when AI loading finishes and there's history to revert to
+    if (prevLoading.current && !isAiLoading && showUndo) {
+      setIsUndoVisible(true);
+      const timer = setTimeout(() => setIsUndoVisible(false), 10000);
+      return () => clearTimeout(timer);
+    }
+    // Hide if loading starts or undo history is cleared
+    if (isAiLoading || !showUndo) {
+      setIsUndoVisible(false);
+    }
+    prevLoading.current = isAiLoading;
+  }, [isAiLoading, showUndo]);
 
   const handleCodeChange = (newCode: string) => {
     onCodeChange(newCode);
-    // Autocomplete logic remains local for performance
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Autocomplete interaction logic remains local
+    // Autocomplete logic could be added here
   };
 
   return (
@@ -75,10 +79,13 @@ const SqlWorkspace: React.FC<Props> = ({
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {showUndo && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
-            <button onClick={onUndo} className="flex items-center gap-2 px-4 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-full text-xs font-black shadow-xl">
-              <RotateCcw size={14} /> Revert Suggestion
+        {isUndoVisible && (
+          <div className="absolute top-4 right-6 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
+            <button 
+              onClick={() => { onUndo?.(); setIsUndoVisible(false); }} 
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-sm border border-blue-200 text-blue-600 rounded-lg text-[10px] font-black shadow-xl hover:bg-blue-50 transition-all active:scale-95"
+            >
+              <RotateCcw size={12} /> Revert AI Change
             </button>
           </div>
         )}
@@ -88,7 +95,7 @@ const SqlWorkspace: React.FC<Props> = ({
           <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
             <div className="flex items-center gap-1.5"><Code2 size={12} className="text-blue-400" /><span>ANSI SQL</span></div>
           </div>
-          <button onClick={onRun} disabled={isExecuting} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg">
+          <button onClick={onRun} disabled={isExecuting} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all">
             {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Execute Query
           </button>
         </div>
