@@ -14,6 +14,7 @@ export const SYSTEM_PROMPTS = {
        - Core libraries: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
        - Use sql(query) to get a DataFrame.
        - Use forge_plotly(fig) for interactive charts.
+       - NEVER use matplotlib.
        - Only return raw Python code.
        Available Schema:\n${schema}`,
 
