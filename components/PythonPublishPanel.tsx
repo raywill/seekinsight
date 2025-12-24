@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { ExecutionResult } from '../types';
-import { Rocket, RefreshCw, Box, ShieldCheck, Activity, Globe, CheckCircle2 } from 'lucide-react';
+import { Rocket, RefreshCw, Box, ShieldCheck, Activity, Globe, CheckCircle2, Zap } from 'lucide-react';
 
 interface Props {
   result: ExecutionResult | null;
@@ -52,7 +52,7 @@ const PythonPublishPanel: React.FC<Props> = ({ result, onDeploy, isDeploying }) 
 
         <section className="space-y-4">
           <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Execution Health</h3>
-          <div className="p-4 bg-white border border-gray-100 rounded-2xl space-y-3">
+          <div className="p-4 bg-white border border-gray-100 rounded-2xl space-y-3 shadow-sm">
              <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-500 font-medium">Last Run Status</span>
                 <span className={`font-black ${result ? 'text-green-600' : 'text-gray-400'}`}>{result ? 'SUCCESS' : 'WAITING'}</span>
@@ -64,17 +64,24 @@ const PythonPublishPanel: React.FC<Props> = ({ result, onDeploy, isDeploying }) 
           </div>
         </section>
 
-        <div className="p-5 bg-purple-600 rounded-[2rem] text-white space-y-3 shadow-xl shadow-purple-200">
-           <h4 className="text-[10px] font-black uppercase tracking-widest opacity-80">Serverless Deployment</h4>
-           <p className="text-xs font-medium leading-relaxed">
-             Publish this script as a serverless instance. Once deployed, you can access the execution results and interactive charts directly via a public or private URL.
+        <div className="p-5 bg-white border border-purple-100 border-l-4 border-l-purple-500 rounded-2xl space-y-2 shadow-sm shadow-purple-500/5">
+           <div className="flex items-center gap-2 mb-1">
+              <Zap size={14} className="text-purple-600 fill-purple-600" />
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-purple-900">Serverless Deployment</h4>
+           </div>
+           <p className="text-[11px] text-gray-600 font-medium leading-relaxed">
+             Publish this script as a serverless instance. Once deployed, you can access results and charts via a secure public URL.
            </p>
         </div>
       </div>
 
       <div className="p-6 bg-gray-50 border-t border-gray-100">
-        <button onClick={handleDeploy} disabled={isDeploying || !result} className="w-full py-4 bg-purple-700 text-white rounded-2xl text-sm font-black flex items-center justify-center gap-3 hover:bg-purple-800 transition-all shadow-lg shadow-purple-100">
-          {isDeploying ? <RefreshCw size={18} className="animate-spin" /> : (deployed ? <CheckCircle2 size={18} /> : <Rocket size={18} />)}
+        <button 
+          onClick={handleDeploy} 
+          disabled={isDeploying || !result} 
+          className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-50 active:scale-[0.98]"
+        >
+          {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : (deployed ? <CheckCircle2 size={16} /> : <Rocket size={16} />)}
           {deployed ? 'SCRIPT PUBLISHED' : 'DEPLOY TO SERVERLESS URL'}
         </button>
       </div>

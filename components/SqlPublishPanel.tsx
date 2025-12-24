@@ -173,7 +173,7 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
 };
 
 const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRecommendingCharts, onDeploy, isDeploying }) => {
-  const [tab, setTab] = useState<'report' | 'viz'>('report');
+  const [tab, setTab] = useState<'report' | 'viz'>('viz');
   const [deployed, setDeployed] = useState(false);
 
   const handleDeploy = async () => {
@@ -196,36 +196,16 @@ const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRec
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
       <div className="flex border-b border-gray-200 bg-gray-50/50">
-        <button onClick={() => setTab('report')} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'report' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400'}`}>
-          <FileText size={14} className="inline mr-2" /> Report
-        </button>
-        <button onClick={() => setTab('viz')} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'viz' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400'}`}>
+        <button onClick={() => setTab('viz')} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'viz' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
           <BarChart3 size={14} className="inline mr-2" /> Visuals
+        </button>
+        <button onClick={() => setTab('report')} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${tab === 'report' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+          <FileText size={14} className="inline mr-2" /> Report
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
-        {tab === 'report' ? (
-          <div className="space-y-6">
-            <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <Sparkles size={14} className="text-blue-500" /> AI Insights
-            </h2>
-            {isAnalyzing ? (
-              <div className="space-y-3 animate-pulse">
-                <div className="h-4 bg-gray-100 rounded w-full"></div>
-                <div className="h-4 bg-gray-100 rounded w-5/6"></div>
-                <div className="h-4 bg-gray-100 rounded w-4/6"></div>
-              </div>
-            ) : analysis ? (
-              <div className="text-[13px] text-gray-600 leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br/>') }} />
-            ) : (
-              <div className="h-32 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-                <Sparkles size={20} className="opacity-20" />
-                <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Analysis</p>
-              </div>
-            )}
-          </div>
-        ) : (
+        {tab === 'viz' ? (
           <div className="space-y-6">
             <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
               <Layers size={14} className="text-blue-500" /> Intelligent Visuals
@@ -263,6 +243,26 @@ const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRec
               <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
                 <BarChart3 size={24} className="opacity-20 mb-2" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-center">No Visual Data</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              <Sparkles size={14} className="text-blue-500" /> AI Insights
+            </h2>
+            {isAnalyzing ? (
+              <div className="space-y-3 animate-pulse">
+                <div className="h-4 bg-gray-100 rounded w-full"></div>
+                <div className="h-4 bg-gray-100 rounded w-5/6"></div>
+                <div className="h-4 bg-gray-100 rounded w-4/6"></div>
+              </div>
+            ) : analysis ? (
+              <div className="text-[13px] text-gray-600 leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br/>') }} />
+            ) : (
+              <div className="h-32 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
+                <Sparkles size={20} className="opacity-20" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Analysis</p>
               </div>
             )}
           </div>
