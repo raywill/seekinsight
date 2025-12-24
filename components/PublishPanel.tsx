@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
-import { DevMode, ExecutionResult } from '../types';
-import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles, HelpCircle, RefreshCw } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
+import { DevMode, ExecutionResult, AIChartConfig } from '../types';
+import { SI_ENABLE_AI_CHART } from '../constants';
+import { FileText, BarChart3, Rocket, CheckCircle2, LayoutDashboard, Settings2, FileOutput, Sparkles, HelpCircle, RefreshCw, Layers } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 
 interface Props {
   mode: DevMode;
@@ -25,198 +26,79 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
     setTimeout(() => setDeploySuccess(false), 3000);
   };
 
-  // Improved helper to find numeric and categorical keys and sanitize data
-  const chartProps = useMemo(() => {
-    if (!result || !result.data || result.data.length === 0) return null;
-
-    const parseVal = (v: any) => {
-      if (v === null || v === undefined) return undefined;
-      if (typeof v === 'number') return v;
-      if (typeof v === 'string') {
-        // Aggressively clean currency, commas, percentages and spaces
-        const cleaned = v.replace(/[$,\s%]/g, '');
-        const n = parseFloat(cleaned);
-        return isNaN(n) ? undefined : n;
-      }
-      return undefined;
-    };
-
-    // Identify first column that has mostly numeric values
-    let numericKey = '';
-    for (const col of result.columns) {
-      const sample = result.data.slice(0, 10);
-      const numericCount = sample.filter(row => {
-        const p = parseVal(row[col]);
-        return p !== undefined;
-      }).length;
-      
-      if (numericCount > 0) {
-        numericKey = col;
-        break;
-      }
-    }
-
-    // Default fallback
-    if (!numericKey) numericKey = result.columns[1] || result.columns[0];
-
-    // Identify category key (prefer the first non-numeric column)
-    const categoryKey = result.columns.find(col => col !== numericKey) || result.columns[0];
-
-    const sanitizedData = result.data.map(row => ({
-      ...row,
-      [numericKey]: parseVal(row[numericKey]) ?? 0
-    }));
-
-    // Check if we actually have useful data for a chart
-    const hasValidMetrics = sanitizedData.some(d => d[numericKey] !== 0);
-
-    return { 
-      data: sanitizedData, 
-      xKey: categoryKey, 
-      yKey: numericKey,
-      isValid: hasValidMetrics
-    };
-  }, [result]);
-
-  const renderChart = () => {
-    if (!chartProps) return null;
-    if (!chartProps.isValid) {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-           <HelpCircle size={24} className="mb-2 opacity-30" />
-           <p className="text-[10px] font-bold uppercase tracking-widest text-center px-4">
-             Non-numeric results detected.<br/>Please select columns with numeric data to visualize.
-           </p>
-        </div>
-      );
-    }
-
-    const { data, xKey, yKey } = chartProps;
-
-    switch (chartType) {
-      case 'Line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
+  const renderSingleChart = (config: AIChartConfig, data: any[]) => {
+    const { type, xKey, yKeys, title, description } = config;
+    
+    const chart = (() => {
+      switch (type) {
+        case 'line':
+          return (
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
               <YAxis fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-              />
-              <Line type="monotone" dataKey={yKey} stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb' }} activeDot={{ r: 6 }} />
+              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+              {yKeys.map((key, i) => (
+                <Line key={key} type="monotone" dataKey={key} stroke={COLORS[i % COLORS.length]} strokeWidth={3} dot={{ r: 4 }} />
+              ))}
             </LineChart>
-          </ResponsiveContainer>
-        );
-      case 'Pie':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
+          );
+        case 'area':
+          return (
+            <AreaChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
+              <YAxis fontSize={10} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+              {yKeys.map((key, i) => (
+                <Area key={key} type="monotone" dataKey={key} fill={COLORS[i % COLORS.length]} stroke={COLORS[i % COLORS.length]} fillOpacity={0.3} />
+              ))}
+            </AreaChart>
+          );
+        case 'pie':
+          return (
             <PieChart>
-              <Pie
-                data={data}
-                dataKey={yKey}
-                nameKey={xKey}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
-                ))}
+              <Pie data={data} dataKey={yKeys[0]} nameKey={xKey} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                {data.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: any) => [value.toLocaleString(), yKey]}
-              />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" />
             </PieChart>
-          </ResponsiveContainer>
-        );
-      default:
-        return (
-          <ResponsiveContainer width="100%" height="100%">
+          );
+        default:
+          return (
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
               <YAxis fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-              />
-              <Bar dataKey={yKey} fill="#2563eb" radius={[4, 4, 0, 0]} />
+              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+              {yKeys.map((key, i) => (
+                <Bar key={key} dataKey={key} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
+              ))}
             </BarChart>
-          </ResponsiveContainer>
-        );
-    }
-  };
+          );
+      }
+    })();
 
-  if (mode === DevMode.PYTHON) {
     return (
-      <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-            <LayoutDashboard size={16} className="text-purple-600" />
-            App Deployment
-          </h2>
+      <div key={title} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4 shadow-sm group hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start">
+          <div>
+            <h4 className="text-sm font-bold text-gray-800">{title}</h4>
+            {description && <p className="text-[10px] text-gray-400 font-medium leading-tight mt-1">{description}</p>}
+          </div>
+          <div className="p-1.5 bg-gray-50 text-gray-400 rounded-lg group-hover:text-blue-500 transition-colors">
+            <BarChart3 size={14} />
+          </div>
         </div>
-        <div className="p-6 flex flex-col gap-6">
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-purple-50 border border-purple-100">
-              <h3 className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-1">Status</h3>
-              <p className="text-sm text-purple-900 font-medium">Ready for cloud deployment</p>
-            </div>
-            
-            <div className="space-y-3">
-              <label className="block text-xs font-semibold text-gray-500 uppercase">Project Endpoint</label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono text-gray-600 truncate">
-                https://api.forge.io/v1/app_0x3f...
-              </div>
-            </div>
-
-            <button
-              onClick={handleDeploy}
-              disabled={isDeploying || deploySuccess}
-              className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all shadow-md active:scale-95 ${
-                deploySuccess 
-                ? 'bg-green-600 text-white' 
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
-              }`}
-            >
-              {isDeploying ? (
-                <RefreshCw size={18} className="animate-spin" />
-              ) : deploySuccess ? (
-                <CheckCircle2 size={18} />
-              ) : (
-                <Rocket size={18} />
-              )}
-              {isDeploying ? 'Deploying...' : deploySuccess ? 'Deployed Successfully!' : 'Push to Production'}
-            </button>
-          </div>
-
-          <div className="p-4 border border-gray-100 rounded-xl space-y-3">
-            <h3 className="text-xs font-bold text-gray-400 flex items-center gap-2 uppercase">
-              <Settings2 size={12} />
-              Configurations
-            </h3>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500">Instance Size</span>
-                <span className="font-medium text-gray-700">Small (2 vCPU)</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500">Auto-Scaling</span>
-                <span className="font-medium text-green-600">Enabled</span>
-              </div>
-            </div>
-          </div>
+        <div className="h-48 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {chart}
+          </ResponsiveContainer>
         </div>
       </div>
     );
-  }
+  };
 
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full shadow-sm">
@@ -227,8 +109,7 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
             tab === 'report' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
         >
-          <FileText size={14} />
-          Report
+          <FileText size={14} /> Report
         </button>
         <button
           onClick={() => setTab('viz')}
@@ -236,17 +117,16 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
             tab === 'viz' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
         >
-          <BarChart3 size={14} />
-          Visualization
+          <BarChart3 size={14} /> Visualization
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
         {tab === 'report' ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight">AI Analysis</h2>
-              <button className="p-1.5 hover:bg-gray-100 rounded-md transition-colors text-gray-400" title="Export PDF">
+              <button className="p-1.5 hover:bg-gray-100 rounded-md text-gray-400">
                 <FileOutput size={14} />
               </button>
             </div>
@@ -262,39 +142,52 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, onDeploy, isDep
             )}
           </div>
         ) : (
-          <div className="space-y-6 h-full flex flex-col">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight">Real-time Preview</h2>
+              <h2 className="text-sm font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
+                {SI_ENABLE_AI_CHART ? <Sparkles size={14} className="text-blue-500" /> : <Layers size={14} />}
+                {SI_ENABLE_AI_CHART ? 'AI Recommended Insights' : 'Real-time Preview'}
+              </h2>
             </div>
-            {result && chartProps ? (
-              <div className="flex-1 space-y-8">
-                <div className="h-72 bg-white rounded-xl">
-                  {renderChart()}
-                </div>
-
-                <div className="p-4 bg-gray-50 rounded-xl space-y-4">
-                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Controls</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Bar', 'Line', 'Pie'].map(type => (
-                      <button 
-                        key={type} 
-                        onClick={() => setChartType(type as any)}
-                        className={`py-2 text-[10px] font-bold border rounded-lg transition-all shadow-sm uppercase ${
-                          chartType === type 
-                            ? 'bg-blue-600 border-blue-600 text-white' 
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-500'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+            
+            {result && result.data.length > 0 ? (
+              <div className="space-y-6">
+                {SI_ENABLE_AI_CHART && result.chartConfigs && result.chartConfigs.length > 0 ? (
+                  result.chartConfigs.map(cfg => renderSingleChart(cfg, result.data))
+                ) : (
+                  <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-4 tracking-widest text-center">Basic View</p>
+                    <div className="h-64">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={result.data}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                            <XAxis dataKey={result.columns[0]} fontSize={10} axisLine={false} tickLine={false} />
+                            <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                            <Tooltip />
+                            <Bar dataKey={result.columns[1]} fill="#2563eb" radius={[4, 4, 0, 0]} />
+                         </BarChart>
+                       </ResponsiveContainer>
+                    </div>
                   </div>
-                </div>
+                )}
+                
+                {!SI_ENABLE_AI_CHART && (
+                  <div className="p-4 bg-gray-50 rounded-xl space-y-4">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manual Controls</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Bar', 'Line', 'Pie'].map(type => (
+                        <button key={type} className="py-2 text-[10px] font-bold border rounded-lg bg-white">
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="h-40 flex flex-col items-center justify-center text-gray-300 gap-2 border-2 border-dashed border-gray-100 rounded-2xl">
                 <BarChart3 size={24} className="opacity-20" />
-                <p className="text-xs font-medium">Connect data to visualize</p>
+                <p className="text-xs font-medium">Run data to see visualizations</p>
               </div>
             )}
           </div>

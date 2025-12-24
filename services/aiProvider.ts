@@ -1,5 +1,5 @@
 
-import { TableMetadata, DevMode, Suggestion } from "../types";
+import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import * as gemini from "./geminiService";
 import * as aliyun from "./aliyunService";
 
@@ -8,6 +8,7 @@ export interface AiService {
   inferColumnMetadata(tableName: string, data: any[]): Promise<Record<string, string>>;
   generateAnalysis(query: string, result: any[]): Promise<string>;
   generateSuggestions(tables: TableMetadata[]): Promise<Suggestion[]>;
+  recommendCharts(query: string, result: any[]): Promise<AIChartConfig[]>; // Added
 }
 
 const getProvider = (): AiService => {
@@ -29,3 +30,6 @@ export const generateAnalysis = (query: string, result: any[]) =>
 
 export const generateSuggestions = (tables: TableMetadata[]) =>
   getProvider().generateSuggestions(tables);
+
+export const recommendCharts = (query: string, result: any[]) =>
+  getProvider().recommendCharts(query, result);

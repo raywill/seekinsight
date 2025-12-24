@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DevMode, ProjectState, TableMetadata, ExecutionResult, Suggestion } from './types';
-import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
+import { INITIAL_SQL, INITIAL_PYTHON, SI_ENABLE_AI_CHART } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
 import { MySQLEngine } from './services/mysqlEngine';
@@ -61,7 +61,6 @@ const App: React.FC = () => {
       })
       .catch((err) => {
         if (!mounted) return;
-        console.error("Database Connection Failed:", err);
         setDbError(err.message || "Failed to connect to SQL Gateway");
       });
 
@@ -79,12 +78,9 @@ const App: React.FC = () => {
     setIsSuggesting(true);
     try {
       const newSuggestions = await ai.generateSuggestions(project.tables);
-      setProject(prev => ({ 
-        ...prev, 
-        suggestions: [...prev.suggestions, ...newSuggestions] 
-      }));
+      setProject(prev => ({ ...prev, suggestions: [...prev.suggestions, ...newSuggestions] }));
     } catch (err) {
-      console.error("Failed to fetch suggestions:", err);
+      console.error(err);
     } finally {
       setIsSuggesting(false);
     }
@@ -101,36 +97,22 @@ const App: React.FC = () => {
   const handleUpload = async (file: File) => {
     if (!dbReady || isUploading) return;
     setIsUploading(true);
-    
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(sheet) as any[];
-        
+        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
         const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
         const aiComments = await ai.inferColumnMetadata(tableName, jsonData);
-        
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(tableName, jsonData, aiComments);
-        
-        setProject(prev => ({ 
-          ...prev, 
-          tables: [...prev.tables.filter(t => t.tableName !== newTable.tableName), newTable] 
-        }));
+        setProject(prev => ({ ...prev, tables: [...prev.tables.filter(t => t.tableName !== newTable.tableName), newTable] }));
       } catch (err: any) {
-        console.error("Upload Error:", err);
         alert("Upload failed: " + err.message);
       } finally {
         setIsUploading(false);
       }
-    };
-    reader.onerror = () => {
-      setIsUploading(false);
-      alert("Failed to read file");
     };
     reader.readAsBinaryString(file);
   };
@@ -139,13 +121,11 @@ const App: React.FC = () => {
     try {
       const db = getDatabaseEngine();
       const count = await db.refreshTableStats(tableName);
-      
       setProject(prev => ({
         ...prev,
         tables: prev.tables.map(t => t.tableName === tableName ? { ...t, rowCount: count } : t)
       }));
     } catch (err: any) {
-      console.error("Refresh Stats Error:", err);
       alert("Refresh failed: " + err.message);
     }
   };
@@ -159,80 +139,48 @@ const App: React.FC = () => {
       if (project.activeMode === DevMode.SQL) {
         const db = getDatabaseEngine();
         result = await db.executeQuery(project.sqlCode);
-        const report = result.data.length > 0 
-          ? await ai.generateAnalysis(project.sqlCode, result.data) 
-          : "SQL executed successfully.";
-        setProject(prev => ({ ...prev, lastSqlResult: result, isExecuting: false, analysisReport: report }));
+        
+        const [report, chartConfigs] = await Promise.all([
+          result.data.length > 0 ? ai.generateAnalysis(project.sqlCode, result.data) : "SQL executed successfully.",
+          (SI_ENABLE_AI_CHART && result.data.length > 0) ? ai.recommendCharts(project.sqlCode, result.data) : Promise.resolve([])
+        ]);
+
+        setProject(prev => ({ 
+          ...prev, 
+          lastSqlResult: { ...result, chartConfigs }, 
+          isExecuting: false, 
+          analysisReport: report 
+        }));
       } else {
-        try {
-          const response = await fetch(`${env.GATEWAY_URL}/python`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: project.pythonCode }),
-            signal: AbortSignal.timeout(60000)
-          });
-          
-          const data = await response.json().catch(() => ({ message: "Internal server error" }));
-
-          if (!response.ok) {
-            const errorLogs = [
-              `EXECUTION FAILED (Status ${response.status})`,
-              data.message || "The gateway returned a Bad Request or Server Error.",
-              ...(data.logs || [])
-            ];
-            
-            setProject(prev => ({
-              ...prev,
-              isExecuting: false,
-              lastPythonResult: {
-                data: [],
-                columns: [],
-                logs: errorLogs,
-                timestamp: new Date().toLocaleTimeString()
-              }
-            }));
-            return;
-          }
-
-          result = {
-            data: data.data || [],
-            columns: data.columns || [],
-            logs: data.logs || [],
-            plotlyData: data.plotlyData || null,
-            timestamp: data.timestamp || new Date().toLocaleTimeString()
-          };
-          setProject(prev => ({ ...prev, lastPythonResult: result, isExecuting: false }));
-        } catch (fetchErr: any) {
-          console.error("Python Fetch Error:", fetchErr);
-          const errorMsg = fetchErr.name === 'AbortError' 
-            ? "Request timed out (60s limit exceeded)." 
-            : `Unable to connect to Python Gateway at ${env.GATEWAY_URL}. Please verify the server is running.`;
-          
-          setProject(prev => ({ 
-            ...prev, 
-            isExecuting: false,
-            lastPythonResult: {
-              data: [],
-              columns: [],
-              logs: ["CONNECTION ERROR:", errorMsg],
-              timestamp: new Date().toLocaleTimeString()
-            }
-          }));
+        const response = await fetch(`${env.GATEWAY_URL}/python`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: project.pythonCode }),
+          signal: AbortSignal.timeout(60000)
+        });
+        const data = await response.json();
+        result = {
+          data: data.data || [],
+          columns: data.columns || [],
+          logs: data.logs || [],
+          plotlyData: data.plotlyData || null,
+          timestamp: data.timestamp || new Date().toLocaleTimeString()
+        };
+        
+        if (SI_ENABLE_AI_CHART && result.data.length > 0) {
+          result.chartConfigs = await ai.recommendCharts(project.pythonCode, result.data);
         }
+
+        setProject(prev => ({ ...prev, lastPythonResult: result, isExecuting: false }));
       }
     } catch (err: any) {
-      console.error("General Execution Error:", err);
       const errorResult: ExecutionResult = {
         data: [],
         columns: [],
         logs: ["CRITICAL ERROR:", err.message],
         timestamp: new Date().toLocaleTimeString()
       };
-      setProject(prev => ({ 
-        ...prev, 
-        [project.activeMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult, 
-        isExecuting: false 
-      }));
+      setProject(prev => ({ ...prev, [project.activeMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult, isExecuting: false }));
     }
   };
 
@@ -244,18 +192,11 @@ const App: React.FC = () => {
 
   if (dbError) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-8 text-center">
-        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-red-100">
-           <AlertCircle size={32} />
-        </div>
-        <h1 className="text-2xl font-black text-gray-900 mb-2">Connection Failed</h1>
-        <p className="text-gray-500 max-w-md font-medium mb-8 leading-relaxed">
-          Unable to connect to the SQL Gateway. Please ensure <code>gateway.js</code> is running at <strong>{env.GATEWAY_URL}</strong> and environment variables are correctly set.
-        </p>
-        <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-mono break-all text-left border border-red-100 mb-8 max-w-lg">
-          {dbError}
-        </div>
-        <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold transition-transform active:scale-95 shadow-lg">Retry Connection</button>
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-8">
+        <AlertCircle size={32} className="text-red-500 mb-6" />
+        <h1 className="text-2xl font-black mb-2">Connection Failed</h1>
+        <p className="text-gray-500 mb-8">{dbError}</p>
+        <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold">Retry</button>
       </div>
     );
   }
@@ -263,80 +204,18 @@ const App: React.FC = () => {
   if (!dbReady) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6">
-        <Loader2 className="animate-spin text-blue-600" size={64} strokeWidth={1} />
-        <div className="text-center">
-           <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase">Initializing SeekInsight</h1>
-           <p className="text-xs text-gray-400 font-bold uppercase mt-1 tracking-widest">Establishing secure tunnel to {env.GATEWAY_URL}</p>
-        </div>
+        <Loader2 className="animate-spin text-blue-600" size={64} />
+        <h1 className="text-2xl font-black">Initializing SeekInsight...</h1>
       </div>
     );
   }
 
-  const renderContent = () => {
-    switch (project.activeMode) {
-      case DevMode.INSIGHT_HUB:
-        return (
-          <InsightHub 
-            suggestions={project.suggestions} 
-            onApply={handleApplySuggestion} 
-            onFetchMore={handleFetchSuggestions}
-            isLoading={isSuggesting}
-          />
-        );
-      case DevMode.SQL:
-        return (
-          <SqlWorkspace 
-            code={project.sqlCode}
-            onCodeChange={(val) => setProject(p => ({ ...p, sqlCode: val }))}
-            prompt={project.sqlAiPrompt}
-            onPromptChange={(val) => setProject(p => ({ ...p, sqlAiPrompt: val }))}
-            result={project.lastSqlResult}
-            onRun={handleRun}
-            isExecuting={project.isExecuting}
-            tables={project.tables}
-          />
-        );
-      case DevMode.PYTHON:
-        return (
-          <PythonWorkspace 
-            code={project.pythonCode}
-            onCodeChange={(val) => setProject(p => ({ ...p, pythonCode: val }))}
-            prompt={project.pythonAiPrompt}
-            onPromptChange={(val) => setProject(p => ({ ...p, pythonAiPrompt: val }))}
-            result={project.lastPythonResult}
-            onRun={handleRun}
-            isExecuting={project.isExecuting}
-            tables={project.tables}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 selection:text-blue-900 relative">
-      {isUploading && (
-        <div className="fixed inset-0 z-[1000] bg-gray-900/10 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
-          <div className="bg-white px-8 py-6 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-5 max-w-sm">
-            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
-              <RefreshCw size={20} className="animate-spin" />
-            </div>
-            <div className="flex flex-col">
-              <h2 className="text-sm font-bold text-gray-800 tracking-tight">Syncing Data</h2>
-              <p className="text-[11px] text-gray-400 font-medium leading-normal mt-0.5">
-                Parsing worksheets and generating AI metadata, please wait...
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isMarketOpen && <AppMarket onClose={() => setIsMarketOpen(false)} />}
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 selection:bg-blue-100 relative">
       <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 z-20 shadow-sm">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-200">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                <Boxes className="text-white" size={22} />
             </div>
             <div>
@@ -350,7 +229,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsMarketOpen(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold transition-all hover:bg-blue-100">
+          <button onClick={() => setIsMarketOpen(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold">
             <LayoutGrid size={16} /> Marketplace
           </button>
           <div className="flex items-center gap-3">
@@ -360,12 +239,7 @@ const App: React.FC = () => {
         </div>
       </header>
       <div className="flex-1 flex overflow-hidden">
-        <DataSidebar 
-          tables={project.tables} 
-          onUploadFile={handleUpload} 
-          onRefreshTableStats={handleRefreshTableStats}
-          isUploading={isUploading} 
-        />
+        <DataSidebar tables={project.tables} onUploadFile={handleUpload} onRefreshTableStats={handleRefreshTableStats} isUploading={isUploading} />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50 bg-white">
             {[
@@ -385,28 +259,18 @@ const App: React.FC = () => {
               </button>
             ))}
           </div>
-          {renderContent()}
+          {project.activeMode === DevMode.INSIGHT_HUB ? (
+            <InsightHub suggestions={project.suggestions} onApply={handleApplySuggestion} onFetchMore={handleFetchSuggestions} isLoading={isSuggesting} />
+          ) : project.activeMode === DevMode.SQL ? (
+            <SqlWorkspace code={project.sqlCode} onCodeChange={(val) => setProject(p => ({ ...p, sqlCode: val }))} prompt={project.sqlAiPrompt} onPromptChange={(val) => setProject(p => ({ ...p, sqlAiPrompt: val }))} result={project.lastSqlResult} onRun={handleRun} isExecuting={project.isExecuting} tables={project.tables} />
+          ) : (
+            <PythonWorkspace code={project.pythonCode} onCodeChange={(val) => setProject(p => ({ ...p, pythonCode: val }))} prompt={project.pythonAiPrompt} onPromptChange={(val) => setProject(p => ({ ...p, pythonAiPrompt: val }))} result={project.lastPythonResult} onRun={handleRun} isExecuting={project.isExecuting} tables={project.tables} />
+          )}
         </main>
         {project.activeMode !== DevMode.INSIGHT_HUB && (
-          <PublishPanel 
-            mode={project.activeMode as any} 
-            result={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult} 
-            analysis={project.analysisReport} 
-            onDeploy={handleDeploy} 
-            isDeploying={project.isDeploying} 
-          />
+          <PublishPanel mode={project.activeMode as any} result={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult} analysis={project.analysisReport} onDeploy={handleDeploy} isDeploying={project.isDeploying} />
         )}
       </div>
-      <footer className="h-10 bg-gray-50 border-t border-gray-100 px-8 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-        <div className="flex items-center gap-6">
-          <div className="text-green-500 flex items-center gap-1.5 font-bold"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Gateway: {env.GATEWAY_URL}</div>
-          <div>DB Host: {env.MYSQL_IP}</div>
-        </div>
-        <div className="flex gap-8">
-          <span>AI Provider: {env.AI_PROVIDER.toUpperCase()}</span>
-          <span>Database: {env.MYSQL_DB} ({project.tables.length} Objects)</span>
-        </div>
-      </footer>
     </div>
   );
 };

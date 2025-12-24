@@ -18,11 +18,20 @@ export interface TableMetadata {
   rowCount: number;
 }
 
+export interface AIChartConfig {
+  type: 'bar' | 'line' | 'pie' | 'area';
+  xKey: string;
+  yKeys: string[];
+  title: string;
+  description?: string;
+}
+
 export interface ExecutionResult {
   data: any[];
   columns: string[];
   logs?: string[];
-  plotlyData?: any; // Added for Plotly JSON support
+  plotlyData?: any;
+  chartConfigs?: AIChartConfig[]; // AI recommended chart layouts
   timestamp: string;
 }
 
