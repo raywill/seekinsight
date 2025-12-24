@@ -115,7 +115,7 @@ const App: React.FC = () => {
 
   const handleRun = async () => {
     if (!dbReady) return;
-    setProject(prev => ({ ...prev, isExecuting: true }));
+    setProject(prev => ({ ...prev, isExecuting: true, lastResult: null }));
     
     try {
       let result: ExecutionResult;
@@ -131,16 +131,25 @@ const App: React.FC = () => {
         });
         
         const data = await response.json();
-        if (!response.ok) {
-           throw new Error(data.logs?.join('\n') || "Python execution failed");
-        }
         
+        // Even if status is 500, data.logs contains the stderr we want to show
         result = {
           data: data.data || [],
           columns: data.columns || [],
           logs: data.logs || [],
           timestamp: data.timestamp || new Date().toLocaleTimeString()
         };
+
+        if (!response.ok) {
+           // If error occurred, skip AI analysis and just show logs
+           setProject(prev => ({ 
+             ...prev, 
+             lastResult: result, 
+             isExecuting: false, 
+             analysisReport: "Python script execution failed. Please check the logs below for debugging information." 
+           }));
+           return;
+        }
       }
 
       const report = result.data.length > 0 
@@ -150,8 +159,19 @@ const App: React.FC = () => {
       setProject(prev => ({ ...prev, lastResult: result, isExecuting: false, analysisReport: report }));
     } catch (err: any) {
       console.error("Execution Error:", err);
-      alert("Execution Error: " + err.message);
-      setProject(prev => ({ ...prev, isExecuting: false }));
+      // Instead of alert, push the error to the log console
+      const errorResult: ExecutionResult = {
+        data: [],
+        columns: [],
+        logs: ["CRITICAL ERROR:", err.message],
+        timestamp: new Date().toLocaleTimeString()
+      };
+      setProject(prev => ({ 
+        ...prev, 
+        lastResult: errorResult, 
+        isExecuting: false, 
+        analysisReport: "An unexpected system error occurred. See logs for details." 
+      }));
     }
   };
 

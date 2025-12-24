@@ -86,12 +86,7 @@ const EditorPanel: React.FC<Props> = ({ mode, code, onCodeChange, onRun, isExecu
           <input
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAiGenerate();
-              }
-            }}
+            // REMOVED onKeyDown to prevent Enter key triggering AI generation
             placeholder={mode === DevMode.SQL ? "e.g., Calculate monthly revenue by region..." : "e.g., Create a forecast plot using pandas..."}
             className={`w-full pl-10 pr-24 py-2.5 bg-white border ${error ? 'border-red-300' : 'border-gray-200'} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all`}
           />
