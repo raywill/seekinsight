@@ -116,7 +116,10 @@ const App: React.FC = () => {
     setProject(prev => ({ 
       ...prev, 
       [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: true,
-      [isSql ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: isSql ? prev.sqlCode : prev.pythonCode
+      [isSql ? 'lastSqlCodeBeforeAi' : 'lastPythonCodeBeforeAi']: isSql ? prev.sqlCode : prev.pythonCode,
+      // CRITICAL FIX: Clear old results when starting a fresh generation. 
+      // This resets the UI and ensures the "AI Magic Fix" button from a previous error disappears.
+      [isSql ? 'lastSqlResult' : 'lastPythonResult']: null
     }));
 
     try {
@@ -160,7 +163,7 @@ const App: React.FC = () => {
           [isSql ? 'sqlCode' : 'pythonCode']: generated,
           [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false
         }));
-        // CRITICAL FIX: Pass the 'generated' code directly to handleRun to bypass React state latency
+        // Pass the 'generated' code directly to handleRun to bypass React state latency
         handleRun(generated);
       }
     } catch (err) {
