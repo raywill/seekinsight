@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Suggestion, DevMode } from '../types';
 import { Sparkles, Terminal, Database, ArrowRight, RefreshCw, Layers } from 'lucide-react';
 
@@ -11,8 +11,15 @@ interface Props {
 }
 
 const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoading }) => {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  
   const sqlSuggestions = suggestions.filter(s => s.type === DevMode.SQL);
   const pythonSuggestions = suggestions.filter(s => s.type === DevMode.PYTHON);
+
+  const toggleExpand = (id: string) => {
+    if (expandedIds.has(id)) return;
+    setExpandedIds(prev => new Set(prev).add(id));
+  };
 
   const GeneratingCard = ({ badgeClass }: { badgeClass: string }) => (
     <div className="bg-white border border-dashed border-blue-200 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[240px] animate-pulse relative overflow-hidden group">
@@ -40,40 +47,54 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
         </div>
         <h3 className="text-base font-black text-gray-800 uppercase tracking-tight">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6">
-        {items.map((item: Suggestion) => (
-          <div 
-            key={item.id || Math.random().toString()} 
-            className="group bg-white border border-gray-100 rounded-[2rem] p-7 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col justify-between min-h-[280px]"
-          >
-            <div className="flex flex-col h-full">
-              <div className="flex justify-between items-start mb-4">
-                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${badgeClass}`}>
-                  {item.category}
-                </span>
-                <span className="text-[10px] font-bold text-gray-300 font-mono">#{ (item.id || 'IDEA').slice(0, 4).toUpperCase() }</span>
-              </div>
-              
-              <h4 className="text-base font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-3 leading-tight">
-                {item.title}
-              </h4>
-              
-              <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium leading-relaxed line-clamp-4 group-hover:line-clamp-none transition-all duration-300 ease-in-out mb-6">
-                  {item.prompt}
-                </p>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => onApply(item)}
-              className="w-full py-3 bg-gray-50 text-gray-600 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all group/btn shadow-sm hover:shadow-blue-200"
+      {/* 
+        Modified Grid Layout: 
+        Uses repeat(auto-fill, minmax(min(100%, 340px), 1fr)) to ensure items maintain a fixed-ish width 
+        and wrap instead of shrinking, while filling 100% when forced to a single column.
+      */}
+      <div 
+        className="grid gap-6"
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}
+      >
+        {items.map((item: Suggestion) => {
+          const itemId = item.id || `${item.title}-${item.type}`;
+          const isExpanded = expandedIds.has(itemId);
+          
+          return (
+            <div 
+              key={itemId} 
+              onMouseEnter={() => toggleExpand(itemId)}
+              className="group bg-white border border-gray-100 rounded-[2rem] p-7 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col justify-between min-h-[280px]"
             >
-              Apply to Editor
-              <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        ))}
+              <div className="flex flex-col h-full">
+                <div className="flex justify-between items-start mb-4">
+                  <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${badgeClass}`}>
+                    {item.category}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-300 font-mono">#{ itemId.slice(0, 4).toUpperCase() }</span>
+                </div>
+                
+                <h4 className="text-base font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-3 leading-tight">
+                  {item.title}
+                </h4>
+                
+                <div className="flex-1">
+                  <p className={`text-xs text-gray-500 font-medium leading-relaxed transition-all duration-300 ease-in-out mb-6 ${isExpanded ? 'line-clamp-none' : 'line-clamp-4'}`}>
+                    {item.prompt}
+                  </p>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => onApply(item)}
+                className="w-full py-3 bg-gray-50 text-gray-600 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all group/btn shadow-sm hover:shadow-blue-200"
+              >
+                Apply to Editor
+                <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          );
+        })}
         {isGenerating && <GeneratingCard badgeClass={badgeClass} />}
       </div>
     </div>

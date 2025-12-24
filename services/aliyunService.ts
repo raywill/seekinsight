@@ -108,7 +108,7 @@ export const generateSuggestions = async (tables: TableMetadata[]): Promise<Sugg
     const responseText = await callAliyun(messages, 0.7, true);
     const data = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
     return (data.suggestions || []).map((s: any) => ({
-      id: s.id || Math.random().toString(36).substr(2, 9),
+      id: s.id || `ai_${Math.random().toString(36).substr(2, 9)}`,
       title: s.title || "New Insight",
       prompt: s.prompt || "Analyze the dataset for trends.",
       category: s.category || "General",

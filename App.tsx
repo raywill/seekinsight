@@ -87,12 +87,23 @@ const App: React.FC = () => {
     setIsSuggesting(true);
     try {
       const newSuggestions = await ai.generateSuggestions(project.tables);
+      
+      // Safety: Ensure all incoming suggestions have unique IDs to prevent React key issues
+      const salt = Date.now().toString(36);
+      const uniqueNewSuggestions = newSuggestions.map((s, idx) => ({
+        ...s,
+        id: `${s.id || 'suggestion'}_${salt}_${idx}`
+      }));
+
       setProject(prev => {
         // If we are currently NOT on Insight Hub, mark as unread
         if (prev.activeMode !== DevMode.INSIGHT_HUB) {
           setHasUnreadSuggestions(true);
         }
-        return { ...prev, suggestions: [...prev.suggestions, ...newSuggestions] };
+        return { 
+          ...prev, 
+          suggestions: [...prev.suggestions, ...uniqueNewSuggestions] 
+        };
       });
     } catch (err) { console.error(err); } 
     finally { setIsSuggesting(false); }
