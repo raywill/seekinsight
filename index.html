@@ -55,6 +55,16 @@
             overflow: auto;
         }
 
+        /* Fix for invisible text selection */
+        .prism-editor-textarea::selection {
+            background-color: rgba(37, 99, 235, 0.2) !important;
+            color: transparent !important;
+        }
+        .prism-editor-textarea::-moz-selection {
+            background-color: rgba(37, 99, 235, 0.2) !important;
+            color: transparent !important;
+        }
+
         .prism-editor-pre {
             z-index: 1;
             pointer-events: none;
