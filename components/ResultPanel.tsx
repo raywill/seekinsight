@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult, DevMode } from '../types';
-import { Table as TableIcon, List, Clock, Hash, Play, Download, AlertCircle, BarChart, Terminal as TerminalIcon } from 'lucide-react';
+import { Table as TableIcon, List, Clock, Hash, Play, Download, AlertCircle, BarChart, Terminal as TerminalIcon, GripHorizontal } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
@@ -10,10 +10,51 @@ interface Props {
   isLoading: boolean;
 }
 
+const MIN_HEIGHT = 240; // Equivalent to h-60
+
 const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
   const [activeTab, setActiveTab] = useState<'table' | 'logs' | 'chart'>('table');
+  const [height, setHeight] = useState(MIN_HEIGHT);
+  const [isResizing, setIsResizing] = useState(false);
+  
+  const panelRef = useRef<HTMLDivElement>(null);
+  const startY = useRef<number>(0);
+  const startHeight = useRef<number>(0);
 
   const hasError = result?.logs && result.logs.length > 0 && result.data.length === 0 && !result.plotlyData;
+
+  // Handle Resize Events
+  const startResize = useCallback((e: React.MouseEvent) => {
+    setIsResizing(true);
+    startY.current = e.pageY;
+    startHeight.current = height;
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  }, [height]);
+
+  const stopResize = useCallback(() => {
+    setIsResizing(false);
+    document.body.style.cursor = 'default';
+    document.body.style.userSelect = 'auto';
+  }, []);
+
+  const onResize = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    const delta = startY.current - e.pageY;
+    const newHeight = Math.max(MIN_HEIGHT, startHeight.current + delta);
+    setHeight(newHeight);
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', onResize);
+      window.addEventListener('mouseup', stopResize);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onResize);
+      window.removeEventListener('mouseup', stopResize);
+    };
+  }, [isResizing, onResize, stopResize]);
 
   useEffect(() => {
     if (result) {
@@ -59,9 +100,13 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
     document.body.removeChild(link);
   };
 
+  const containerStyle = {
+    height: `${height}px`,
+  };
+
   if (isLoading) {
     return (
-      <div className="h-60 border-t border-gray-200 bg-white flex flex-col items-center justify-center gap-3 animate-pulse">
+      <div style={containerStyle} className="border-t border-gray-200 bg-white flex flex-col items-center justify-center gap-3 animate-pulse">
         <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
           <Clock size={20} className="text-gray-300" />
         </div>
@@ -72,7 +117,7 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
 
   if (!result) {
     return (
-      <div className="h-60 border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400">
+      <div style={containerStyle} className="border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400">
         <div className="p-3 border-2 border-dashed border-gray-200 rounded-xl mb-2">
            <Play size={24} className="opacity-20" />
         </div>
@@ -82,9 +127,21 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
   }
 
   return (
-    <div className="h-60 border-t border-gray-200 bg-white flex flex-col overflow-hidden">
+    <div 
+      ref={panelRef}
+      style={containerStyle} 
+      className="border-t border-gray-200 bg-white flex flex-col overflow-hidden relative group/resizer"
+    >
+      {/* Resizer Handle */}
+      <div 
+        onMouseDown={startResize}
+        className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500/30 transition-colors z-50 flex items-center justify-center"
+      >
+        <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-blue-400 transition-colors"></div>
+      </div>
+
       {/* Dynamic Header with Tabs */}
-      <div className={`px-4 py-1 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50/50'}`}>
+      <div className={`px-4 pt-2 pb-1 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50/50'}`}>
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
              {result.plotlyData && (
