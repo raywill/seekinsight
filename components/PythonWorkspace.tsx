@@ -73,13 +73,13 @@ const PythonWorkspace: React.FC<Props> = ({
           </div>
         )}
 
-        <BaseCodeEditor code={code} onChange={onCodeChange} language="python" placeholder="# Write Python here..." />
+        <BaseCodeEditor code={code} onChange={onCodeChange} language="python" placeholder="# Write Python here..." readOnly={isAiLoading} />
         
         <div className="px-6 py-3 border-t border-gray-100 bg-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
             <div className="flex items-center gap-1.5"><Box size={12} className="text-purple-400" /><span>Python 3.10</span></div>
           </div>
-          <button onClick={onRun} disabled={isExecuting} className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-purple-700 active:scale-95 transition-all">
+          <button onClick={onRun} disabled={isExecuting || isAiLoading} className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50">
             {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Run Analysis
           </button>
         </div>

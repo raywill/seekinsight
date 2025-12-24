@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles } from 'lucide-react';
+import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
@@ -120,14 +120,21 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
         )}
 
         {hasError && onDebug && (
-          <div className="absolute bottom-6 right-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="absolute bottom-8 right-8 animate-in fade-in slide-in-from-bottom-4 duration-500 z-[60]">
             <button 
               onClick={onDebug}
               disabled={isAiLoading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black shadow-2xl shadow-red-900/20 hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-3 px-6 py-3.5 bg-red-600 text-white rounded-2xl text-[11px] font-black shadow-[0_10px_40px_rgba(220,38,38,0.4)] hover:bg-red-700 hover:shadow-red-500/50 transition-all active:scale-95 disabled:opacity-80 group overflow-hidden"
             >
-              <Sparkles size={14} className="text-purple-400 animate-pulse" />
-              AUTO DEBUG WITH AI
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              {isAiLoading ? (
+                <RefreshCw size={16} className="animate-spin text-white" />
+              ) : (
+                <Sparkles size={16} className="text-white animate-pulse" />
+              )}
+              <span className="uppercase tracking-[0.1em]">
+                {isAiLoading ? 'Python Repair in Progress...' : 'AI Magic Fix'}
+              </span>
             </button>
           </div>
         )}

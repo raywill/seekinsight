@@ -90,13 +90,13 @@ const SqlWorkspace: React.FC<Props> = ({
             </button>
           </div>
         )}
-        <BaseCodeEditor ref={editorRef} code={code} onChange={handleCodeChange} onKeyDown={handleKeyDown} language="sql" placeholder="-- Write SQL here..." />
+        <BaseCodeEditor ref={editorRef} code={code} onChange={handleCodeChange} onKeyDown={handleKeyDown} language="sql" placeholder="-- Write SQL here..." readOnly={isAiLoading} />
         
         <div className="px-6 py-3 border-t border-gray-100 bg-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
             <div className="flex items-center gap-1.5"><Code2 size={12} className="text-blue-400" /><span>ANSI SQL</span></div>
           </div>
-          <button onClick={onRun} disabled={isExecuting} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all">
+          <button onClick={onRun} disabled={isExecuting || isAiLoading} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50">
             {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Execute Query
           </button>
         </div>

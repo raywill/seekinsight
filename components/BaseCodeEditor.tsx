@@ -10,6 +10,7 @@ interface Props {
   language: 'sql' | 'python';
   placeholder?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  readOnly?: boolean;
 }
 
 export interface BaseCodeEditorRef {
@@ -17,7 +18,7 @@ export interface BaseCodeEditorRef {
 }
 
 const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({ 
-  code, onChange, language, placeholder, onKeyDown 
+  code, onChange, language, placeholder, onKeyDown, readOnly = false
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -34,8 +35,8 @@ const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({
   };
 
   const handleInternalKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (readOnly) return;
     if (e.key === 'Tab') {
-      // Basic Tab handling if no external onKeyDown prevents it
       const start = e.currentTarget.selectionStart;
       const end = e.currentTarget.selectionEnd;
       const newValue = code.substring(0, start) + '    ' + code.substring(end);
@@ -62,11 +63,11 @@ const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({
   useEffect(() => { handleScroll(); }, [code, language]);
 
   return (
-    <div className="flex-1 relative prism-editor-container group bg-white">
+    <div className={`flex-1 relative prism-editor-container group bg-white ${readOnly ? 'opacity-75 cursor-not-allowed' : ''}`}>
       <textarea
         ref={textareaRef}
         value={code}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => !readOnly && onChange(e.target.value)}
         onScroll={handleScroll}
         onKeyDown={handleInternalKeyDown}
         className="prism-editor-textarea"
@@ -75,6 +76,7 @@ const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({
         autoComplete="off"
         autoCorrect="off"
         placeholder={placeholder}
+        readOnly={readOnly}
       />
       <pre ref={preRef} className="prism-editor-pre" aria-hidden="true">
         <code 
@@ -82,6 +84,14 @@ const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({
           dangerouslySetInnerHTML={{ __html: highlightedCode + (code.endsWith('\n') ? '\n ' : '\n') }} 
         />
       </pre>
+      {readOnly && (
+        <div className="absolute inset-0 z-10 bg-gray-50/5 flex items-center justify-center pointer-events-none">
+          <div className="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-100 shadow-sm flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping" />
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">AI Recalibrating...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
