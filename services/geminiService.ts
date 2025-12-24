@@ -4,6 +4,21 @@ import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3001';
+
+async function logPrompt(type: string, content: string) {
+  if (!IS_DEBUG) return;
+  try {
+    await fetch(`${GATEWAY_URL}/log-prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, content })
+    });
+  } catch (err) {
+    console.warn("Failed to send prompt log to gateway", err);
+  }
+}
 
 /**
  * Uses Gemini 3 Pro for high-precision code generation.
@@ -19,11 +34,14 @@ Columns:
 ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`).join('\n')}`
   ).join('\n\n');
 
+  const systemInstruction = SYSTEM_PROMPTS.CODE_GEN(mode, schemaStr);
+  await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,
     config: {
-      systemInstruction: SYSTEM_PROMPTS.CODE_GEN(mode, schemaStr),
+      systemInstruction: systemInstruction,
       temperature: 0.1,
     },
   });
@@ -45,11 +63,15 @@ Columns:
 ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`).join('\n')}`
   ).join('\n\n');
 
+  const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr);
+  const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${error}`;
+  await logPrompt(`DEBUG_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${error}`,
+    contents: userContent,
     config: {
-      systemInstruction: SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr),
+      systemInstruction: systemInstruction,
       temperature: 0.1,
     },
   });
@@ -68,10 +90,13 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
   const sample = data.slice(0, sampleSize);
   const headers = Object.keys(data[0]);
 
+  const userContent = USER_PROMPTS.METADATA_INFER(tableName, headers, sample);
+  await logPrompt('METADATA_INFER', `System: ${SYSTEM_PROMPTS.METADATA_INFER}\nUser: ${userContent}`);
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: USER_PROMPTS.METADATA_INFER(tableName, headers, sample),
+      contents: userContent,
       config: {
         systemInstruction: SYSTEM_PROMPTS.METADATA_INFER,
         responseMimeType: "application/json",
@@ -99,10 +124,12 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
  */
 export const generateAnalysis = async (query: string, result: any[]): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
+  const userContent = `Query: ${query}\nSample: ${JSON.stringify(result.slice(0, 5))}`;
+  await logPrompt('ANALYSIS', `System: ${SYSTEM_PROMPTS.ANALYSIS}\nUser: ${userContent}`);
   
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Query: ${query}\nSample: ${JSON.stringify(result.slice(0, 5))}`,
+    contents: userContent,
     config: {
       systemInstruction: SYSTEM_PROMPTS.ANALYSIS,
       temperature: 0.5,
@@ -117,10 +144,13 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
   const columns = Object.keys(result[0]);
   const sample = result.slice(0, 10);
 
+  const userContent = USER_PROMPTS.CHART_REC(query, columns, sample);
+  await logPrompt('CHART_REC', `System: ${SYSTEM_PROMPTS.CHART_REC}\nUser: ${userContent}`);
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: USER_PROMPTS.CHART_REC(query, columns, sample),
+      contents: userContent,
       config: {
         systemInstruction: SYSTEM_PROMPTS.CHART_REC,
         responseMimeType: "application/json",
@@ -160,10 +190,13 @@ export const generateSuggestions = async (tables: TableMetadata[]): Promise<Sugg
     `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
   ).join('\n\n');
 
+  const userContent = `Database Schema:\n${schemaStr}`;
+  await logPrompt('SUGGESTIONS', `System: ${SYSTEM_PROMPTS.SUGGESTIONS}\nUser: ${userContent}`);
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Database Schema:\n${schemaStr}`,
+      contents: userContent,
       config: {
         systemInstruction: SYSTEM_PROMPTS.SUGGESTIONS,
         responseMimeType: "application/json",

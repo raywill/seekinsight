@@ -21,6 +21,7 @@ const PYTHON_EXE = process.platform === 'win32'
 
 // Debug Switch from environment
 const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
+const PROMPT_LOG_FILE = path.join(process.cwd(), 'prompt.log');
 
 function debugLog(step, message, duration = null) {
   if (!IS_DEBUG) return;
@@ -61,6 +62,23 @@ async function initVenv() {
   await execPromise(`${pipPath} install ${packages} --quiet`);
   debugLog('Venv', 'Python runtime environment is ready.', performance.now() - start);
 }
+
+// Endpoint to log AI prompts to prompt.log
+app.post('/log-prompt', (req, res) => {
+  const { type, content } = req.body;
+  if (!IS_DEBUG) return res.sendStatus(200);
+
+  const timestamp = new Date().toISOString();
+  const entry = `[${timestamp}] [${type}]\n${content}\n${'-'.repeat(50)}\n`;
+  
+  try {
+    fs.appendFileSync(PROMPT_LOG_FILE, entry);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Failed to write to prompt.log:", err);
+    res.status(500).json({ success: false });
+  }
+});
 
 app.post('/connect', async (req, res) => {
   const start = performance.now();
