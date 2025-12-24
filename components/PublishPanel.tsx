@@ -29,11 +29,12 @@ const CHART_COLORS = [
 
 /**
  * Data Aggregator: Sums up Y-axis values by X-axis category.
+ * Also handles Top 6 + Others logic for Pie charts.
  */
 const processChartData = (data: any[], xKey: string, yKeys: string[], limitOthers: boolean = false) => {
   if (!data || data.length === 0) return [];
 
-  // 1. Aggregate values by xKey
+  // 1. Aggregate values by xKey (SUM aggregation)
   const aggregatedMap: Record<string, any> = {};
   data.forEach(row => {
     const category = String(row[xKey] ?? 'Unknown');
@@ -51,8 +52,8 @@ const processChartData = (data: any[], xKey: string, yKeys: string[], limitOther
   // 2. Sorting and "Others" grouping for Pie Charts
   if (limitOthers) {
     const primaryMetric = yKeys[0];
-    // Sort Descending
-    resultData.sort((a, b) => (b[primaryMetric] || 0) - (a[primaryMetric] || 0));
+    // Sort Descending by the primary metric
+    resultData.sort((a, b) => (Number(b[primaryMetric]) || 0) - (Number(a[primaryMetric]) || 0));
 
     if (resultData.length > 7) {
       const top = resultData.slice(0, 6);
@@ -68,6 +69,40 @@ const processChartData = (data: any[], xKey: string, yKeys: string[], limitOther
   return resultData;
 };
 
+// Fix: Moved CustomTooltip out of ChartCard to make it accessible to other components in the file
+const CustomChartTooltip = ({ active, payload, label, type, xKey, yKeys, data }: any) => {
+  if (active && payload && payload.length) {
+    // For Bar/Line/Area, 'label' is usually the X-axis value
+    // For Pie, 'payload[0].payload[xKey]' is the reliable source
+    const tooltipTitle = type === 'pie' ? payload[0].payload[xKey] : (label || payload[0].payload[xKey]);
+    
+    const total = type === 'pie' && data ? data.reduce((s: number, c: any) => s + (Number(c[yKeys[0]]) || 0), 0) : 0;
+    
+    return (
+      <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-xl min-w-[140px]">
+        <p className="text-xs font-black text-gray-900 mb-2 border-b border-gray-50 pb-1">{tooltipTitle}</p>
+        <div className="space-y-1.5">
+          {payload.map((p: any, i: number) => (
+            <div key={i} className="flex items-center gap-4 justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill }}></div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase">{p.dataKey}:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-black text-blue-600">{Number(p.value).toLocaleString()}</span>
+                {type === 'pie' && total > 0 && (
+                  <span className="text-[9px] font-bold text-gray-400">({((p.value / total) * 100).toFixed(1)}%)</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 interface ChartCardProps {
   config: AIChartConfig;
   rawData: any[];
@@ -76,34 +111,8 @@ interface ChartCardProps {
 const ChartCard: React.FC<ChartCardProps> = ({ config, rawData }) => {
   const { type, xKey, yKeys, title, description } = config;
 
-  // Adhere to Rules of Hooks: Call useMemo inside a proper React component
+  // Aggregate data before rendering
   const data = useMemo(() => processChartData(rawData, xKey, yKeys, type === 'pie'), [rawData, xKey, yKeys, type]);
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const total = type === 'pie' ? data.reduce((s, c) => s + (Number(c[yKeys[0]]) || 0), 0) : 0;
-      return (
-        <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-xl">
-          <p className="text-xs font-black text-gray-900 mb-1">{payload[0].name || payload[0].payload[xKey]}</p>
-          {payload.map((p: any, i: number) => (
-            <div key={i} className="flex items-center gap-4 justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill }}></div>
-                <span className="text-[10px] font-bold text-gray-500 uppercase">{p.dataKey}:</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-black text-blue-600">{p.value.toLocaleString()}</span>
-                {type === 'pie' && (
-                  <span className="text-[9px] font-bold text-gray-400">({((p.value / total) * 100).toFixed(1)}%)</span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
 
   const chart = (() => {
     switch (type) {
@@ -113,7 +122,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ config, rawData }) => {
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
             <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
             {yKeys.map((key, i) => (
               <Line key={key} type="monotone" dataKey={key} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={3} dot={{ r: 4, fill: CHART_COLORS[i % CHART_COLORS.length], strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
             ))}
@@ -125,7 +134,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ config, rawData }) => {
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} />
             <YAxis fontSize={10} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
             {yKeys.map((key, i) => (
               <Area key={key} type="monotone" dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.2} strokeWidth={2} />
             ))}
@@ -147,7 +156,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ config, rawData }) => {
             >
               {data.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />)}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
             <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
           </PieChart>
         );
@@ -157,7 +166,7 @@ const ChartCard: React.FC<ChartCardProps> = ({ config, rawData }) => {
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
             <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
             {yKeys.map((key, i) => (
               <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />
             ))}
@@ -280,11 +289,12 @@ const PublishPanel: React.FC<Props> = ({ mode, result, analysis, isAnalyzing, is
                     <p className="text-[10px] text-gray-400 font-black uppercase mb-4 tracking-widest text-center">Summary Statistics</p>
                     <div className="h-64">
                        <ResponsiveContainer width="100%" height="100%">
+                         {/* Fix: Replaced CustomTooltip with CustomChartTooltip and passed required props */}
                          <BarChart data={processChartData(result.data, result.columns[0], [result.columns[1]])}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                             <XAxis dataKey={result.columns[0]} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
                             <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-                            <Tooltip />
+                            <Tooltip content={<CustomChartTooltip type="bar" xKey={result.columns[0]} yKeys={[result.columns[1]]} />} />
                             <Bar dataKey={result.columns[1]} fill="#2563eb" radius={[4, 4, 0, 0]} />
                          </BarChart>
                        </ResponsiveContainer>
