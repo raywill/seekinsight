@@ -88,7 +88,6 @@ const App: React.FC = () => {
     try {
       const newSuggestions = await ai.generateSuggestions(project.tables);
       
-      // Safety: Ensure all incoming suggestions have unique IDs to prevent React key issues
       const salt = Date.now().toString(36);
       const uniqueNewSuggestions = newSuggestions.map((s, idx) => ({
         ...s,
@@ -96,7 +95,6 @@ const App: React.FC = () => {
       }));
 
       setProject(prev => {
-        // If we are currently NOT on Insight Hub, mark as unread
         if (prev.activeMode !== DevMode.INSIGHT_HUB) {
           setHasUnreadSuggestions(true);
         }
@@ -124,7 +122,6 @@ const App: React.FC = () => {
     try {
       const generated = await ai.generateCode(prompt, mode, project.tables);
       
-      // Only apply if this is still the latest request for this mode
       if (currentId === (isSql ? sqlReqId : pythonReqId).current) {
         setProject(prev => ({
           ...prev,
@@ -163,8 +160,8 @@ const App: React.FC = () => {
           [isSql ? 'sqlCode' : 'pythonCode']: generated,
           [isSql ? 'isSqlAiGenerating' : 'isPythonAiGenerating']: false
         }));
-        // Auto run after debug
-        setTimeout(() => handleRun(), 100);
+        // CRITICAL FIX: Pass the 'generated' code directly to handleRun to bypass React state latency
+        handleRun(generated);
       }
     } catch (err) {
       console.error("AI Debug Error:", err);
@@ -175,14 +172,11 @@ const App: React.FC = () => {
   };
 
   const handleApplySuggestion = (s: Suggestion) => {
-    // 1. Switch tab and prepare prompt immediately
     setProject(prev => ({
       ...prev,
       activeMode: s.type,
       [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt,
     }));
-    
-    // 2. Trigger the automated generation
     handleTriggerAiCode(s.type, s.prompt);
   };
 
@@ -225,10 +219,11 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleRun = async () => {
+  const handleRun = async (codeOverride?: string) => {
     if (!dbReady) return;
     const currentMode = project.activeMode;
-    const currentCode = currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode;
+    // Use override code if provided (e.g., from AI Debug), otherwise fall back to state
+    const currentCode = codeOverride || (currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode);
 
     setProject(prev => ({ ...prev, isExecuting: true, isAnalyzing: false, isRecommendingCharts: false, analysisReport: '' }));
     try {
@@ -260,14 +255,11 @@ const App: React.FC = () => {
         isAnalyzing: currentMode === DevMode.SQL && result.data.length > 0
       }));
 
-      // Trigger AI features if SQL returned data
       if (currentMode === DevMode.SQL && result.data.length > 0) {
-        // Trigger Analysis
         ai.generateAnalysis(currentCode, result.data).then(report => {
           setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
         });
 
-        // Trigger Chart Recommendations
         setProject(prev => ({ ...prev, isRecommendingCharts: true }));
         ai.recommendCharts(currentCode, result.data).then(charts => {
           setProject(prev => ({
@@ -370,7 +362,7 @@ const App: React.FC = () => {
               <SqlWorkspace 
                 code={project.sqlCode} onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))} 
                 prompt={project.sqlAiPrompt} onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))} 
-                result={project.lastSqlResult} onRun={handleRun} isExecuting={project.isExecuting} 
+                result={project.lastSqlResult} onRun={() => handleRun()} isExecuting={project.isExecuting} 
                 isAiLoading={project.isSqlAiGenerating}
                 onTriggerAi={() => handleTriggerAiCode(DevMode.SQL, project.sqlAiPrompt)}
                 onDebug={() => handleDebugCode(DevMode.SQL)}
@@ -381,7 +373,7 @@ const App: React.FC = () => {
               <PythonWorkspace 
                 code={project.pythonCode} onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))} 
                 prompt={project.pythonAiPrompt} onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))} 
-                result={project.lastPythonResult} onRun={handleRun} isExecuting={project.isExecuting} 
+                result={project.lastPythonResult} onRun={() => handleRun()} isExecuting={project.isExecuting} 
                 isAiLoading={project.isPythonAiGenerating}
                 onTriggerAi={() => handleTriggerAiCode(DevMode.PYTHON, project.pythonAiPrompt)}
                 onDebug={() => handleDebugCode(DevMode.PYTHON)}
