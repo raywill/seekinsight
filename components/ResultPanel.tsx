@@ -198,12 +198,12 @@ const ResultPanel: React.FC<Props> = ({ mode, result, isLoading }) => {
         {activeTab === 'chart' && result.plotlyData && (
           <div className="w-full h-full flex items-center justify-center p-4">
             <Plot
-              data={result.plotlyData.data || []}
+              data={result.plotlyData.data}
               layout={{
                 ...result.plotlyData.layout,
                 autosize: true,
                 margin: { t: 40, r: 20, b: 40, l: 60 },
-                font: { family: 'Inter, sans-serif', size: 11 },
+                font: { family: 'Inter, sans-serif', size: 10 },
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
               }}
