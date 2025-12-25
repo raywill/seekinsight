@@ -22,15 +22,17 @@ const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(ref, () => ({
     textarea: textareaRef.current
   }));
 
   const handleScroll = () => {
-    if (textareaRef.current && preRef.current) {
+    if (textareaRef.current && preRef.current && lineNumbersRef.current) {
       preRef.current.scrollTop = textareaRef.current.scrollTop;
       preRef.current.scrollLeft = textareaRef.current.scrollLeft;
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
     }
   };
 
@@ -60,10 +62,18 @@ const BaseCodeEditor = forwardRef<BaseCodeEditorRef, Props>(({
     return Prism.highlight(code || '', grammar, language);
   }, [code, language]);
 
+  const lineNumbers = useMemo(() => {
+    const lines = code.split('\n');
+    return Array.from({ length: lines.length }, (_, i) => i + 1).join('\n');
+  }, [code]);
+
   useEffect(() => { handleScroll(); }, [code, language]);
 
   return (
     <div className={`flex-1 relative prism-editor-container group bg-white ${readOnly ? 'opacity-75 cursor-not-allowed' : ''}`}>
+      <div ref={lineNumbersRef} className="prism-editor-linenumbers" aria-hidden="true">
+        {lineNumbers}
+      </div>
       <textarea
         ref={textareaRef}
         value={code}
