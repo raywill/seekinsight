@@ -159,7 +159,6 @@ const App: React.FC = () => {
     suggestions: [],
     lastSqlResult: null,
     lastPythonResult: null,
-    // Fix: Replaced 'boolean' type usage with initial value 'false'
     isExecuting: false,
     isAnalyzing: false,
     isRecommendingCharts: false,
@@ -382,7 +381,8 @@ const App: React.FC = () => {
     if (isSuggesting || project.tables.length === 0) return;
     setIsSuggesting(true);
     try {
-      const newSuggestions = await ai.generateSuggestions(project.tables, project.topicName);
+      // Pass the current suggestions to avoid duplicates
+      const newSuggestions = await ai.generateSuggestions(project.tables, project.topicName, project.suggestions);
       const updatedSuggestions = [...project.suggestions, ...newSuggestions];
       setProject(prev => ({ ...prev, suggestions: updatedSuggestions }));
       // Persist generated cards to DB

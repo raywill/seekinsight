@@ -165,13 +165,13 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
   }
 };
 
-export const generateSuggestions = async (tables: TableMetadata[], topic: string): Promise<Suggestion[]> => {
+export const generateSuggestions = async (tables: TableMetadata[], topic: string, existingSuggestions: Suggestion[] = []): Promise<Suggestion[]> => {
   const schemaStr = tables.map(t => 
     `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
   ).join('\n\n');
 
   const userContent = `Database Schema:\n${schemaStr}`;
-  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic);
+  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic, existingSuggestions);
   const messages = [
     { role: "system", content: systemInstruction },
     { role: "user", content: userContent }

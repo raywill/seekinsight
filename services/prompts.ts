@@ -1,5 +1,5 @@
 
-import { DevMode } from "../types";
+import { DevMode, Suggestion } from "../types";
 
 export const LANGUAGE_REQ = "Language Requirement: All string fields should be in Chinese";
 
@@ -72,8 +72,14 @@ export const SYSTEM_PROMPTS = {
       ]
     }`,
 
-  SUGGESTIONS: (topic: string) => `You are a strategic data consultant. The current business project topic is: "${topic}". 
+  SUGGESTIONS: (topic: string, existingSuggestions?: Suggestion[]) => `You are a strategic data consultant. The current business project topic is: "${topic}". 
     Based on this topic and the provided database schema, generate 3-5 high-value and actionable data analysis ideas (SQL or Python).
+    
+    IMPORTANT: Do not duplicate or closely overlap with these existing ideas (Title and Logic):
+    ${existingSuggestions && existingSuggestions.length > 0 
+      ? existingSuggestions.map(s => `- ${s.title}: ${s.prompt}`).join('\n') 
+      : 'None yet.'}
+
     Respond ONLY with a JSON object containing a "suggestions" array.
 
     Each suggestion object MUST have:
@@ -83,7 +89,7 @@ export const SYSTEM_PROMPTS = {
     - "category": A business domain (e.g., "Sales", "Inventory", "Customer", "Finance").
     - "type": MUST be either "SQL" or "PYTHON".
 
-    Balance the results: 4 SQL ideas and 4 Python ideas.
+    Balance the results: Attempt to provide a mix of SQL and Python ideas.
 
     ${LANGUAGE_REQ}`,
 

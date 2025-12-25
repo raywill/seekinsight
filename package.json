@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Mini Data Development Platform",
   "main": "gateway.js",
+  "type": "module",
   "scripts": {
     "setup:venv": "python3 -m venv .venv || python -m venv .venv",
     "install:deps": ".venv/bin/pip install --upgrade pip && ./.venv/bin/pip install pandas sqlalchemy mysql-connector-python plotly || .\\.venv\\Scripts\\pip install pandas sqlalchemy mysql-connector-python plotly",
