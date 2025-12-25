@@ -79,11 +79,10 @@ const Section: React.FC<SectionProps> = ({
               isEditing ? 'border-blue-400 shadow-lg ring-1 ring-blue-100' : 'border-gray-100 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/10'
             }`}
           >
-            {/* Minimal Header Controls */}
             {!isEditing && (
               <div className="absolute top-6 right-6 flex items-center gap-1 z-10">
                 <button 
-                  onClick={() => onDelete(itemId)}
+                  onClick={(e) => { e.stopPropagation(); onDelete(itemId); }}
                   className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
                   title="Remove Insight"
                 >
@@ -116,14 +115,22 @@ const Section: React.FC<SectionProps> = ({
                       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit();
                       if (e.key === 'Escape') cancelEdit();
                     }}
-                    // Note: Padding/LineHeight must match the display paragraph exactly to prevent jumping
-                    className="w-full h-32 text-xs text-gray-600 font-medium leading-relaxed bg-blue-50/30 p-0 border-none focus:outline-none focus:ring-0 resize-none overflow-auto"
+                    // Pixel-perfect alignment with the paragraph text
+                    style={{ 
+                      lineHeight: '1.625', 
+                      fontSize: '0.75rem', 
+                      letterSpacing: '0', 
+                      wordBreak: 'break-word',
+                      padding: '0'
+                    }}
+                    className="w-full h-32 text-gray-600 font-medium bg-blue-50/30 border-none focus:outline-none focus:ring-0 resize-none overflow-auto"
                   />
                 ) : (
                   <div className="relative group/text">
                     <p 
                       onClick={(e) => startEditing(e, item)}
-                      className={`text-xs text-gray-500 font-medium leading-relaxed transition-all duration-300 ease-in-out mb-6 cursor-text hover:text-gray-900 ${isExpanded ? 'line-clamp-none' : 'line-clamp-4'}`}
+                      style={{ lineHeight: '1.625' }}
+                      className={`text-xs text-gray-500 font-medium transition-all duration-300 ease-in-out mb-6 cursor-text hover:text-gray-900 break-words ${isExpanded ? 'line-clamp-none' : 'line-clamp-4'}`}
                     >
                       {item.prompt}
                     </p>
@@ -157,6 +164,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [originalValue, setOriginalValue] = useState("");
+  const [caretOffset, setCaretOffset] = useState<number>(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const sqlSuggestions = suggestions.filter(s => s.type === DevMode.SQL);
@@ -170,15 +178,30 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
   const startEditing = (e: React.MouseEvent, item: Suggestion) => {
     e.stopPropagation();
     const itemId = item.id || `${item.title}-${item.type}`;
+    
+    // Attempt to calculate exact character offset at click point
+    let offset = item.prompt.length;
+    if ((document as any).caretRangeFromPoint) {
+      const range = (document as any).caretRangeFromPoint(e.clientX, e.clientY);
+      if (range) {
+        offset = range.startOffset;
+      }
+    } else if ((document as any).caretPositionFromPoint) {
+      const position = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
+      if (position) {
+        offset = position.offset;
+      }
+    }
+
     setEditingId(itemId);
     setEditValue(item.prompt);
     setOriginalValue(item.prompt);
+    setCaretOffset(offset);
   };
 
   const saveEdit = () => {
     if (editingId !== null) {
       const trimmed = editValue.trim();
-      // Only trigger update if content has actually changed
       if (trimmed && trimmed !== originalValue) {
         onUpdate(editingId, trimmed);
       }
@@ -193,9 +216,10 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
   useEffect(() => {
     if (editingId && textareaRef.current) {
       textareaRef.current.focus();
-      textareaRef.current.selectionStart = textareaRef.current.value.length;
+      // Restore the exact caret position based on where the user clicked
+      textareaRef.current.setSelectionRange(caretOffset, caretOffset);
     }
-  }, [editingId]);
+  }, [editingId, caretOffset]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50/50 p-10">
