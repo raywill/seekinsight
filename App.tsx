@@ -355,8 +355,6 @@ const App: React.FC = () => {
     } finally { setIsSuggesting(false); }
   };
 
-  if (!currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
-
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 z-20 shadow-sm shrink-0">
@@ -404,7 +402,7 @@ const App: React.FC = () => {
           tables={project.tables} 
           onUploadFile={handleUpload} 
           onRefreshTableStats={async t => { 
-            const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook.db_name);
+            const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook!.db_name);
             setProject(prev => ({
               ...prev,
               tables: prev.tables.map(table => 
