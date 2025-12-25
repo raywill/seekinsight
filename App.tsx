@@ -76,7 +76,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Personal Knowledge Graph</p>
              </div>
           </div>
-          <button 
+          <button
             onClick={handleCreate}
             disabled={creating}
             className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl font-black flex items-center gap-3 hover:bg-blue-700 transition-all shadow-2xl shadow-blue-500/20 active:scale-95 disabled:opacity-50"
@@ -94,8 +94,8 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
              </div>
            )}
            {notebooks.map(nb => (
-             <div 
-               key={nb.id} 
+             <div
+               key={nb.id}
                onClick={() => onOpen(nb)}
                className="group bg-white border border-gray-100 rounded-[2.5rem] p-8 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden"
              >
@@ -104,7 +104,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
                     <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
                       {getIcon(nb.icon_name)}
                     </div>
-                    <button 
+                    <button
                       onClick={(e) => handleDelete(e, nb.id)}
                       className="p-2 text-gray-300 hover:text-red-500 transition-colors"
                     >
@@ -174,7 +174,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const engine = new MySQLEngine();
     setDatabaseEngine(engine);
-    
+
     const params = new URLSearchParams(window.location.search);
     const nbId = params.get('nb');
     if (nbId) {
@@ -194,17 +194,17 @@ const App: React.FC = () => {
   const handleOpenNotebook = async (nb: Notebook) => {
     setCurrentNotebook(nb);
     window.history.pushState({}, '', `?nb=${nb.id}`);
-    
+
     const db = getDatabaseEngine();
     const tables = await db.getTables(nb.db_name);
-    
-    setProject(prev => ({ 
-      ...prev, 
-      id: nb.id, 
-      dbName: nb.db_name, 
+
+    setProject(prev => ({
+      ...prev,
+      id: nb.id,
+      dbName: nb.db_name,
       topicName: nb.topic,
       tables,
-      suggestions: [] 
+      suggestions: []
     }));
     setDbReady(true);
   };
@@ -220,7 +220,7 @@ const App: React.FC = () => {
     const trimmed = newTopic.trim().substring(0, 30) || "未命名主题";
     setProject(prev => ({ ...prev, topicName: trimmed }));
     setIsEditingTopic(false);
-    
+
     await fetch(`${gatewayUrl}/notebooks/${currentNotebook.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -295,9 +295,9 @@ const App: React.FC = () => {
         const data = await response.json();
         result = { data: data.data || [], columns: data.columns || [], logs: data.logs || [], plotlyData: data.plotlyData, timestamp: new Date().toLocaleTimeString(), isError: !response.ok };
       }
-      setProject(prev => ({ 
-        ...prev, 
-        isExecuting: false, 
+      setProject(prev => ({
+        ...prev,
+        isExecuting: false,
         [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: result,
         isAnalyzing: currentMode === DevMode.SQL && result.data.length > 0 && !result.isError
       }));
@@ -325,10 +325,10 @@ const App: React.FC = () => {
         const workbook = XLSX.read(data, { type: 'binary' });
         const rawJsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
         const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
-        
+
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(tableName, rawJsonData, currentNotebook.db_name);
-        
+
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
 
@@ -355,6 +355,8 @@ const App: React.FC = () => {
     } finally { setIsSuggesting(false); }
   };
 
+  if (!currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 z-20 shadow-sm shrink-0">
@@ -366,13 +368,13 @@ const App: React.FC = () => {
             <div><h1 className="font-black text-gray-900 text-lg uppercase tracking-tighter leading-none">SeekInsight</h1></div>
           </div>
           <div className="h-6 w-px bg-gray-100"></div>
-          
+
           <div className="flex items-center gap-2 group">
             {isEditingTopic ? (
               <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-blue-200">
-                <input 
-                  autoFocus 
-                  value={tempTopic} 
+                <input
+                  autoFocus
+                  value={tempTopic}
                   onChange={e => setTempTopic(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleUpdateTopic(tempTopic)}
                   className="bg-transparent border-none outline-none text-sm font-bold text-gray-800 px-2 w-48"
@@ -381,7 +383,7 @@ const App: React.FC = () => {
                 <button onClick={() => setIsEditingTopic(false)} className="p-1 hover:bg-gray-200 rounded text-gray-400 transition-colors"><X size={14}/></button>
               </div>
             ) : (
-              <div 
+              <div
                 className="flex items-center gap-2 px-4 py-2 bg-gray-50/50 hover:bg-gray-100/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-200"
                 onClick={() => { setTempTopic(project.topicName); setIsEditingTopic(true); }}
               >
@@ -398,19 +400,19 @@ const App: React.FC = () => {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <DataSidebar 
-          tables={project.tables} 
-          onUploadFile={handleUpload} 
-          onRefreshTableStats={async t => { 
-            const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook!.db_name);
+        <DataSidebar
+          tables={project.tables}
+          onUploadFile={handleUpload}
+          onRefreshTableStats={async t => {
+            const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook.db_name);
             setProject(prev => ({
               ...prev,
-              tables: prev.tables.map(table => 
+              tables: prev.tables.map(table =>
                 table.tableName === t ? { ...table, rowCount: count } : table
               )
             }));
-          }} 
-          isUploading={isUploading} 
+          }}
+          isUploading={isUploading}
         />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
@@ -423,49 +425,49 @@ const App: React.FC = () => {
           </div>
           <div className="flex-1 flex flex-col overflow-hidden">
              {project.activeMode === DevMode.INSIGHT_HUB && (
-              <InsightHub 
-                suggestions={project.suggestions} 
-                onApply={(s) => { 
-                  setProject(p => ({ ...p, activeMode: s.type, [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt })); 
+              <InsightHub
+                suggestions={project.suggestions}
+                onApply={(s) => {
+                  setProject(p => ({ ...p, activeMode: s.type, [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt }));
                   if (s.type === DevMode.SQL) handleSqlAiGenerate(s.prompt);
                   else handlePythonAiGenerate(s.prompt);
-                }} 
-                onFetchMore={handleFetchSuggestions} 
-                isLoading={isSuggesting} 
+                }}
+                onFetchMore={handleFetchSuggestions}
+                isLoading={isSuggesting}
               />
              )}
              {project.activeMode === DevMode.SQL && (
-              <SqlWorkspace 
-                code={project.sqlCode} 
-                onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))} 
-                prompt={project.sqlAiPrompt} 
-                onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))} 
-                result={project.lastSqlResult} 
-                onRun={() => handleRun()} 
-                isExecuting={project.isExecuting} 
-                isAiGenerating={project.isSqlAiGenerating} 
-                isAiFixing={project.isSqlAiFixing} 
-                onTriggerAi={() => handleSqlAiGenerate()} 
-                onDebug={handleDebugSql} 
-                tables={project.tables} 
+              <SqlWorkspace
+                code={project.sqlCode}
+                onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))}
+                prompt={project.sqlAiPrompt}
+                onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))}
+                result={project.lastSqlResult}
+                onRun={() => handleRun()}
+                isExecuting={project.isExecuting}
+                isAiGenerating={project.isSqlAiGenerating}
+                isAiFixing={project.isSqlAiFixing}
+                onTriggerAi={() => handleSqlAiGenerate()}
+                onDebug={handleDebugSql}
+                tables={project.tables}
                 onUndo={() => setProject(p => ({ ...p, sqlCode: p.lastSqlCodeBeforeAi || INITIAL_SQL }))}
                 showUndo={!!project.lastSqlCodeBeforeAi}
               />
              )}
              {project.activeMode === DevMode.PYTHON && (
-              <PythonWorkspace 
-                code={project.pythonCode} 
-                onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))} 
-                prompt={project.pythonAiPrompt} 
-                onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))} 
-                result={project.lastPythonResult} 
-                onRun={() => handleRun()} 
-                isExecuting={project.isExecuting} 
-                isAiGenerating={project.isPythonAiGenerating} 
-                isAiFixing={project.isPythonAiFixing} 
-                onTriggerAi={() => handlePythonAiGenerate()} 
-                onDebug={handleDebugPython} 
-                tables={project.tables} 
+              <PythonWorkspace
+                code={project.pythonCode}
+                onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))}
+                prompt={project.pythonAiPrompt}
+                onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))}
+                result={project.lastPythonResult}
+                onRun={() => handleRun()}
+                isExecuting={project.isExecuting}
+                isAiGenerating={project.isPythonAiGenerating}
+                isAiFixing={project.isPythonAiFixing}
+                onTriggerAi={() => handlePythonAiGenerate()}
+                onDebug={handleDebugPython}
+                tables={project.tables}
                 onUndo={() => setProject(p => ({ ...p, pythonCode: p.lastPythonCodeBeforeAi || INITIAL_PYTHON }))}
                 showUndo={!!project.lastPythonCodeBeforeAi}
               />
