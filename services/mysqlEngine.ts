@@ -21,6 +21,9 @@ export class MySQLEngine implements DatabaseEngine {
   }
 
   async init() {
+    // If already ready, don't re-init
+    if (this.ready && this.sessionId) return;
+
     const config = this.getConfigParams();
     if (!config.dbHost || !config.dbPort) {
       throw new Error("Missing MYSQL_IP or MYSQL_PORT environment variables.");
@@ -43,8 +46,10 @@ export class MySQLEngine implements DatabaseEngine {
       if (!response.ok) throw new Error(result.message || "Failed to connect to gateway.");
 
       this.sessionId = result.sessionId;
+      // CRITICAL: Set ready to true BEFORE running initialization queries to avoid deadlock
+      this.ready = true;
       
-      // Ensure config table exists
+      // Ensure config table exists (hidden system table)
       await this.executeQuery(`
         CREATE TABLE IF NOT EXISTS \`${this.configTableName}\` (
           cfg_key VARCHAR(50) PRIMARY KEY,
@@ -52,10 +57,10 @@ export class MySQLEngine implements DatabaseEngine {
         ) COMMENT 'Internal system configuration'
       `);
 
-      this.ready = true;
       await this.loadExistingTables();
     } catch (err: any) {
       this.ready = false;
+      this.sessionId = null;
       throw new Error(`Database backend connection failed: ${err.message}.`);
     }
   }
@@ -77,6 +82,7 @@ export class MySQLEngine implements DatabaseEngine {
   private async loadExistingTables() {
     const config = this.getConfigParams();
     try {
+      // Filter out internal tables starting with __
       const tablesInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME 
         FROM information_schema.TABLES 
@@ -127,7 +133,7 @@ export class MySQLEngine implements DatabaseEngine {
   }
 
   async executeQuery(sql: string): Promise<ExecutionResult> {
-    if (!this.ready) throw new Error("Database not connected");
+    if (!this.ready || !this.sessionId) throw new Error("Database not connected");
     
     const response = await fetch(`${this.gatewayUrl}/sql`, {
       method: 'POST',
