@@ -47,6 +47,18 @@ export const SYSTEM_PROMPTS = {
 
   METADATA_INFER: `You are a data architect. Generate brief semantic descriptions for database columns based on headers and sample data. Respond ONLY with a valid JSON object.`,
 
+  HEADER_ANALYSIS: `You are a data cleaning expert. Your task is to determine if the first row of a provided dataset is a header (column names) or actual data.
+    
+    Rules for judgment:
+    - If the first row contains abstract nouns (e.g., "ID", "Name", "Revenue") and subsequent rows contain instances (e.g., "1001", "Alice", "500.0"), it IS a header.
+    - If the first row looks identical in format and semantic specificity to subsequent rows, it is likely DATA.
+    
+    Requirements:
+    - If it's a header, extract and clean the names.
+    - If it's NOT a header, generate meaningful, professional Chinese headers based on the content of all rows.
+    - Output ONLY a JSON object: {"hasHeader": boolean, "headers": string[]}.
+    ${LANGUAGE_REQ}`,
+
   ANALYSIS: (topic: string) => `You are a senior data analyst. The current business topic is: "${topic}". 
     Provide a professional executive summary and 3 actionable data insights in Markdown format based on the query and results. 
     Analyze the data strictly within the context of the business topic. ${LANGUAGE_REQ}`,
@@ -107,6 +119,9 @@ export const USER_PROMPTS = {
   METADATA_INFER: (tableName: string, headers: string[], sample: any) => 
     `Table: ${tableName}\nHeaders: ${headers.join(', ')}\nSample Data: ${JSON.stringify(sample)}`,
     
+  HEADER_ANALYSIS: (sample: any[][]) => 
+    `Analyze these first 5 rows of a dataset:\n${JSON.stringify(sample)}\n\nIs the first row a header? If not, what should the headers be?`,
+
   CHART_REC: (query: string, columns: any[], sample: any[]) => 
     `Query: "${query}"\nColumns: ${JSON.stringify(columns)}\nSample Data: ${JSON.stringify(sample)}`,
 

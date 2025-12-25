@@ -7,6 +7,7 @@ export interface AiService {
   generateCode(prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<string>;
   debugCode(prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string): Promise<string>;
   inferColumnMetadata(tableName: string, data: any[]): Promise<Record<string, string>>;
+  analyzeHeaders(sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }>;
   generateAnalysis(query: string, result: any[], topic: string, prompt?: string): Promise<string>;
   generateSuggestions(tables: TableMetadata[], topic: string, existingSuggestions?: Suggestion[]): Promise<Suggestion[]>;
   recommendCharts(query: string, result: any[]): Promise<AIChartConfig[]>;
@@ -29,6 +30,9 @@ export const debugCode = (prompt: string, mode: DevMode, tables: TableMetadata[]
 
 export const inferColumnMetadata = (tableName: string, data: any[]) => 
   getProvider().inferColumnMetadata(tableName, data);
+
+export const analyzeHeaders = (sample: any[][]) => 
+  getProvider().analyzeHeaders(sample);
 
 export const generateAnalysis = (query: string, result: any[], topic: string, prompt?: string) => 
   getProvider().generateAnalysis(query, result, topic, prompt);

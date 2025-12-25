@@ -187,7 +187,6 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Behavior: If suggestions count is 0 on load, auto-generate.
     if (dbReady && project.tables.length > 0 && project.suggestions.length === 0 && !isSuggesting) {
       handleFetchSuggestions();
     }
@@ -200,7 +199,6 @@ const App: React.FC = () => {
     const db = getDatabaseEngine();
     const tables = await db.getTables(nb.db_name);
 
-    // Load persisted suggestions from JSON string if available
     let initialSuggestions: Suggestion[] = [];
     if (nb.suggestions_json) {
       try {
@@ -345,37 +343,90 @@ const App: React.FC = () => {
     setIsUploading(true);
     setUploadProgress(null);
     const reader = new FileReader();
+
     reader.onload = async (e) => {
       try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const rawJsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
-        const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+        const rawFileData = e.target?.result;
+        const workbook = XLSX.read(rawFileData, { type: 'binary' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        
+        // 1. Get raw array to check for headers
+        const rawArrayData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+        if (rawArrayData.length === 0) throw new Error("File is empty");
 
-        let aiComments: Record<string, string> = {};
-        try {
-          aiComments = await ai.inferColumnMetadata(tableName, rawJsonData);
-        } catch (inferErr) {
-          console.warn("AI Metadata Inference failed, proceeding with basic import", inferErr);
+        const sampleRows = rawArrayData.slice(0, 5);
+        let finalHeaders: string[] = [];
+        let finalObjects: any[] = [];
+        let suspiciousNoHeader = true;
+
+        // 2. Heuristic check: If any column has different type in Row 0 vs Row 1, it's likely a header
+        if (rawArrayData.length > 1) {
+          for (let col = 0; col < rawArrayData[0].length; col++) {
+            const type0 = typeof rawArrayData[0][col];
+            const type1 = typeof rawArrayData[1][col];
+            if (type0 !== type1 && type0 !== 'undefined' && type1 !== 'undefined') {
+              suspiciousNoHeader = false;
+              break;
+            }
+          }
         }
 
+        // 3. AI Deep Dive if heuristic is suspicious (types are same)
+        if (suspiciousNoHeader && rawArrayData.length > 0) {
+          const aiResult = await ai.analyzeHeaders(sampleRows);
+          if (aiResult.hasHeader) {
+            finalHeaders = rawArrayData[0].map(h => String(h || `col_${Math.random().toString(36).substr(2, 4)}`));
+            // Convert array to objects starting from row 1
+            finalObjects = rawArrayData.slice(1).map(row => {
+              const obj: any = {};
+              finalHeaders.forEach((h, i) => obj[h] = row[i]);
+              return obj;
+            });
+          } else {
+            // No header - use AI generated headers and include row 0 as data
+            finalHeaders = aiResult.headers;
+            finalObjects = rawArrayData.map(row => {
+              const obj: any = {};
+              finalHeaders.forEach((h, i) => obj[h] = row[i]);
+              return obj;
+            });
+          }
+        } else {
+          // Heuristic says there is a header
+          finalHeaders = rawArrayData[0].map(h => String(h || `col_${Math.random().toString(36).substr(2, 4)}`));
+          finalObjects = rawArrayData.slice(1).map(row => {
+            const obj: any = {};
+            finalHeaders.forEach((h, i) => obj[h] = row[i]);
+            return obj;
+          });
+        }
+
+        const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+
+        // 4. Infer semantic metadata for comments
+        let aiComments: Record<string, string> = {};
+        try {
+          aiComments = await ai.inferColumnMetadata(tableName, finalObjects);
+        } catch (inferErr) {
+          console.warn("AI Metadata Inference failed", inferErr);
+        }
+
+        // 5. Create table in Database
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(
           tableName, 
-          rawJsonData, 
+          finalObjects, 
           currentNotebook.db_name, 
           aiComments,
           (percent) => {
-            // Only show progress bar if row count > 500
-            if (rawJsonData.length > 500) {
-              setUploadProgress(percent);
-            }
+            if (finalObjects.length > 500) setUploadProgress(percent);
           }
         );
 
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
 
+        // 6. Regenerate topic if needed
         try {
           const newTopic = await ai.generateTopic(project.topicName, updatedTables);
           if (newTopic && newTopic !== project.topicName) {
@@ -385,6 +436,8 @@ const App: React.FC = () => {
           console.warn("Topic auto-update failed:", aiErr);
         }
 
+      } catch (err: any) {
+        alert("Upload Error: " + err.message);
       } finally { 
         setIsUploading(false); 
         setUploadProgress(null);
@@ -397,11 +450,9 @@ const App: React.FC = () => {
     if (isSuggesting || project.tables.length === 0) return;
     setIsSuggesting(true);
     try {
-      // Pass the current suggestions to avoid duplicates
       const newSuggestions = await ai.generateSuggestions(project.tables, project.topicName, project.suggestions);
       const updatedSuggestions = [...project.suggestions, ...newSuggestions];
       setProject(prev => ({ ...prev, suggestions: updatedSuggestions }));
-      // Persist generated cards to DB
       syncSuggestionsToDb(updatedSuggestions);
     } finally { setIsSuggesting(false); }
   };
@@ -409,7 +460,6 @@ const App: React.FC = () => {
   const handleDeleteSuggestion = (id: string) => {
     const updated = project.suggestions.filter(s => s.id !== id);
     setProject(prev => ({ ...prev, suggestions: updated }));
-    // Sync removal with DB
     syncSuggestionsToDb(updated);
   };
 

@@ -49,6 +49,24 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
   return data.choices[0].message.content;
 }
 
+export const analyzeHeaders = async (sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }> => {
+  const userContent = USER_PROMPTS.HEADER_ANALYSIS(sample);
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPTS.HEADER_ANALYSIS },
+    { role: "user", content: userContent }
+  ];
+
+  await logPrompt('HEADER_ANALYSIS', `System: ${SYSTEM_PROMPTS.HEADER_ANALYSIS}\nUser: ${userContent}`);
+
+  try {
+    const responseText = await callAliyun(messages, 0.2, true);
+    return JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
+  } catch (err) {
+    console.warn("AI Header analysis failed, falling back to basic headers", err);
+    return { hasHeader: true, headers: sample[0].map(s => String(s)) };
+  }
+};
+
 export const generateTopic = async (currentTopic: string, tables: TableMetadata[]): Promise<string> => {
   const schemaStr = tables.map(t => 
     `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`

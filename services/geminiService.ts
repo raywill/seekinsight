@@ -21,6 +21,35 @@ async function logPrompt(type: string, content: string) {
   }
 }
 
+export const analyzeHeaders = async (sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }> => {
+  const userContent = USER_PROMPTS.HEADER_ANALYSIS(sample);
+  await logPrompt('HEADER_ANALYSIS', `System: ${SYSTEM_PROMPTS.HEADER_ANALYSIS}\nUser: ${userContent}`);
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: userContent,
+      config: {
+        systemInstruction: SYSTEM_PROMPTS.HEADER_ANALYSIS,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            hasHeader: { type: Type.BOOLEAN },
+            headers: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["hasHeader", "headers"]
+        }
+      },
+    });
+
+    return JSON.parse(response.text || "{}");
+  } catch (err) {
+    console.warn("Gemini Header analysis failed:", err);
+    return { hasHeader: true, headers: sample[0].map(s => String(s)) };
+  }
+};
+
 /**
  * Uses Gemini 3 Pro for high-precision code generation.
  */
