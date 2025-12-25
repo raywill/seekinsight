@@ -6,6 +6,9 @@
   "main": "gateway.js",
   "type": "module",
   "scripts": {
+    "web": "vite",
+    "webbuild": "vite build",
+    "webpreview": "vite preview",
     "setup:venv": "python3 -m venv .venv || python -m venv .venv",
     "install:deps": ".venv/bin/pip install --upgrade pip && ./.venv/bin/pip install pandas sqlalchemy mysql-connector-python plotly || .\\.venv\\Scripts\\pip install pandas sqlalchemy mysql-connector-python plotly",
     "setup": "npm run setup:venv && npm run install:deps",
