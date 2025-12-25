@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TableMetadata } from '../types';
-import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud, X } from 'lucide-react';
+import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud } from 'lucide-react';
 
 interface Props {
   tables: TableMetadata[];
@@ -14,12 +14,6 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleGlobalClick = () => setActiveTooltip(null);
-    window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, []);
 
   const toggleTable = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -154,31 +148,23 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                         {/* Tooltip Icon & Bubble */}
                         <div className="relative flex items-center">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTooltip(isTooltipActive ? null : tooltipKey);
-                            }}
+                            onMouseEnter={() => setActiveTooltip(tooltipKey)}
+                            onMouseLeave={() => setActiveTooltip(null)}
                             className={`transition-colors p-0.5 rounded-full ${isTooltipActive ? 'text-blue-600 bg-blue-100' : 'text-blue-300 hover:text-blue-500'}`}
                           >
-                            <Info size={10} />
+                            <Info size={11} />
                           </button>
                           
                           {isTooltipActive && (
                             <div 
-                              className="absolute right-0 bottom-full mb-2 w-56 bg-gray-900 text-white p-3 rounded-xl shadow-2xl z-[100] animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
-                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-0 bottom-full mb-2 w-64 bg-white border border-gray-200 p-3 rounded-xl shadow-xl z-[1000] animate-in fade-in zoom-in-95 duration-150 pointer-events-none"
                             >
-                              <div className="flex justify-between items-start mb-2 border-b border-white/10 pb-1.5">
-                                <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
-                                  <Info size={8} /> Column Definition
-                                </span>
-                                <X size={10} className="text-gray-500 hover:text-white cursor-pointer" onClick={() => setActiveTooltip(null)} />
-                              </div>
-                              <p className="text-[11px] font-medium leading-relaxed text-gray-200">
-                                {col.comment || "AI Metadata Summary: No additional semantic description found for this column."}
+                              <p className="text-[12px] font-medium leading-relaxed text-gray-600">
+                                {col.comment || "No semantic description found for this column."}
                               </p>
                               {/* Bubble Tail */}
-                              <div className="absolute top-full right-2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-gray-900" />
+                              <div className="absolute top-full right-2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-white" />
+                              <div className="absolute top-full right-[7px] w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-gray-100 -mt-[1px]" />
                             </div>
                           )}
                         </div>
