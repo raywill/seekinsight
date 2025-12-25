@@ -54,7 +54,8 @@ export class SQLiteEngine implements DatabaseEngine {
     this.configStorage[key] = value;
   }
 
-  async executeQuery(sql: string): Promise<ExecutionResult> {
+  // Fix: Added dbName parameter to match DatabaseEngine interface
+  async executeQuery(sql: string, dbName: string): Promise<ExecutionResult> {
     if (!this.db) throw new Error("Database not initialized yet.");
     const res = this.db.exec(sql);
     if (res.length === 0) return { data: [], columns: [], timestamp: new Date().toLocaleTimeString() };
@@ -67,15 +68,18 @@ export class SQLiteEngine implements DatabaseEngine {
     return { data, columns, timestamp: new Date().toLocaleTimeString() };
   }
 
-  async refreshTableStats(tableName: string): Promise<number> {
-    const res = await this.executeQuery(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
+  // Fix: Added dbName parameter to match DatabaseEngine interface
+  async refreshTableStats(tableName: string, dbName: string): Promise<number> {
+    // Fix: Passed dbName to executeQuery
+    const res = await this.executeQuery(`SELECT COUNT(*) as cnt FROM "${tableName}"`, dbName);
     const count = parseInt(res.data[0].cnt || 0);
     const table = this.tables.find(t => t.tableName === tableName);
     if (table) table.rowCount = count;
     return count;
   }
 
-  async createTableFromData(name: string, data: any[], aiComments?: Record<string, string>): Promise<TableMetadata> {
+  // Fix: Added dbName parameter to match DatabaseEngine interface to avoid signature mismatch
+  async createTableFromData(name: string, data: any[], dbName: string, aiComments?: Record<string, string>): Promise<TableMetadata> {
     const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
     const columns: Column[] = Object.keys(data[0]).map(key => ({
       name: key,
@@ -104,7 +108,8 @@ export class SQLiteEngine implements DatabaseEngine {
     return newTable;
   }
 
-  async getTables(): Promise<TableMetadata[]> {
+  // Fix: Added dbName parameter to match DatabaseEngine interface
+  async getTables(dbName: string): Promise<TableMetadata[]> {
     return this.tables;
   }
 }

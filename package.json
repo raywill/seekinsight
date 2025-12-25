@@ -28,7 +28,8 @@
     "util": "^0.12.5",
     "react-plotly.js": "^2.6.0",
     "plotly.js-dist-min": "^2.35.2",
-    "perf_hooks": "^0.0.1"
+    "perf_hooks": "^0.0.1",
+    "crypto": "^1.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

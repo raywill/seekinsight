@@ -3,14 +3,11 @@ import { ExecutionResult, TableMetadata } from "../types";
 
 export interface DatabaseEngine {
   init(): Promise<void>;
-  executeQuery(sql: string): Promise<ExecutionResult>;
-  createTableFromData(name: string, data: any[], aiComments?: Record<string, string>): Promise<TableMetadata>;
-  getTables(): Promise<TableMetadata[]>;
-  refreshTableStats(tableName: string): Promise<number>;
+  executeQuery(sql: string, dbName: string): Promise<ExecutionResult>;
+  createTableFromData(name: string, data: any[], dbName: string, aiComments?: Record<string, string>): Promise<TableMetadata>;
+  getTables(dbName: string): Promise<TableMetadata[]>;
+  refreshTableStats(tableName: string, dbName: string): Promise<number>;
   isReady(): boolean;
-  // New methods for persistent config
-  getConfig(key: string): Promise<string | null>;
-  setConfig(key: string, value: string): Promise<void>;
 }
 
 let instance: DatabaseEngine | null = null;

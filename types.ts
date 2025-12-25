@@ -55,9 +55,20 @@ export interface AppMarketItem {
   type: DevMode.SQL | DevMode.PYTHON;
 }
 
+export interface Notebook {
+  id: string;
+  db_name: string;
+  topic: string;
+  user_id: number;
+  icon_name: string;
+  created_at: string;
+}
+
 export interface ProjectState {
+  id: string | null;
+  dbName: string | null;
   name: string;
-  topicName: string; // New field
+  topicName: string;
   owner: string;
   tables: TableMetadata[];
   activeMode: DevMode;
