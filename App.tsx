@@ -185,6 +185,13 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // AUTO-TRIGGER SUGGESTIONS: When DB is ready and tables are available
+  useEffect(() => {
+    if (dbReady && project.tables.length > 0 && project.suggestions.length === 0 && !isSuggesting) {
+      handleFetchSuggestions();
+    }
+  }, [dbReady, project.tables.length]);
+
   const handleOpenNotebook = async (nb: Notebook) => {
     setCurrentNotebook(nb);
     window.history.pushState({}, '', `?nb=${nb.id}`);
@@ -197,7 +204,8 @@ const App: React.FC = () => {
       id: nb.id, 
       dbName: nb.db_name, 
       topicName: nb.topic,
-      tables 
+      tables,
+      suggestions: [] // Clear old suggestions when opening new notebook
     }));
     setDbReady(true);
   };
