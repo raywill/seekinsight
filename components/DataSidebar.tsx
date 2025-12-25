@@ -39,65 +39,73 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
 
   return (
     <div className="w-72 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm">
+      {/* Header with fixed Upload Button style */}
       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
         <h2 className="text-sm font-black text-gray-800 flex items-center gap-2 uppercase tracking-tight">
           <Database size={16} className="text-blue-600" />
           Data Explorer
         </h2>
         <div className="flex items-center gap-2">
-          {isUploading ? (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">
+          {isUploading && (
+            <div className="flex items-center gap-1 text-blue-500 animate-pulse mr-1">
               <Loader2 size={12} className="animate-spin" />
-              Syncing
+              <span className="text-[10px] font-bold uppercase">Sync</span>
             </div>
-          ) : (
-            <label className="cursor-pointer p-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-all shadow-lg shadow-blue-200 active:scale-90" title="Import data into Database">
-              <Upload size={14} />
-              <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />
-            </label>
           )}
+          <label className={`cursor-pointer p-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-all shadow-md active:scale-90 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`} title="Import data into Database">
+            <Upload size={14} />
+            {!isUploading && <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />}
+          </label>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        {/* Enhanced Empty State Card */}
         {tables.length === 0 && !isUploading && (
-          <div className="mx-2 mt-4 space-y-6">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-[2rem] p-6 text-center shadow-inner relative overflow-hidden group">
-              <div className="absolute -right-4 -top-4 w-20 h-20 bg-blue-200/20 rounded-full blur-2xl"></div>
+          <div className="mx-2 mt-4 space-y-4">
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-center shadow-xl shadow-blue-500/20 relative overflow-hidden group">
+              {/* Decorative elements */}
+              <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+              <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-indigo-400/20 rounded-full blur-2xl"></div>
               
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-emerald-500 transform group-hover:-rotate-12 transition-transform">
-                  <FileSpreadsheet size={20} />
+              <div className="flex items-center justify-center gap-3 mb-6 relative z-10">
+                <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/20 transform group-hover:-rotate-12 transition-transform">
+                  <FileSpreadsheet size={24} />
                 </div>
                 <div className="flex flex-col items-center">
-                   <ArrowRight size={14} className="text-blue-300 animate-pulse" />
+                   <ArrowRight size={16} className="text-blue-200 animate-pulse" />
                 </div>
-                <div className="w-10 h-10 bg-blue-600 rounded-xl shadow-lg flex items-center justify-center text-white transform group-hover:rotate-12 transition-transform">
-                  <Cloud size={20} />
+                <div className="w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center text-blue-600 transform group-hover:rotate-12 transition-transform">
+                  <Cloud size={24} />
                 </div>
               </div>
 
-              <div className="space-y-2 relative z-10">
-                <h3 className="text-[11px] font-black text-blue-800 uppercase tracking-tighter">Empty Knowledge Vault</h3>
-                <p className="text-[10px] text-blue-600/70 font-bold leading-relaxed">
-                  Your local data is one click away from becoming insights.
+              <div className="space-y-2 relative z-10 mb-6">
+                <h3 className="text-sm font-black text-white uppercase tracking-tight">Empty Data Hub</h3>
+                <p className="text-[11px] text-blue-100 font-medium leading-relaxed opacity-80 px-2">
+                  Personal Knowledge Graph needs fuel. Import your Excel/CSV to start AI analysis.
                 </p>
               </div>
 
-              <label className="mt-6 block w-full py-3 bg-white border border-blue-200 text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-600 hover:text-white hover:shadow-xl hover:shadow-blue-500/20 transition-all active:scale-95">
-                Upload Excel / CSV
+              <label className="relative z-10 block w-full py-3.5 bg-white text-blue-600 rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-50 hover:scale-[1.02] transition-all active:scale-95 shadow-lg">
+                Click to Upload
                 <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />
               </label>
             </div>
             
-            <div className="px-4 py-2 border-l-2 border-blue-100">
-               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-loose">
-                 Pro Tip: Tables are persistent across your notebook session.
+            <div className="px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100">
+               <div className="flex items-center gap-2 text-blue-500 mb-1">
+                 <Info size={12} />
+                 <span className="text-[9px] font-black uppercase tracking-widest">Storage Info</span>
+               </div>
+               <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                 Data is stored in your private OceanBase tenant and is persistent across sessions.
                </p>
             </div>
           </div>
         )}
         
+        {/* Table List Items */}
         {tables.map(table => (
           <div key={table.id} className="group">
             <button
@@ -117,7 +125,6 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                   <div 
                     onClick={(e) => handleRefresh(e, table.tableName)}
                     className="p-1.5 hover:bg-blue-100 rounded text-blue-500 transition-colors cursor-pointer"
-                    title="Click to fetch row count"
                   >
                     <RefreshCw size={10} />
                   </div>
@@ -129,7 +136,6 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                     <span 
                       className="text-gray-300 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-blue-500 transition-all inline-flex p-0.5"
                       onClick={(e) => handleRefresh(e, table.tableName)}
-                      title="Refresh statistics"
                     >
                       <RefreshCw size={8} />
                     </span>
@@ -144,7 +150,6 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                   <div 
                     key={col.name} 
                     className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-blue-50 group/col cursor-help relative"
-                    title={`Column: ${col.name}\nDescription: ${col.comment || 'N/A'}\nType: ${col.type}`}
                   >
                     <span className="text-[11px] text-gray-500 font-mono font-bold truncate flex-1 group-hover/col:text-blue-600">
                       {col.name}
@@ -164,11 +169,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
       <div className="p-4 bg-gray-50/50 text-[10px] text-gray-400 border-t border-gray-100 font-bold uppercase tracking-widest space-y-1">
         <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isUploading ? 'bg-orange-500 animate-pulse' : 'bg-blue-500'}`}></div>
-          {isUploading ? 'Committing to Storage...' : 'Node Active'}
-        </div>
-        <div className="flex items-center gap-2">
-           <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-           VPC Database Linked
+          {isUploading ? 'Syncing to OceanBase...' : 'Engine Active'}
         </div>
       </div>
     </div>
