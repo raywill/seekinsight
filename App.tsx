@@ -29,7 +29,6 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
         return res.json();
       })
       .then(data => {
-        // FIX: Ensure data is an array to prevent .map crash (White Screen)
         setNotebooks(Array.isArray(data) ? data : []);
         setLoading(false);
       })
@@ -71,7 +70,6 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
 
   const renderIcon = (name: string) => {
     try {
-      // FIX: Robust check for icon component to prevent rendering crash
       const IconComponent = (Icons as any)[name];
       if (typeof IconComponent !== 'function') return <Database size={24} />;
       return <IconComponent size={24} />;
@@ -158,6 +156,7 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [hasNewSuggestions, setHasNewSuggestions] = useState(false); // ADDED: Tracking new AI insights
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [tempTopic, setTempTopic] = useState("");
 
@@ -249,6 +248,7 @@ const App: React.FC = () => {
   const handleExit = () => {
     setCurrentNotebook(null);
     setDbReady(false);
+    setHasNewSuggestions(false);
     window.history.pushState({}, '', '/');
   };
 
@@ -499,6 +499,12 @@ const App: React.FC = () => {
       const newSuggestions = await ai.generateSuggestions(project.tables, project.topicName, project.suggestions);
       const updatedSuggestions = [...project.suggestions, ...newSuggestions];
       setProject(prev => ({ ...prev, suggestions: updatedSuggestions }));
+      
+      // FIX: Notify user with a badge if they are not looking at the hub
+      if (project.activeMode !== DevMode.INSIGHT_HUB) {
+        setHasNewSuggestions(true);
+      }
+
       syncSuggestionsToDb(updatedSuggestions);
     } finally { setIsSuggesting(false); }
   };
@@ -571,9 +577,24 @@ const App: React.FC = () => {
         />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
-            {[ { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' }, { id: DevMode.SQL, label: 'SQL Editor' }, { id: DevMode.PYTHON, label: 'Python Scripting' } ].map(tab => (
-              <button key={tab.id} onClick={() => setProject(p => ({ ...p, activeMode: tab.id as DevMode }))} className={`pb-4 text-sm font-black relative ${project.activeMode === tab.id ? 'text-blue-600' : 'text-gray-400'}`}>
+            {[ 
+              { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' }, 
+              { id: DevMode.SQL, label: 'SQL Editor' }, 
+              { id: DevMode.PYTHON, label: 'Python Scripting' } 
+            ].map(tab => (
+              <button 
+                key={tab.id} 
+                onClick={() => {
+                  setProject(p => ({ ...p, activeMode: tab.id as DevMode }));
+                  if (tab.id === DevMode.INSIGHT_HUB) setHasNewSuggestions(false); // Clear badge on enter
+                }} 
+                className={`pb-4 text-sm font-black relative ${project.activeMode === tab.id ? 'text-blue-600' : 'text-gray-400'}`}
+              >
                 {tab.label}
+                {/* NOTIFICATION BADGE (RED DOT) */}
+                {tab.id === DevMode.INSIGHT_HUB && hasNewSuggestions && (
+                  <div className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                )}
                 {project.activeMode === tab.id && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
               </button>
             ))}
