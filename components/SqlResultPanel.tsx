@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Table as TableIcon, Clock, Hash, Play, Download, Terminal as TerminalIcon, Sparkles, RefreshCw } from 'lucide-react';
+import { Table as TableIcon, Clock, Hash, Play, Download, Terminal as TerminalIcon, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface Props {
   result: ExecutionResult | null;
@@ -58,6 +58,9 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
         setActiveTab('logs');
       } else if (result.data && result.data.length > 0) {
         // Automatically switch back to data table on successful execution
+        setActiveTab('table');
+      } else {
+        // Fallback to logs if no data but no explicit error (e.g. empty result)
         setActiveTab('table');
       }
     }
@@ -131,17 +134,29 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
                 </tr>
               </thead>
               <tbody>
-                {result.data.map((row, i) => (
+                {result.data.length > 0 ? result.data.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
                     {result.columns.map(col => (
                       <td key={col} className="px-3 py-1.5 text-gray-600 truncate max-w-xs">{String(row[col] ?? 'NULL')}</td>
                     ))}
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={result.columns.length || 1} className="p-8 text-center text-gray-400 font-bold uppercase tracking-widest italic">
+                      No records returned
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           ) : (
             <div className={`p-4 font-mono text-xs whitespace-pre-wrap min-h-full ${hasError ? 'text-red-700 bg-red-50/10' : 'text-gray-500'}`}>
+              {hasError && (
+                <div className="flex items-center gap-2 mb-4 p-3 bg-red-100/50 border border-red-200 rounded-xl">
+                  <AlertCircle size={16} className="text-red-600 shrink-0" />
+                  <span className="font-black uppercase tracking-tight">Execution Failed</span>
+                </div>
+              )}
               {result.logs?.join('\n') || 'No logs generated.'}
             </div>
           )}

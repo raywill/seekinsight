@@ -316,7 +316,14 @@ const App: React.FC = () => {
           body: JSON.stringify({ code: currentCode, dbName: currentNotebook.db_name })
         });
         const data = await response.json();
-        result = { data: data.data || [], columns: data.columns || [], logs: data.logs || [], plotlyData: data.plotlyData, timestamp: new Date().toLocaleTimeString(), isError: !response.ok };
+        result = { 
+          data: data.data || [], 
+          columns: data.columns || [], 
+          logs: data.logs || [], 
+          plotlyData: data.plotlyData, 
+          timestamp: new Date().toLocaleTimeString(), 
+          isError: !response.ok 
+        };
       }
       setProject(prev => ({
         ...prev,
@@ -333,8 +340,27 @@ const App: React.FC = () => {
           setProject(prev => ({ ...prev, lastSqlResult: { ...result, chartConfigs: charts }, isRecommendingCharts: false }));
         });
       }
-    } catch (err) {
-      setProject(prev => ({ ...prev, isExecuting: false, isRecommendingCharts: false, isAnalyzing: false }));
+    } catch (err: any) {
+      // SI_DEBUG_MODE implementation: print to console if enabled
+      if (process.env.SI_DEBUG_MODE !== 'false') {
+        console.error(`[Execution Error - ${currentMode}]:`, err);
+      }
+      
+      const errorResult: ExecutionResult = {
+        data: [],
+        columns: [],
+        logs: [err.message || "Unknown error occurred during execution"],
+        isError: true,
+        timestamp: new Date().toLocaleTimeString()
+      };
+
+      setProject(prev => ({ 
+        ...prev, 
+        isExecuting: false, 
+        isRecommendingCharts: false, 
+        isAnalyzing: false,
+        [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult
+      }));
     }
   };
 
@@ -401,7 +427,7 @@ const App: React.FC = () => {
           });
         }
 
-        // Only trim filename for table name creation, no alphanumeric restriction
+        // Only trim filename for table name creation, supporting Chinese characters.
         const tableName = file.name.split('.')[0].trim();
 
         // 4. Infer semantic metadata for comments
