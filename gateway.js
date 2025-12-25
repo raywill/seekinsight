@@ -12,6 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = 3001;
+const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
 const VENV_PATH = path.join(process.cwd(), '.venv');
 const VENV_PYTHON = process.platform === 'win32' 
   ? path.join(VENV_PATH, 'Scripts', 'python.exe') 
@@ -85,7 +86,7 @@ async function initSystem() {
       await sysPool.query(`ALTER TABLE \`${NOTEBOOK_LIST_TABLE}\` ADD COLUMN suggestions_json TEXT`);
     }
   } catch (err) {
-    console.error("Migration error:", err);
+    if (IS_DEBUG) console.error("Migration error:", err);
   }
 }
 
@@ -96,6 +97,7 @@ app.get('/notebooks', async (req, res) => {
     const [rows] = await pool.query(`SELECT * FROM \`${NOTEBOOK_LIST_TABLE}\` ORDER BY created_at DESC`);
     res.json(rows);
   } catch (err) {
+    if (IS_DEBUG) console.error("[Lobby GET Error]:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -132,6 +134,7 @@ app.post('/notebooks', async (req, res) => {
 
     res.json({ id, db_name: dbName, topic: '未命名主题', icon_name: randomIcon });
   } catch (err) {
+    if (IS_DEBUG) console.error("[Lobby POST Error]:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -162,6 +165,7 @@ app.patch('/notebooks/:id', async (req, res) => {
     await sysPool.query(query, params);
     res.json({ success: true });
   } catch (err) {
+    if (IS_DEBUG) console.error("[Lobby PATCH Error]:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -188,6 +192,7 @@ app.delete('/notebooks/:id', async (req, res) => {
     await sysPool.query(`DELETE FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
     res.json({ success: true });
   } catch (err) {
+    if (IS_DEBUG) console.error("[Lobby DELETE Error]:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -202,6 +207,10 @@ app.post('/sql', async (req, res) => {
     const columns = fields ? fields.map(f => f.name) : (Array.isArray(rows) && rows.length > 0 ? Object.keys(rows[0]) : []);
     res.json({ rows: Array.isArray(rows) ? rows : [rows], columns });
   } catch (err) {
+    if (IS_DEBUG) {
+      console.error(`[SQL Error in ${dbName}]:`, err.message);
+      console.error(`Query: ${sql}`);
+    }
     res.status(500).json({ message: err.message });
   }
 });
@@ -244,6 +253,7 @@ except Exception as e:
 
   pyProcess.on('error', (err) => {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    if (IS_DEBUG) console.error(`[Python Spawn Error]: ${err.message}`);
     res.status(500).json({ 
       logs: [`Failed to start Python interpreter: ${err.message}`, `Command used: ${pythonExe}`], 
       error: true 
@@ -270,6 +280,10 @@ except Exception as e:
     });
 
     if (exitCode !== 0) {
+      if (IS_DEBUG) {
+        console.error(`[Python Execution Error in ${dbName}] Exit Code: ${exitCode}`);
+        console.error(`Stderr: ${stderr}`);
+      }
       res.status(500).json({ logs: logs.concat(stderr.split('\n')), error: true });
     } else {
       res.json({ logs, plotlyData, timestamp: new Date().toLocaleTimeString() });
