@@ -4,7 +4,7 @@ import { ExecutionResult, TableMetadata } from "../types";
 export interface DatabaseEngine {
   init(): Promise<void>;
   executeQuery(sql: string, dbName: string): Promise<ExecutionResult>;
-  createTableFromData(name: string, data: any[], dbName: string, aiComments?: Record<string, string>): Promise<TableMetadata>;
+  createTableFromData(name: string, data: any[], dbName: string, aiComments?: Record<string, string>, onProgress?: (percent: number) => void): Promise<TableMetadata>;
   getTables(dbName: string): Promise<TableMetadata[]>;
   refreshTableStats(tableName: string, dbName: string): Promise<number>;
   isReady(): boolean;

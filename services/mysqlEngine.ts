@@ -78,7 +78,13 @@ export class MySQLEngine implements DatabaseEngine {
     return count;
   }
 
-  async createTableFromData(name: string, data: any[], dbName: string, aiComments?: Record<string, string>): Promise<TableMetadata> {
+  async createTableFromData(
+    name: string, 
+    data: any[], 
+    dbName: string, 
+    aiComments?: Record<string, string>,
+    onProgress?: (percent: number) => void
+  ): Promise<TableMetadata> {
     const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
     if (!data || data.length === 0) throw new Error("Data is empty");
 
@@ -109,6 +115,11 @@ export class MySQLEngine implements DatabaseEngine {
       
       // Use cleaned column names in the INSERT statement
       await this.executeQuery(`INSERT INTO \`${sanitizedName}\` (\`${cleanedKeys.join('`,`')}\`) VALUES ${valuesList}`, dbName);
+      
+      if (onProgress) {
+        const percent = Math.min(100, Math.round(((i + chunk.length) / data.length) * 100));
+        onProgress(percent);
+      }
     }
 
     return {

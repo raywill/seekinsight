@@ -8,9 +8,10 @@ interface Props {
   onUploadFile: (file: File) => void;
   onRefreshTableStats: (tableName: string) => Promise<void>;
   isUploading: boolean;
+  uploadProgress?: number | null;
 }
 
-const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, isUploading }) => {
+const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, isUploading, uploadProgress }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -50,15 +51,27 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
           {isUploading && (
             <div className="flex items-center gap-1.5 text-blue-500 animate-pulse">
               <Loader2 size={12} className="animate-spin" />
-              <span className="text-[10px] font-black uppercase tracking-tighter">Syncing</span>
+              <span className="text-[10px] font-black uppercase tracking-tighter">
+                {uploadProgress !== null ? `${uploadProgress}%` : 'Syncing'}
+              </span>
             </div>
           )}
-          <label className={`cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200 ${isUploading ? 'opacity-50' : ''}`} title="Import data into Database">
+          <label className={`cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`} title="Import data into Database">
             <Upload size={16} className="text-gray-500" />
             {!isUploading && <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />}
           </label>
         </div>
       </div>
+
+      {/* Subtle Progress Bar */}
+      {isUploading && uploadProgress !== null && (
+        <div className="h-0.5 w-full bg-blue-50 shrink-0">
+          <div 
+            className="h-full bg-blue-500 transition-all duration-300 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
+            style={{ width: `${uploadProgress}%` }}
+          />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
         {tables.length === 0 && !isUploading && (

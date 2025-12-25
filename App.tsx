@@ -134,6 +134,7 @@ const App: React.FC = () => {
   const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [dbReady, setDbReady] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [tempTopic, setTempTopic] = useState("");
@@ -342,6 +343,7 @@ const App: React.FC = () => {
   const handleUpload = async (file: File) => {
     if (!dbReady || !currentNotebook || isUploading) return;
     setIsUploading(true);
+    setUploadProgress(null);
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -358,7 +360,18 @@ const App: React.FC = () => {
         }
 
         const db = getDatabaseEngine();
-        const newTable = await db.createTableFromData(tableName, rawJsonData, currentNotebook.db_name, aiComments);
+        const newTable = await db.createTableFromData(
+          tableName, 
+          rawJsonData, 
+          currentNotebook.db_name, 
+          aiComments,
+          (percent) => {
+            // Only show progress bar if row count > 500
+            if (rawJsonData.length > 500) {
+              setUploadProgress(percent);
+            }
+          }
+        );
 
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
@@ -372,7 +385,10 @@ const App: React.FC = () => {
           console.warn("Topic auto-update failed:", aiErr);
         }
 
-      } finally { setIsUploading(false); }
+      } finally { 
+        setIsUploading(false); 
+        setUploadProgress(null);
+      }
     };
     reader.readAsBinaryString(file);
   };
@@ -455,6 +471,7 @@ const App: React.FC = () => {
             }));
           }}
           isUploading={isUploading}
+          uploadProgress={uploadProgress}
         />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
