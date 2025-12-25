@@ -159,6 +159,7 @@ const App: React.FC = () => {
     suggestions: [],
     lastSqlResult: null,
     lastPythonResult: null,
+    // Fix: Replaced 'boolean' type usage with initial value 'false'
     isExecuting: false,
     isAnalyzing: false,
     isRecommendingCharts: false,
@@ -199,7 +200,7 @@ const App: React.FC = () => {
     const db = getDatabaseEngine();
     const tables = await db.getTables(nb.db_name);
 
-    // Load persisted suggestions from JSON string
+    // Load persisted suggestions from JSON string if available
     let initialSuggestions: Suggestion[] = [];
     if (nb.suggestions_json) {
       try {
@@ -350,7 +351,6 @@ const App: React.FC = () => {
         const rawJsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
         const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
 
-        // Restore Metadata Inference Step
         let aiComments: Record<string, string> = {};
         try {
           aiComments = await ai.inferColumnMetadata(tableName, rawJsonData);
@@ -385,7 +385,7 @@ const App: React.FC = () => {
       const newSuggestions = await ai.generateSuggestions(project.tables, project.topicName);
       const updatedSuggestions = [...project.suggestions, ...newSuggestions];
       setProject(prev => ({ ...prev, suggestions: updatedSuggestions }));
-      // Persist to DB
+      // Persist generated cards to DB
       syncSuggestionsToDb(updatedSuggestions);
     } finally { setIsSuggesting(false); }
   };
@@ -393,6 +393,7 @@ const App: React.FC = () => {
   const handleDeleteSuggestion = (id: string) => {
     const updated = project.suggestions.filter(s => s.id !== id);
     setProject(prev => ({ ...prev, suggestions: updated }));
+    // Sync removal with DB
     syncSuggestionsToDb(updated);
   };
 
