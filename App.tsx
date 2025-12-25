@@ -377,7 +377,7 @@ const App: React.FC = () => {
     reader.onload = async (e) => {
       try {
         const rawFileData = e.target?.result;
-        // Optimization: Use cellDates: true to convert Excel date numbers into JS Date objects immediately.
+        // Optimization: Use cellDates: true and dateNF to ensure Excel dates are parsed as standard JS Date objects.
         const workbook = XLSX.read(rawFileData, { 
           type: 'binary', 
           cellDates: true,

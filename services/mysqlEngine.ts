@@ -79,12 +79,44 @@ export class MySQLEngine implements DatabaseEngine {
   }
 
   /**
-   * Formats a JS Date into a MySQL compatible DATETIME string (YYYY-MM-DD HH:MM:SS)
+   * High-precision Date formatter for MySQL/OceanBase (YYYY-MM-DD HH:MM:SS.ffffff)
    */
   private formatDateForMySQL(date: Date): string {
     const pad = (n: number) => n.toString().padStart(2, '0');
+    const ms = date.getMilliseconds().toString().padStart(3, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
-           `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+           `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${ms}000`;
+  }
+
+  /**
+   * Formats a value for SQL insertion, ensuring robust type handling.
+   */
+  private formatValueForSql(val: any): string {
+    if (val === null || val === undefined) return 'NULL';
+
+    // Robust Date detection using prototype string
+    const isDate = Object.prototype.toString.call(val) === '[object Date]';
+    if (isDate && !isNaN(val.getTime())) {
+      return `'${this.formatDateForMySQL(val)}'`;
+    }
+
+    if (typeof val === 'string') {
+      // Check for date-like string (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        return `'${val} 00:00:00.000000'`;
+      }
+      return `'${val.replace(/'/g, "''")}'`;
+    }
+
+    if (typeof val === 'number') {
+      return isNaN(val) ? 'NULL' : val.toString();
+    }
+
+    if (typeof val === 'boolean') {
+      return val ? '1' : '0';
+    }
+
+    return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
   }
 
   async createTableFromData(
@@ -94,28 +126,26 @@ export class MySQLEngine implements DatabaseEngine {
     aiComments?: Record<string, string>,
     onProgress?: (percent: number) => void
   ): Promise<TableMetadata> {
-    // Only trim whitespace to support Chinese characters in table names
     const trimmedName = name.trim();
     if (!data || data.length === 0) throw new Error("Data is empty");
 
     const originalKeys = Object.keys(data[0]);
     
-    // Clean column names and Infer correct SQL types
+    // 1. Infer Columns and Types
     const columns: Column[] = originalKeys.map(key => {
       const firstVal = data[0][key];
       let inferredType = 'VARCHAR(255)';
 
-      // 1. Check for Date objects (provided by XLSX cellDates: true)
-      if (firstVal instanceof Date && !isNaN(firstVal.getTime())) {
-        inferredType = 'DATETIME';
+      const isDate = Object.prototype.toString.call(firstVal) === '[object Date]';
+      
+      if (isDate && !isNaN(firstVal.getTime())) {
+        inferredType = 'DATETIME(6)';
       } 
-      // 2. Check for Numbers
       else if (typeof firstVal === 'number') {
-        inferredType = 'DECIMAL(20,2)';
+        inferredType = 'DOUBLE';
       }
-      // 3. Check for Date-like strings (e.g., TPC-H 1996-03-13)
       else if (typeof firstVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(firstVal)) {
-        inferredType = 'DATETIME';
+        inferredType = 'DATETIME(6)';
       }
 
       return {
@@ -125,29 +155,20 @@ export class MySQLEngine implements DatabaseEngine {
       };
     });
 
+    // 2. Execute DDL
     const ddlCols = columns.map(c => `\`${c.name}\` ${c.type} COMMENT '${c.comment.replace(/'/g, "''")}'`).join(", ");
     await this.executeQuery(`DROP TABLE IF EXISTS \`${trimmedName}\``, dbName);
     await this.executeQuery(`CREATE TABLE \`${trimmedName}\` (${ddlCols})`, dbName);
 
+    // 3. Batch Insertion
     const cleanedKeys = columns.map(c => c.name);
     const batchSize = 100;
     for (let i = 0; i < data.length; i += batchSize) {
       const chunk = data.slice(i, i + batchSize);
       const valuesList = chunk.map(row => 
-        `(${originalKeys.map(k => {
-          const val = row[k];
-          if (val === null || val === undefined) return 'NULL';
-          
-          // Handle Date Objects: Convert to MySQL formatted string
-          if (val instanceof Date) {
-            return `'${this.formatDateForMySQL(val)}'`;
-          }
-          
-          return typeof val === 'string' ? `'${val.replace(/'/g, "''")}'` : val;
-        }).join(',')})`
+        `(${originalKeys.map(k => this.formatValueForSql(row[k])).join(',')})`
       ).join(',');
       
-      // Use backticks to safely wrap trimmed column names containing Chinese or special characters.
       await this.executeQuery(`INSERT INTO \`${trimmedName}\` (\`${cleanedKeys.join('`,`')}\`) VALUES ${valuesList}`, dbName);
       
       if (onProgress) {
