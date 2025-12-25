@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook } from './types';
+import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, TableMetadata } from './types';
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
@@ -269,9 +269,24 @@ const App: React.FC = () => {
         const workbook = XLSX.read(data, { type: 'binary' });
         const rawJsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
         const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+        
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(tableName, rawJsonData, currentNotebook.db_name);
-        setProject(prev => ({ ...prev, tables: [...prev.tables.filter(t => t.tableName !== newTable.tableName), newTable] }));
+        
+        // 1. Update Tables List
+        const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
+        setProject(prev => ({ ...prev, tables: updatedTables }));
+
+        // 2. AI Summarize Topic based on new table set
+        try {
+          const newTopic = await ai.generateTopic(project.topicName, updatedTables);
+          if (newTopic && newTopic !== project.topicName) {
+            handleUpdateTopic(newTopic);
+          }
+        } catch (aiErr) {
+          console.warn("Topic auto-update failed:", aiErr);
+        }
+
       } finally { setIsUploading(false); }
     };
     reader.readAsBinaryString(file);
