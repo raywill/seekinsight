@@ -509,6 +509,12 @@ const App: React.FC = () => {
     } finally { setIsSuggesting(false); }
   };
 
+  const handleUpdateSuggestion = (id: string, newPrompt: string) => {
+    const updated = project.suggestions.map(s => s.id === id ? { ...s, prompt: newPrompt } : s);
+    setProject(prev => ({ ...prev, suggestions: updated }));
+    syncSuggestionsToDb(updated);
+  };
+
   const handleDeleteSuggestion = (id: string) => {
     const updated = project.suggestions.filter(s => s.id !== id);
     setProject(prev => ({ ...prev, suggestions: updated }));
@@ -608,6 +614,7 @@ const App: React.FC = () => {
                   if (s.type === DevMode.SQL) handleSqlAiGenerate(s.prompt);
                   else handlePythonAiGenerate(s.prompt);
                 }}
+                onUpdate={handleUpdateSuggestion}
                 onDelete={handleDeleteSuggestion}
                 onFetchMore={handleFetchSuggestions}
                 isLoading={isSuggesting}

@@ -1,18 +1,22 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Suggestion, DevMode } from '../types';
-import { Sparkles, Terminal, Database, ArrowRight, RefreshCw, Layers, Trash2 } from 'lucide-react';
+import { Sparkles, Terminal, Database, ArrowRight, RefreshCw, Layers, Trash2, PencilLine, Check } from 'lucide-react';
 
 interface Props {
   suggestions: Suggestion[];
   onApply: (suggestion: Suggestion) => void;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, newPrompt: string) => void; // ADDED: For auto-saving edits
   onFetchMore: () => void;
   isLoading: boolean;
 }
 
-const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onFetchMore, isLoading }) => {
+const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate, onFetchMore, isLoading }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const sqlSuggestions = suggestions.filter(s => s.type === DevMode.SQL);
   const pythonSuggestions = suggestions.filter(s => s.type === DevMode.PYTHON);
@@ -21,6 +25,28 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onFetchMo
     if (expandedIds.has(id)) return;
     setExpandedIds(prev => new Set(prev).add(id));
   };
+
+  const startEditing = (e: React.MouseEvent, item: Suggestion) => {
+    e.stopPropagation();
+    const itemId = item.id || `${item.title}-${item.type}`;
+    setEditingId(itemId);
+    setEditValue(item.prompt);
+  };
+
+  const saveEdit = () => {
+    if (editingId && editValue.trim()) {
+      onUpdate(editingId, editValue.trim());
+    }
+    setEditingId(null);
+  };
+
+  useEffect(() => {
+    if (editingId && textareaRef.current) {
+      textareaRef.current.focus();
+      // Move cursor to end
+      textareaRef.current.selectionStart = textareaRef.current.value.length;
+    }
+  }, [editingId]);
 
   const GeneratingCard = ({ badgeClass }: { badgeClass: string }) => (
     <div className="bg-white border border-dashed border-blue-200 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[240px] animate-pulse relative overflow-hidden group">
@@ -55,47 +81,90 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onFetchMo
         {items.map((item: Suggestion) => {
           const itemId = item.id || `${item.title}-${item.type}`;
           const isExpanded = expandedIds.has(itemId);
+          const isEditing = editingId === itemId;
           
           return (
             <div 
               key={itemId} 
               onMouseEnter={() => toggleExpand(itemId)}
-              className="group bg-white border border-gray-100 rounded-[2rem] p-7 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col justify-between min-h-[280px] relative"
+              className={`group bg-white border rounded-[2rem] p-7 transition-all flex flex-col justify-between min-h-[280px] relative ${
+                isEditing ? 'border-blue-500 ring-4 ring-blue-500/5 shadow-xl' : 'border-gray-100 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/10'
+              }`}
             >
-              <button 
-                onClick={() => onDelete(itemId)}
-                className="absolute top-6 right-6 p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
-                title="Remove Insight"
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="absolute top-6 right-6 flex items-center gap-1">
+                {!isEditing ? (
+                  <>
+                    <button 
+                      onClick={(e) => startEditing(e, item)}
+                      className="p-2 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-blue-50"
+                      title="Edit Prompt"
+                    >
+                      <PencilLine size={16} />
+                    </button>
+                    <button 
+                      onClick={() => onDelete(itemId)}
+                      className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
+                      title="Remove Insight"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={saveEdit}
+                    className="p-2 text-blue-600 bg-blue-50 rounded-lg shadow-sm"
+                    title="Save Changes"
+                  >
+                    <Check size={16} />
+                  </button>
+                )}
+              </div>
 
               <div className="flex flex-col h-full">
-                <div className="flex justify-between items-start mb-4 pr-10">
+                <div className="flex justify-between items-start mb-4 pr-16">
                   <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${badgeClass}`}>
                     {item.category}
                   </span>
                   <span className="text-[10px] font-bold text-gray-300 font-mono">#{ itemId.slice(0, 4).toUpperCase() }</span>
                 </div>
                 
-                <h4 className="text-base font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-3 leading-tight">
+                <h4 className="text-base font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-3 leading-tight pr-8">
                   {item.title}
                 </h4>
                 
                 <div className="flex-1">
-                  <p className={`text-xs text-gray-500 font-medium leading-relaxed transition-all duration-300 ease-in-out mb-6 ${isExpanded ? 'line-clamp-none' : 'line-clamp-4'}`}>
-                    {item.prompt}
-                  </p>
+                  {isEditing ? (
+                    <textarea
+                      ref={textareaRef}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={saveEdit}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit();
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                      className="w-full h-32 text-xs text-gray-700 font-medium leading-relaxed bg-blue-50/50 p-3 rounded-xl border border-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+                    />
+                  ) : (
+                    <p 
+                      onClick={(e) => startEditing(e, item)}
+                      className={`text-xs text-gray-500 font-medium leading-relaxed transition-all duration-300 ease-in-out mb-6 cursor-text hover:text-gray-700 ${isExpanded ? 'line-clamp-none' : 'line-clamp-4'}`}
+                    >
+                      {item.prompt}
+                    </p>
+                  )}
                 </div>
               </div>
               
-              <button
-                onClick={() => onApply(item)}
-                className="w-full py-3 bg-gray-50 text-gray-600 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all group/btn shadow-sm hover:shadow-blue-200"
-              >
-                Apply to Editor
-                <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-              </button>
+              {!isEditing && (
+                <button
+                  onClick={() => onApply(item)}
+                  className="w-full py-3 bg-gray-50 text-gray-600 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all group/btn shadow-sm hover:shadow-blue-200"
+                >
+                  Apply to Editor
+                  <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                </button>
+              )}
             </div>
           );
         })}
