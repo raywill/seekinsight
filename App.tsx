@@ -73,7 +73,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20"><Boxes className="text-white" size={28} /></div>
              <div>
                <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">SeekInsight</h1>
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Seek Personal Knowledge Insight</p>
+               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Personal Knowledge Graph</p>
              </div>
           </div>
           <button 
@@ -400,7 +400,20 @@ const App: React.FC = () => {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <DataSidebar tables={project.tables} onUploadFile={handleUpload} onRefreshTableStats={async t => { await getDatabaseEngine().refreshTableStats(t, currentNotebook.db_name); }} isUploading={isUploading} />
+        <DataSidebar 
+          tables={project.tables} 
+          onUploadFile={handleUpload} 
+          onRefreshTableStats={async t => { 
+            const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook.db_name);
+            setProject(prev => ({
+              ...prev,
+              tables: prev.tables.map(table => 
+                table.tableName === t ? { ...table, rowCount: count } : table
+              )
+            }));
+          }} 
+          isUploading={isUploading} 
+        />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
             {[ { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' }, { id: DevMode.SQL, label: 'SQL Editor' }, { id: DevMode.PYTHON, label: 'Python Scripting' } ].map(tab => (
