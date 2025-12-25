@@ -73,7 +73,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20"><Boxes className="text-white" size={28} /></div>
              <div>
                <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">SeekInsight</h1>
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Personal Knowledge Graph</p>
+               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Seek Personal Knowledge Insight</p>
              </div>
           </div>
           <button 
