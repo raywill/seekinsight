@@ -78,6 +78,15 @@ export class MySQLEngine implements DatabaseEngine {
     return count;
   }
 
+  /**
+   * Formats a JS Date into a MySQL compatible DATETIME string (YYYY-MM-DD HH:MM:SS)
+   */
+  private formatDateForMySQL(date: Date): string {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+           `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
   async createTableFromData(
     name: string, 
     data: any[], 
@@ -91,12 +100,30 @@ export class MySQLEngine implements DatabaseEngine {
 
     const originalKeys = Object.keys(data[0]);
     
-    // Clean column names: ONLY trim whitespace as requested, supporting Chinese characters.
-    const columns: Column[] = originalKeys.map(key => ({
-      name: key.trim(),
-      type: typeof data[0][key] === 'number' ? 'DECIMAL(20,2)' : 'VARCHAR(255)',
-      comment: aiComments?.[key] || `Imported: ${key}`
-    }));
+    // Clean column names and Infer correct SQL types
+    const columns: Column[] = originalKeys.map(key => {
+      const firstVal = data[0][key];
+      let inferredType = 'VARCHAR(255)';
+
+      // 1. Check for Date objects (provided by XLSX cellDates: true)
+      if (firstVal instanceof Date && !isNaN(firstVal.getTime())) {
+        inferredType = 'DATETIME';
+      } 
+      // 2. Check for Numbers
+      else if (typeof firstVal === 'number') {
+        inferredType = 'DECIMAL(20,2)';
+      }
+      // 3. Check for Date-like strings (e.g., TPC-H 1996-03-13)
+      else if (typeof firstVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(firstVal)) {
+        inferredType = 'DATETIME';
+      }
+
+      return {
+        name: key.trim(),
+        type: inferredType,
+        comment: aiComments?.[key] || `Imported: ${key}`
+      };
+    });
 
     const ddlCols = columns.map(c => `\`${c.name}\` ${c.type} COMMENT '${c.comment.replace(/'/g, "''")}'`).join(", ");
     await this.executeQuery(`DROP TABLE IF EXISTS \`${trimmedName}\``, dbName);
@@ -110,6 +137,12 @@ export class MySQLEngine implements DatabaseEngine {
         `(${originalKeys.map(k => {
           const val = row[k];
           if (val === null || val === undefined) return 'NULL';
+          
+          // Handle Date Objects: Convert to MySQL formatted string
+          if (val instanceof Date) {
+            return `'${this.formatDateForMySQL(val)}'`;
+          }
+          
           return typeof val === 'string' ? `'${val.replace(/'/g, "''")}'` : val;
         }).join(',')})`
       ).join(',');

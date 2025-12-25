@@ -377,7 +377,12 @@ const App: React.FC = () => {
     reader.onload = async (e) => {
       try {
         const rawFileData = e.target?.result;
-        const workbook = XLSX.read(rawFileData, { type: 'binary' });
+        // Optimization: Use cellDates: true to convert Excel date numbers into JS Date objects immediately.
+        const workbook = XLSX.read(rawFileData, { 
+          type: 'binary', 
+          cellDates: true,
+          dateNF: 'yyyy-mm-dd'
+        });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         
         // 1. Get raw array to check for headers
