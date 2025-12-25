@@ -131,9 +131,25 @@ export class MySQLEngine implements DatabaseEngine {
 
     const originalKeys = Object.keys(data[0]);
     
-    // 1. Infer Columns and Types
+    // 1. Scan for Max Length per Column (Inference)
+    // We scan the first 1000 rows to determine the appropriate SQL type
+    const maxLengths: Record<string, number> = {};
+    const sampleSize = Math.min(data.length, 1000);
+    
+    for (const key of originalKeys) {
+      maxLengths[key] = 0;
+      for (let i = 0; i < sampleSize; i++) {
+        const val = data[i][key];
+        if (typeof val === 'string') {
+          maxLengths[key] = Math.max(maxLengths[key], val.length);
+        }
+      }
+    }
+
+    // 2. Infer Columns and Types based on Data and Max Length
     const columns: Column[] = originalKeys.map(key => {
       const firstVal = data[0][key];
+      const maxLen = maxLengths[key];
       let inferredType = 'VARCHAR(255)';
 
       const isDate = Object.prototype.toString.call(firstVal) === '[object Date]';
@@ -144,8 +160,16 @@ export class MySQLEngine implements DatabaseEngine {
       else if (typeof firstVal === 'number') {
         inferredType = 'DOUBLE';
       }
-      else if (typeof firstVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(firstVal)) {
-        inferredType = 'DATETIME(6)';
+      else if (typeof firstVal === 'string') {
+        if (/^\d{4}-\d{2}-\d{2}/.test(firstVal)) {
+          inferredType = 'DATETIME(6)';
+        } else if (maxLen > 16383) {
+          inferredType = 'MEDIUMTEXT';
+        } else if (maxLen > 255) {
+          inferredType = 'TEXT';
+        } else {
+          inferredType = 'VARCHAR(255)';
+        }
       }
 
       return {
@@ -155,12 +179,12 @@ export class MySQLEngine implements DatabaseEngine {
       };
     });
 
-    // 2. Execute DDL
+    // 3. Execute DDL
     const ddlCols = columns.map(c => `\`${c.name}\` ${c.type} COMMENT '${c.comment.replace(/'/g, "''")}'`).join(", ");
     await this.executeQuery(`DROP TABLE IF EXISTS \`${trimmedName}\``, dbName);
     await this.executeQuery(`CREATE TABLE \`${trimmedName}\` (${ddlCols})`, dbName);
 
-    // 3. Batch Insertion
+    // 4. Batch Insertion
     const cleanedKeys = columns.map(c => c.name);
     const batchSize = 100;
     for (let i = 0; i < data.length; i += batchSize) {
