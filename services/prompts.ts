@@ -16,7 +16,7 @@ export const SYSTEM_PROMPTS = {
        - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, matplotlib, seaborn, plotly.
        - \`sql(query)\` is a predefined function you can use to execute a query without declaration
        - Use sql(query) to get a DataFrame.
-       - Use forge_plotly(fig) for interactive charts.
+       - Use internal function forge_plotly(fig) for interactive charts.
        - NEVER use matplotlib.
        - Only return raw Python code.
        Available Schema:\n${schema}`,
@@ -40,7 +40,8 @@ export const SYSTEM_PROMPTS = {
        - NEVER use matplotlib library.
        - \`sql(query)\` is a predefined function you can use to execute a query without declaration
        - Use sql(query) to get a DataFrame.
-       - Use forge_plotly(fig) for interactive charts.
+       - Use internal function forge_plotly(fig) for interactive charts.
+       - Try alternative modules if see ModuleNotFoundError
        - Only return raw Python code.`) 
       +  `
  Schema context:\n${schema}`,
