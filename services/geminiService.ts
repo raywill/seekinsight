@@ -264,6 +264,8 @@ export const generateSuggestions = async (tables: TableMetadata[], topic: string
     const data = JSON.parse(response.text || "{}");
     return (data.suggestions || []).map((s: any) => ({
       ...s,
+      // Robust unique ID generation: ai_timestamp_randomString
+      id: `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: s.type?.toUpperCase() === 'SQL' ? DevMode.SQL : DevMode.PYTHON
     }));
   } catch (err) {
