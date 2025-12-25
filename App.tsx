@@ -283,6 +283,8 @@ const App: React.FC = () => {
       const logs = project.lastSqlResult.logs?.join('\n') || '';
       const fixed = await ai.debugCode(project.sqlAiPrompt, DevMode.SQL, project.tables, project.sqlCode, logs);
       setProject(prev => ({ ...prev, sqlCode: fixed, isSqlAiFixing: false }));
+      // Automatically run the fixed SQL
+      handleRun(fixed);
     } catch (err) {
       setProject(prev => ({ ...prev, isSqlAiFixing: false }));
     }
@@ -295,6 +297,8 @@ const App: React.FC = () => {
       const logs = project.lastPythonResult.logs?.join('\n') || '';
       const fixed = await ai.debugCode(project.pythonAiPrompt, DevMode.PYTHON, project.tables, project.pythonCode, logs);
       setProject(prev => ({ ...prev, pythonCode: fixed, isPythonAiFixing: false }));
+      // Automatically run the fixed Python script
+      handleRun(fixed);
     } catch (err) {
       setProject(prev => ({ ...prev, isPythonAiFixing: false }));
     }
