@@ -21,7 +21,6 @@ export class MySQLEngine implements DatabaseEngine {
   }
 
   async init() {
-    // If already ready, don't re-init
     if (this.ready && this.sessionId) return;
 
     const config = this.getConfigParams();
@@ -46,10 +45,8 @@ export class MySQLEngine implements DatabaseEngine {
       if (!response.ok) throw new Error(result.message || "Failed to connect to gateway.");
 
       this.sessionId = result.sessionId;
-      // CRITICAL: Set ready to true BEFORE running initialization queries to avoid deadlock
       this.ready = true;
       
-      // Ensure config table exists (hidden system table)
       await this.executeQuery(`
         CREATE TABLE IF NOT EXISTS \`${this.configTableName}\` (
           cfg_key VARCHAR(50) PRIMARY KEY,
@@ -82,12 +79,13 @@ export class MySQLEngine implements DatabaseEngine {
   private async loadExistingTables() {
     const config = this.getConfigParams();
     try {
-      // Filter out internal tables starting with __
+      // Corrected: Use escaped underscores \_\_ to match literal underscores and avoid filtering business tables.
+      // In JS strings, we need double backslash \\ to produce a single backslash in the SQL query.
       const tablesInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME 
         FROM information_schema.TABLES 
         WHERE TABLE_SCHEMA = '${config.dbName}' 
-        AND TABLE_NAME NOT LIKE '__%'
+        AND TABLE_NAME NOT LIKE '\\_\\_%'
       `);
       
       if (tablesInfoRes.data.length === 0) {
@@ -99,7 +97,7 @@ export class MySQLEngine implements DatabaseEngine {
         SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_COMMENT 
         FROM information_schema.COLUMNS 
         WHERE TABLE_SCHEMA = '${config.dbName}'
-        AND TABLE_NAME NOT LIKE '__%'
+        AND TABLE_NAME NOT LIKE '\\_\\_%'
         ORDER BY TABLE_NAME, ORDINAL_POSITION
       `);
 
