@@ -401,7 +401,8 @@ const App: React.FC = () => {
           });
         }
 
-        const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+        // Only trim filename for table name creation, no alphanumeric restriction
+        const tableName = file.name.split('.')[0].trim();
 
         // 4. Infer semantic metadata for comments
         let aiComments: Record<string, string> = {};

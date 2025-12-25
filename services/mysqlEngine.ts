@@ -85,21 +85,22 @@ export class MySQLEngine implements DatabaseEngine {
     aiComments?: Record<string, string>,
     onProgress?: (percent: number) => void
   ): Promise<TableMetadata> {
-    const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    // Only trim whitespace to support Chinese characters in table names
+    const trimmedName = name.trim();
     if (!data || data.length === 0) throw new Error("Data is empty");
 
     const originalKeys = Object.keys(data[0]);
     
-    // Clean column names: Trim and replace non-alphanumeric characters with underscores
+    // Clean column names: ONLY trim whitespace as requested, supporting Chinese characters.
     const columns: Column[] = originalKeys.map(key => ({
-      name: key.trim().replace(/[^a-zA-Z0-9]/g, '_'),
+      name: key.trim(),
       type: typeof data[0][key] === 'number' ? 'DECIMAL(20,2)' : 'VARCHAR(255)',
       comment: aiComments?.[key] || `Imported: ${key}`
     }));
 
     const ddlCols = columns.map(c => `\`${c.name}\` ${c.type} COMMENT '${c.comment.replace(/'/g, "''")}'`).join(", ");
-    await this.executeQuery(`DROP TABLE IF EXISTS \`${sanitizedName}\``, dbName);
-    await this.executeQuery(`CREATE TABLE \`${sanitizedName}\` (${ddlCols})`, dbName);
+    await this.executeQuery(`DROP TABLE IF EXISTS \`${trimmedName}\``, dbName);
+    await this.executeQuery(`CREATE TABLE \`${trimmedName}\` (${ddlCols})`, dbName);
 
     const cleanedKeys = columns.map(c => c.name);
     const batchSize = 100;
@@ -113,8 +114,8 @@ export class MySQLEngine implements DatabaseEngine {
         }).join(',')})`
       ).join(',');
       
-      // Use cleaned column names in the INSERT statement
-      await this.executeQuery(`INSERT INTO \`${sanitizedName}\` (\`${cleanedKeys.join('`,`')}\`) VALUES ${valuesList}`, dbName);
+      // Use backticks to safely wrap trimmed column names containing Chinese or special characters.
+      await this.executeQuery(`INSERT INTO \`${trimmedName}\` (\`${cleanedKeys.join('`,`')}\`) VALUES ${valuesList}`, dbName);
       
       if (onProgress) {
         const percent = Math.min(100, Math.round(((i + chunk.length) / data.length) * 100));
@@ -124,7 +125,7 @@ export class MySQLEngine implements DatabaseEngine {
 
     return {
       id: Math.random().toString(36).substr(2, 9),
-      tableName: sanitizedName,
+      tableName: trimmedName,
       columns,
       rowCount: data.length
     };
