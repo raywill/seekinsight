@@ -185,7 +185,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // AUTO-TRIGGER SUGGESTIONS: When DB is ready and tables are available
   useEffect(() => {
     if (dbReady && project.tables.length > 0 && project.suggestions.length === 0 && !isSuggesting) {
       handleFetchSuggestions();
@@ -205,7 +204,7 @@ const App: React.FC = () => {
       dbName: nb.db_name, 
       topicName: nb.topic,
       tables,
-      suggestions: [] // Clear old suggestions when opening new notebook
+      suggestions: [] 
     }));
     setDbReady(true);
   };
@@ -227,6 +226,55 @@ const App: React.FC = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ topic: trimmed })
     });
+  };
+
+  // AI HANDLERS
+  const handleSqlAiGenerate = async (promptOverride?: string) => {
+    const promptToUse = promptOverride || project.sqlAiPrompt;
+    if (!promptToUse) return;
+    setProject(prev => ({ ...prev, isSqlAiGenerating: true, lastSqlCodeBeforeAi: prev.sqlCode }));
+    try {
+      const code = await ai.generateCode(promptToUse, DevMode.SQL, project.tables);
+      setProject(prev => ({ ...prev, sqlCode: code, isSqlAiGenerating: false }));
+    } catch (err) {
+      setProject(prev => ({ ...prev, isSqlAiGenerating: false }));
+    }
+  };
+
+  const handlePythonAiGenerate = async (promptOverride?: string) => {
+    const promptToUse = promptOverride || project.pythonAiPrompt;
+    if (!promptToUse) return;
+    setProject(prev => ({ ...prev, isPythonAiGenerating: true, lastPythonCodeBeforeAi: prev.pythonCode }));
+    try {
+      const code = await ai.generateCode(promptToUse, DevMode.PYTHON, project.tables);
+      setProject(prev => ({ ...prev, pythonCode: code, isPythonAiGenerating: false }));
+    } catch (err) {
+      setProject(prev => ({ ...prev, isPythonAiGenerating: false }));
+    }
+  };
+
+  const handleDebugSql = async () => {
+    if (!project.lastSqlResult?.isError || !project.sqlCode) return;
+    setProject(prev => ({ ...prev, isSqlAiFixing: true }));
+    try {
+      const logs = project.lastSqlResult.logs?.join('\n') || '';
+      const fixed = await ai.debugCode(project.sqlAiPrompt, DevMode.SQL, project.tables, project.sqlCode, logs);
+      setProject(prev => ({ ...prev, sqlCode: fixed, isSqlAiFixing: false }));
+    } catch (err) {
+      setProject(prev => ({ ...prev, isSqlAiFixing: false }));
+    }
+  };
+
+  const handleDebugPython = async () => {
+    if (!project.lastPythonResult?.isError || !project.pythonCode) return;
+    setProject(prev => ({ ...prev, isPythonAiFixing: true }));
+    try {
+      const logs = project.lastPythonResult.logs?.join('\n') || '';
+      const fixed = await ai.debugCode(project.pythonAiPrompt, DevMode.PYTHON, project.tables, project.pythonCode, logs);
+      setProject(prev => ({ ...prev, pythonCode: fixed, isPythonAiFixing: false }));
+    } catch (err) {
+      setProject(prev => ({ ...prev, isPythonAiFixing: false }));
+    }
   };
 
   const handleRun = async (codeOverride?: string) => {
@@ -251,9 +299,9 @@ const App: React.FC = () => {
         ...prev, 
         isExecuting: false, 
         [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: result,
-        isAnalyzing: currentMode === DevMode.SQL && result.data.length > 0
+        isAnalyzing: currentMode === DevMode.SQL && result.data.length > 0 && !result.isError
       }));
-      if (currentMode === DevMode.SQL && result.data.length > 0) {
+      if (currentMode === DevMode.SQL && result.data.length > 0 && !result.isError) {
         ai.generateAnalysis(currentCode, result.data, project.topicName, project.sqlAiPrompt).then(report => {
           setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
         });
@@ -281,11 +329,9 @@ const App: React.FC = () => {
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(tableName, rawJsonData, currentNotebook.db_name);
         
-        // 1. Update Tables List
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
 
-        // 2. AI Summarize Topic based on new table set
         try {
           const newTopic = await ai.generateTopic(project.topicName, updatedTables);
           if (newTopic && newTopic !== project.topicName) {
@@ -365,9 +411,54 @@ const App: React.FC = () => {
             ))}
           </div>
           <div className="flex-1 flex flex-col overflow-hidden">
-             {project.activeMode === DevMode.INSIGHT_HUB && <InsightHub suggestions={project.suggestions} onApply={(s) => { setProject(p => ({ ...p, activeMode: s.type, [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt })); }} onFetchMore={handleFetchSuggestions} isLoading={isSuggesting} />}
-             {project.activeMode === DevMode.SQL && <SqlWorkspace code={project.sqlCode} onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))} prompt={project.sqlAiPrompt} onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))} result={project.lastSqlResult} onRun={() => handleRun()} isExecuting={project.isExecuting} isAiGenerating={project.isSqlAiGenerating} isAiFixing={project.isSqlAiFixing} onTriggerAi={() => {}} onDebug={() => {}} tables={project.tables} />}
-             {project.activeMode === DevMode.PYTHON && <PythonWorkspace code={project.pythonCode} onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))} prompt={project.pythonAiPrompt} onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))} result={project.lastPythonResult} onRun={() => handleRun()} isExecuting={project.isExecuting} isAiGenerating={project.isPythonAiGenerating} isAiFixing={project.isPythonAiFixing} onTriggerAi={() => {}} onDebug={() => {}} tables={project.tables} />}
+             {project.activeMode === DevMode.INSIGHT_HUB && (
+              <InsightHub 
+                suggestions={project.suggestions} 
+                onApply={(s) => { 
+                  setProject(p => ({ ...p, activeMode: s.type, [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt })); 
+                  if (s.type === DevMode.SQL) handleSqlAiGenerate(s.prompt);
+                  else handlePythonAiGenerate(s.prompt);
+                }} 
+                onFetchMore={handleFetchSuggestions} 
+                isLoading={isSuggesting} 
+              />
+             )}
+             {project.activeMode === DevMode.SQL && (
+              <SqlWorkspace 
+                code={project.sqlCode} 
+                onCodeChange={v => setProject(p => ({ ...p, sqlCode: v }))} 
+                prompt={project.sqlAiPrompt} 
+                onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))} 
+                result={project.lastSqlResult} 
+                onRun={() => handleRun()} 
+                isExecuting={project.isExecuting} 
+                isAiGenerating={project.isSqlAiGenerating} 
+                isAiFixing={project.isSqlAiFixing} 
+                onTriggerAi={() => handleSqlAiGenerate()} 
+                onDebug={handleDebugSql} 
+                tables={project.tables} 
+                onUndo={() => setProject(p => ({ ...p, sqlCode: p.lastSqlCodeBeforeAi || INITIAL_SQL }))}
+                showUndo={!!project.lastSqlCodeBeforeAi}
+              />
+             )}
+             {project.activeMode === DevMode.PYTHON && (
+              <PythonWorkspace 
+                code={project.pythonCode} 
+                onCodeChange={v => setProject(p => ({ ...p, pythonCode: v }))} 
+                prompt={project.pythonAiPrompt} 
+                onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))} 
+                result={project.lastPythonResult} 
+                onRun={() => handleRun()} 
+                isExecuting={project.isExecuting} 
+                isAiGenerating={project.isPythonAiGenerating} 
+                isAiFixing={project.isPythonAiFixing} 
+                onTriggerAi={() => handlePythonAiGenerate()} 
+                onDebug={handleDebugPython} 
+                tables={project.tables} 
+                onUndo={() => setProject(p => ({ ...p, pythonCode: p.lastPythonCodeBeforeAi || INITIAL_PYTHON }))}
+                showUndo={!!project.lastPythonCodeBeforeAi}
+              />
+             )}
           </div>
         </main>
         {project.activeMode === DevMode.SQL && <SqlPublishPanel result={project.lastSqlResult} analysis={project.analysisReport} isAnalyzing={project.isAnalyzing} isRecommendingCharts={project.isRecommendingCharts} onDeploy={async () => {}} isDeploying={false} />}
