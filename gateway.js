@@ -11,11 +11,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = 3001; // 统一为 3001
+const PORT = 3001;
 const VENV_PATH = path.join(process.cwd(), '.venv');
-const PYTHON_EXE = process.platform === 'win32' 
+const VENV_PYTHON = process.platform === 'win32' 
   ? path.join(VENV_PATH, 'Scripts', 'python.exe') 
   : path.join(VENV_PATH, 'bin', 'python');
+
+// Function to find the best available python executable
+function getPythonExecutable() {
+  if (fs.existsSync(VENV_PYTHON)) {
+    return VENV_PYTHON;
+  }
+  // Fallback to system python
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
 
 const SYSTEM_DB = 'seekinsight';
 const NOTEBOOK_LIST_TABLE = 'seekinsight_notebook_list';
@@ -82,7 +91,6 @@ app.get('/notebooks', async (req, res) => {
 app.post('/notebooks', async (req, res) => {
   try {
     const id = crypto.randomBytes(4).toString('hex');
-    // 规范命名: nb_yyyyMMddHHmmss_uuid
     const now = new Date();
     const timestamp = now.getFullYear().toString() + 
                       (now.getMonth() + 1).toString().padStart(2, '0') + 
@@ -92,7 +100,6 @@ app.post('/notebooks', async (req, res) => {
                       now.getSeconds().toString().padStart(2, '0');
     const dbName = `nb_${timestamp}_${id}`;
     
-    // 物理库创建
     const rootConn = await mysql.createConnection({
         host: process.env.MYSQL_IP || '127.0.0.1',
         port: parseInt(process.env.MYSQL_PORT || '3306'),
@@ -102,11 +109,9 @@ app.post('/notebooks', async (req, res) => {
     await rootConn.query(`CREATE DATABASE \`${dbName}\``);
     await rootConn.end();
 
-    // 随机图标
     const icons = ['Database', 'Zap', 'Brain', 'BarChart3', 'Layers', 'Boxes', 'Cpu', 'Activity'];
     const randomIcon = icons[Math.floor(Math.random() * icons.length)];
 
-    // 控制平面注册 (user_id 预留为 0)
     const sysPool = await getPool(SYSTEM_DB);
     await sysPool.query(
       `INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name) VALUES (?, ?, ?, ?, ?)`,
@@ -187,9 +192,12 @@ from sqlalchemy import create_engine
 import json
 import sys
 import plotly.io as pio
-engine = create_engine("${connectionString}")
-def sql(query): return pd.read_sql(query, engine)
-def forge_plotly(fig): print(f"__PLOTLY_DATA__:{pio.to_json(fig)}")
+try:
+    engine = create_engine("${connectionString}")
+    def sql(query): return pd.read_sql(query, engine)
+    def forge_plotly(fig): print(f"__PLOTLY_DATA__:{pio.to_json(fig)}")
+except Exception as e:
+    print(f"Bridge Setup Error: {str(e)}", file=sys.stderr)
 `;
 
   const fullCode = bridgeCode + "\n" + code;
@@ -197,15 +205,30 @@ def forge_plotly(fig): print(f"__PLOTLY_DATA__:{pio.to_json(fig)}")
   const tmpFile = path.join(process.cwd(), `nb_exec_${requestId}_${Date.now()}.py`);
   
   fs.writeFileSync(tmpFile, fullCode);
-  const pyProcess = spawn(PYTHON_EXE, [tmpFile]);
+  
+  const pythonExe = getPythonExecutable();
+  const pyProcess = spawn(pythonExe, [tmpFile]);
+  
   let stdout = '';
   let stderr = '';
+
+  pyProcess.on('error', (err) => {
+    if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    res.status(500).json({ 
+      logs: [`Failed to start Python interpreter: ${err.message}`, `Command used: ${pythonExe}`], 
+      error: true 
+    });
+  });
 
   pyProcess.stdout.on('data', (data) => stdout += data.toString());
   pyProcess.stderr.on('data', (data) => stderr += data.toString());
 
   pyProcess.on('close', (exitCode) => {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    
+    // If error was already handled by 'error' event, return
+    if (res.headersSent) return;
+
     let plotlyData = null;
     const lines = stdout.split('\n');
     const logs = lines.filter(line => {
