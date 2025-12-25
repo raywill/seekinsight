@@ -326,8 +326,16 @@ const App: React.FC = () => {
         const rawJsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
         const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
 
+        // Restore Metadata Inference Step
+        let aiComments: Record<string, string> = {};
+        try {
+          aiComments = await ai.inferColumnMetadata(tableName, rawJsonData);
+        } catch (inferErr) {
+          console.warn("AI Metadata Inference failed, proceeding with basic import", inferErr);
+        }
+
         const db = getDatabaseEngine();
-        const newTable = await db.createTableFromData(tableName, rawJsonData, currentNotebook.db_name);
+        const newTable = await db.createTableFromData(tableName, rawJsonData, currentNotebook.db_name, aiComments);
 
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
