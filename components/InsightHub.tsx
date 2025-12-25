@@ -54,110 +54,120 @@ const Section: React.FC<SectionProps> = ({
   title, items, icon: Icon, colorClass, badgeClass, isGenerating,
   expandedIds, toggleExpand, editingId, editValue, setEditValue,
   startEditing, saveEdit, cancelEdit, onDelete, onApply, textareaRef
-}) => (
-  <div className="space-y-6">
-    <div className="flex items-center gap-3">
-      <div className={`p-2.5 rounded-xl ${colorClass} bg-opacity-10`}>
-        <Icon size={20} className={colorClass.replace('bg-', 'text-')} />
-      </div>
-      <h3 className="text-base font-black text-gray-800 uppercase tracking-tight">{title}</h3>
-    </div>
-    <div 
-      className="grid gap-6"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}
-    >
-      {items.map((item: Suggestion) => {
-        const itemId = item.id || `${item.title}-${item.type}`;
-        const isExpanded = expandedIds.has(itemId);
-        const isEditing = editingId === itemId;
-        
-        return (
-          <div 
-            key={itemId} 
-            onMouseEnter={() => toggleExpand(itemId)}
-            className={`group bg-white border rounded-[2.5rem] p-7 transition-all flex flex-col justify-between min-h-[280px] relative ${
-              isEditing ? 'border-blue-400 shadow-lg ring-1 ring-blue-100' : 'border-gray-100 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/10'
-            }`}
-          >
-            {!isEditing && (
-              <div className="absolute top-6 right-6 flex items-center gap-1 z-10">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onDelete(itemId); }}
-                  className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
-                  title="Remove Insight"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            )}
+}) => {
+  // Pixel-perfect styles to prevent jumping between text and textarea
+  const sharedStyles: React.CSSProperties = {
+    lineHeight: '1.625',
+    fontSize: '0.75rem',
+    letterSpacing: '0.01em',
+    wordBreak: 'break-word',
+    padding: '12px', // Permanent padding as requested
+    fontFamily: 'inherit',
+    fontWeight: 500,
+    width: '100%',
+    display: 'block'
+  };
 
-            <div className="flex flex-col h-full">
-              <div className="flex justify-between items-start mb-4 pr-16">
-                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${badgeClass}`}>
-                  {item.category}
-                </span>
-                <span className="text-[10px] font-bold text-gray-300 font-mono">#{ itemId.slice(0, 4).toUpperCase() }</span>
-              </div>
-              
-              <h4 className="text-base font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-3 leading-tight pr-8">
-                {item.title}
-              </h4>
-              
-              <div className="flex-1 relative">
-                {isEditing ? (
-                  <textarea
-                    ref={textareaRef}
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={saveEdit}
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit();
-                      if (e.key === 'Escape') cancelEdit();
-                    }}
-                    // Pixel-perfect alignment with the paragraph text
-                    style={{ 
-                      lineHeight: '1.625', 
-                      fontSize: '0.75rem', 
-                      letterSpacing: '0', 
-                      wordBreak: 'break-word',
-                      padding: '0'
-                    }}
-                    className="w-full h-32 text-gray-600 font-medium bg-blue-50/30 border-none focus:outline-none focus:ring-0 resize-none overflow-auto"
-                  />
-                ) : (
-                  <div className="relative group/text">
-                    <p 
-                      onClick={(e) => startEditing(e, item)}
-                      style={{ lineHeight: '1.625' }}
-                      className={`text-xs text-gray-500 font-medium transition-all duration-300 ease-in-out mb-6 cursor-text hover:text-gray-900 break-words ${isExpanded ? 'line-clamp-none' : 'line-clamp-4'}`}
-                    >
-                      {item.prompt}
-                    </p>
-                    <div className="absolute -right-1 -top-1 opacity-0 group-hover/text:opacity-40 pointer-events-none transition-opacity">
-                       <PencilLine size={12} />
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className={`p-2.5 rounded-xl ${colorClass} bg-opacity-10`}>
+          <Icon size={20} className={colorClass.replace('bg-', 'text-')} />
+        </div>
+        <h3 className="text-base font-black text-gray-800 uppercase tracking-tight">{title}</h3>
+      </div>
+      <div 
+        className="grid gap-6"
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}
+      >
+        {items.map((item: Suggestion) => {
+          const itemId = item.id;
+          const isExpanded = expandedIds.has(itemId);
+          const isEditing = editingId === itemId;
+          
+          return (
+            <div 
+              key={itemId} 
+              onMouseEnter={() => toggleExpand(itemId)}
+              className={`group bg-white border rounded-[2.5rem] p-7 transition-all flex flex-col justify-between min-h-[300px] relative ${
+                isEditing ? 'border-gray-300 shadow-xl' : 'border-gray-100 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/10'
+              }`}
+            >
+              {!isEditing && (
+                <div className="absolute top-6 right-6 flex items-center gap-1 z-10">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onDelete(itemId); }}
+                    className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex flex-col h-full">
+                <div className="flex justify-between items-start mb-4 pr-16">
+                  <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${badgeClass}`}>
+                    {item.category}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-400 font-mono opacity-40">#{ itemId.slice(0, 5).toUpperCase() }</span>
+                </div>
+                
+                <h4 className="text-base font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-2 leading-tight pr-8">
+                  {item.title}
+                </h4>
+                
+                <div className="flex-1 relative mt-1 overflow-hidden">
+                  {isEditing ? (
+                    <div className="h-full">
+                      <textarea
+                        ref={textareaRef}
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={saveEdit}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit();
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                        style={sharedStyles}
+                        className="h-32 text-gray-700 bg-white border border-black rounded-xl focus:outline-none focus:ring-4 focus:ring-black/5 resize-none overflow-auto shadow-sm"
+                        spellCheck={false}
+                      />
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="h-full">
+                      <div 
+                        onClick={(e) => startEditing(e, item)}
+                        style={sharedStyles}
+                        className={`text-gray-500 border border-transparent hover:border-gray-200 hover:bg-gray-50/50 rounded-xl transition-all duration-200 cursor-text mb-6 relative group/text ${isExpanded ? 'line-clamp-none' : 'line-clamp-4'}`}
+                      >
+                        {item.prompt}
+                        <div className="absolute right-2 top-2 opacity-0 group-hover/text:opacity-30 transition-opacity">
+                           <PencilLine size={12} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {!isEditing && (
+                <button
+                  onClick={() => onApply(item)}
+                  className="w-full py-3.5 bg-gray-50 text-gray-600 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all group/btn shadow-sm"
+                >
+                  Apply to Editor
+                  <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                </button>
+              )}
             </div>
-            
-            {!isEditing && (
-              <button
-                onClick={() => onApply(item)}
-                className="w-full py-3 bg-gray-50 text-gray-600 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all group/btn shadow-sm"
-              >
-                Apply to Editor
-                <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-              </button>
-            )}
-          </div>
-        );
-      })}
-      {isGenerating && <GeneratingCard badgeClass={badgeClass} />}
+          );
+        })}
+        {isGenerating && <GeneratingCard badgeClass={badgeClass} />}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate, onFetchMore, isLoading }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -172,19 +182,26 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
 
   const toggleExpand = (id: string) => {
     if (expandedIds.has(id)) return;
-    setExpandedIds(prev => new Set(prev).add(id));
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
   };
 
   const startEditing = (e: React.MouseEvent, item: Suggestion) => {
     e.stopPropagation();
-    const itemId = item.id || `${item.title}-${item.type}`;
+    const itemId = item.id;
     
-    // Attempt to calculate exact character offset at click point
+    // Capture precise character index from the click coordinates
     let offset = item.prompt.length;
     if ((document as any).caretRangeFromPoint) {
       const range = (document as any).caretRangeFromPoint(e.clientX, e.clientY);
-      if (range) {
+      if (range && range.startContainer.nodeType === Node.TEXT_NODE) {
         offset = range.startOffset;
+      } else if (range && range.startContainer.hasChildNodes()) {
+        // Fallback for container clicks
+        offset = 0;
       }
     } else if ((document as any).caretPositionFromPoint) {
       const position = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
@@ -216,14 +233,15 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
   useEffect(() => {
     if (editingId && textareaRef.current) {
       textareaRef.current.focus();
-      // Restore the exact caret position based on where the user clicked
-      textareaRef.current.setSelectionRange(caretOffset, caretOffset);
+      // Only set selection if offset is within bounds
+      const safeOffset = Math.min(caretOffset, editValue.length);
+      textareaRef.current.setSelectionRange(safeOffset, safeOffset);
     }
-  }, [editingId, caretOffset]);
+  }, [editingId, caretOffset, editValue]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50/50 p-10">
-      <div className="w-full space-y-16">
+      <div className="w-full max-w-[1400px] mx-auto space-y-16">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-4">
@@ -260,44 +278,54 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
           </div>
         ) : (
           <div className="space-y-20">
-            <Section 
-              title="Strategic Reporting (SQL)" 
-              items={sqlSuggestions} 
-              icon={Database} 
-              colorClass="bg-blue-500"
-              badgeClass="bg-blue-50 text-blue-600"
-              isGenerating={isLoading}
-              expandedIds={expandedIds}
-              toggleExpand={toggleExpand}
-              editingId={editingId}
-              editValue={editValue}
-              setEditValue={setEditValue}
-              startEditing={startEditing}
-              saveEdit={saveEdit}
-              cancelEdit={cancelEdit}
-              onDelete={onDelete}
-              onApply={onApply}
-              textareaRef={textareaRef}
-            />
-            <Section 
-              title="Predictive Modeling (Python)" 
-              items={pythonSuggestions} 
-              icon={Terminal} 
-              colorClass="bg-purple-500"
-              badgeClass="bg-purple-50 text-purple-600"
-              isGenerating={isLoading}
-              expandedIds={expandedIds}
-              toggleExpand={toggleExpand}
-              editingId={editingId}
-              editValue={editValue}
-              setEditValue={setEditValue}
-              startEditing={startEditing}
-              saveEdit={saveEdit}
-              cancelEdit={cancelEdit}
-              onDelete={onDelete}
-              onApply={onApply}
-              textareaRef={textareaRef}
-            />
+            {sqlSuggestions.length > 0 && (
+              <Section 
+                title="Strategic Reporting (SQL)" 
+                items={sqlSuggestions} 
+                icon={Database} 
+                colorClass="bg-blue-500"
+                badgeClass="bg-blue-50 text-blue-600"
+                isGenerating={isLoading}
+                expandedIds={expandedIds}
+                toggleExpand={toggleExpand}
+                editingId={editingId}
+                editValue={editValue}
+                setEditValue={setEditValue}
+                startEditing={startEditing}
+                saveEdit={saveEdit}
+                cancelEdit={cancelEdit}
+                onDelete={onDelete}
+                onApply={onApply}
+                textareaRef={textareaRef}
+              />
+            )}
+            {pythonSuggestions.length > 0 && (
+              <Section 
+                title="Predictive Modeling (Python)" 
+                items={pythonSuggestions} 
+                icon={Terminal} 
+                colorClass="bg-purple-500"
+                badgeClass="bg-purple-50 text-purple-600"
+                isGenerating={isLoading}
+                expandedIds={expandedIds}
+                toggleExpand={toggleExpand}
+                editingId={editingId}
+                editValue={editValue}
+                setEditValue={setEditValue}
+                startEditing={startEditing}
+                saveEdit={saveEdit}
+                cancelEdit={cancelEdit}
+                onDelete={onDelete}
+                onApply={onApply}
+                textareaRef={textareaRef}
+              />
+            )}
+            {isLoading && sqlSuggestions.length === 0 && pythonSuggestions.length === 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 <GeneratingCard badgeClass="bg-blue-50 text-blue-600" />
+                 <GeneratingCard badgeClass="bg-purple-50 text-purple-600" />
+              </div>
+            )}
           </div>
         )}
       </div>
