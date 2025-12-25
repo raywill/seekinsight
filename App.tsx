@@ -186,10 +186,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Behavior: If suggestions count is 0 on load, auto-generate.
     if (dbReady && project.tables.length > 0 && project.suggestions.length === 0 && !isSuggesting) {
       handleFetchSuggestions();
     }
-  }, [dbReady, project.tables.length]);
+  }, [dbReady, project.tables.length, project.suggestions.length]);
 
   const handleOpenNotebook = async (nb: Notebook) => {
     setCurrentNotebook(nb);
@@ -198,13 +199,23 @@ const App: React.FC = () => {
     const db = getDatabaseEngine();
     const tables = await db.getTables(nb.db_name);
 
+    // Load persisted suggestions from JSON string
+    let initialSuggestions: Suggestion[] = [];
+    if (nb.suggestions_json) {
+      try {
+        initialSuggestions = JSON.parse(nb.suggestions_json);
+      } catch (e) {
+        console.error("Failed to parse persisted suggestions", e);
+      }
+    }
+
     setProject(prev => ({
       ...prev,
       id: nb.id,
       dbName: nb.db_name,
       topicName: nb.topic,
       tables,
-      suggestions: []
+      suggestions: initialSuggestions
     }));
     setDbReady(true);
   };
@@ -213,6 +224,19 @@ const App: React.FC = () => {
     setCurrentNotebook(null);
     setDbReady(false);
     window.history.pushState({}, '', '/');
+  };
+
+  const syncSuggestionsToDb = async (suggestions: Suggestion[]) => {
+    if (!currentNotebook) return;
+    try {
+      await fetch(`${gatewayUrl}/notebooks/${currentNotebook.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ suggestions_json: JSON.stringify(suggestions) })
+      });
+    } catch (e) {
+      console.warn("Failed to sync suggestions to database", e);
+    }
   };
 
   const handleUpdateTopic = async (newTopic: string) => {
@@ -359,8 +383,17 @@ const App: React.FC = () => {
     setIsSuggesting(true);
     try {
       const newSuggestions = await ai.generateSuggestions(project.tables, project.topicName);
-      setProject(prev => ({ ...prev, suggestions: [...prev.suggestions, ...newSuggestions] }));
+      const updatedSuggestions = [...project.suggestions, ...newSuggestions];
+      setProject(prev => ({ ...prev, suggestions: updatedSuggestions }));
+      // Persist to DB
+      syncSuggestionsToDb(updatedSuggestions);
     } finally { setIsSuggesting(false); }
+  };
+
+  const handleDeleteSuggestion = (id: string) => {
+    const updated = project.suggestions.filter(s => s.id !== id);
+    setProject(prev => ({ ...prev, suggestions: updated }));
+    syncSuggestionsToDb(updated);
   };
 
   if (!currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
@@ -440,6 +473,7 @@ const App: React.FC = () => {
                   if (s.type === DevMode.SQL) handleSqlAiGenerate(s.prompt);
                   else handlePythonAiGenerate(s.prompt);
                 }}
+                onDelete={handleDeleteSuggestion}
                 onFetchMore={handleFetchSuggestions}
                 isLoading={isSuggesting}
               />

@@ -61,6 +61,7 @@ export interface Notebook {
   topic: string;
   user_id: number;
   icon_name: string;
+  suggestions_json?: string;
   created_at: string;
 }
 

@@ -1,16 +1,17 @@
 
 import React, { useState } from 'react';
 import { Suggestion, DevMode } from '../types';
-import { Sparkles, Terminal, Database, ArrowRight, RefreshCw, Layers } from 'lucide-react';
+import { Sparkles, Terminal, Database, ArrowRight, RefreshCw, Layers, Trash2 } from 'lucide-react';
 
 interface Props {
   suggestions: Suggestion[];
   onApply: (suggestion: Suggestion) => void;
+  onDelete: (id: string) => void;
   onFetchMore: () => void;
   isLoading: boolean;
 }
 
-const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoading }) => {
+const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onFetchMore, isLoading }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   
   const sqlSuggestions = suggestions.filter(s => s.type === DevMode.SQL);
@@ -47,11 +48,6 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
         </div>
         <h3 className="text-base font-black text-gray-800 uppercase tracking-tight">{title}</h3>
       </div>
-      {/* 
-        Modified Grid Layout: 
-        Uses repeat(auto-fill, minmax(min(100%, 340px), 1fr)) to ensure items maintain a fixed-ish width 
-        and wrap instead of shrinking, while filling 100% when forced to a single column.
-      */}
       <div 
         className="grid gap-6"
         style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}
@@ -64,10 +60,18 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onFetchMore, isLoad
             <div 
               key={itemId} 
               onMouseEnter={() => toggleExpand(itemId)}
-              className="group bg-white border border-gray-100 rounded-[2rem] p-7 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col justify-between min-h-[280px]"
+              className="group bg-white border border-gray-100 rounded-[2rem] p-7 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col justify-between min-h-[280px] relative"
             >
+              <button 
+                onClick={() => onDelete(itemId)}
+                className="absolute top-6 right-6 p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
+                title="Remove Insight"
+              >
+                <Trash2 size={16} />
+              </button>
+
               <div className="flex flex-col h-full">
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex justify-between items-start mb-4 pr-10">
                   <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${badgeClass}`}>
                     {item.category}
                   </span>

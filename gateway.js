@@ -65,6 +65,7 @@ async function initSystem() {
   await rootConn.end();
 
   const sysPool = await getPool(SYSTEM_DB);
+  // Ensure the table has the suggestions_json column
   await sysPool.query(`
     CREATE TABLE IF NOT EXISTS \`${NOTEBOOK_LIST_TABLE}\` (
       id VARCHAR(50) PRIMARY KEY,
@@ -72,9 +73,20 @@ async function initSystem() {
       topic VARCHAR(200) DEFAULT '未命名主题',
       user_id INT DEFAULT 0,
       icon_name VARCHAR(50),
+      suggestions_json TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: Check if suggestions_json exists, if not add it
+  try {
+    const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${NOTEBOOK_LIST_TABLE}\` LIKE 'suggestions_json'`);
+    if (columns.length === 0) {
+      await sysPool.query(`ALTER TABLE \`${NOTEBOOK_LIST_TABLE}\` ADD COLUMN suggestions_json TEXT`);
+    }
+  } catch (err) {
+    console.error("Migration error:", err);
+  }
 }
 
 // Lobby APIs
@@ -126,10 +138,28 @@ app.post('/notebooks', async (req, res) => {
 
 app.patch('/notebooks/:id', async (req, res) => {
   const { id } = req.params;
-  const { topic } = req.body;
+  const { topic, suggestions_json } = req.body;
   try {
     const sysPool = await getPool(SYSTEM_DB);
-    await sysPool.query(`UPDATE \`${NOTEBOOK_LIST_TABLE}\` SET topic = ? WHERE id = ?`, [topic, id]);
+    let query = 'UPDATE `' + NOTEBOOK_LIST_TABLE + '` SET ';
+    const params = [];
+    const updates = [];
+
+    if (topic !== undefined) {
+      updates.push('topic = ?');
+      params.push(topic);
+    }
+    if (suggestions_json !== undefined) {
+      updates.push('suggestions_json = ?');
+      params.push(suggestions_json);
+    }
+
+    if (updates.length === 0) return res.json({ success: true });
+
+    query += updates.join(', ') + ' WHERE id = ?';
+    params.push(id);
+
+    await sysPool.query(query, params);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ message: err.message });
