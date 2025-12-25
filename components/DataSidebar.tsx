@@ -39,62 +39,61 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
 
   return (
     <div className="w-72 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm">
-      {/* Header - Keeping original button style as requested */}
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
-        <h2 className="text-sm font-black text-gray-800 flex items-center gap-2 uppercase tracking-tight">
-          <Database size={16} className="text-blue-600" />
-          Data Sources
+      {/* Header - Upload button is replaced by loading state during sync */}
+      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <h2 className="text-sm font-black text-[#1e293b] flex items-center gap-2 uppercase tracking-tight">
+          <Database size={18} className="text-[#2563eb]" />
+          DATA SOURCES
         </h2>
-        <div className="flex items-center gap-2">
-          {/* Restored Syncing indicator next to the button */}
-          {isUploading && (
+        <div className="flex items-center justify-center min-w-[32px]">
+          {isUploading ? (
             <div className="flex items-center gap-1.5 text-blue-500 animate-pulse">
-              <Loader2 size={12} className="animate-spin" />
-              <span className="text-[10px] font-black uppercase tracking-tighter">Syncing</span>
+              <Loader2 size={16} className="animate-spin" />
             </div>
+          ) : (
+            <label className="cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600" title="Import data into Database">
+              <Upload size={20} />
+              <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />
+            </label>
           )}
-          <label className={`cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200 ${isUploading ? 'opacity-50' : ''}`} title="Import data into Database">
-            <Upload size={16} className="text-gray-500" />
-            {!isUploading && <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />}
-          </label>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
-        {/* New Enhanced Empty State Card */}
+        {/* Exact Match Empty State Card from Screenshot */}
         {tables.length === 0 && !isUploading && (
-          <div className="space-y-8 mt-2">
-            <div className="bg-[#ebf4ff] border border-[#d1e6ff] rounded-[2.5rem] p-8 text-center shadow-inner relative overflow-hidden flex flex-col items-center">
-              {/* Visual Flow: File -> Arrow -> Cloud */}
+          <div className="space-y-10 mt-2 px-1">
+            <div className="bg-[#f0f7ff] border border-[#dcecfe] rounded-[2.5rem] p-8 text-center flex flex-col items-center">
+              {/* Icon Flow */}
               <div className="flex items-center justify-center gap-4 mb-8">
-                <div className="w-14 h-14 bg-white rounded-2xl shadow-xl shadow-blue-500/5 flex items-center justify-center text-[#10b981] transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                <div className="w-14 h-14 bg-white rounded-2xl shadow-lg shadow-blue-500/5 flex items-center justify-center text-[#10b981]">
                   <FileSpreadsheet size={28} />
                 </div>
-                <div className="flex flex-col items-center justify-center">
-                   <ArrowRight size={18} className="text-blue-300 animate-[bounce-x_1.5s_infinite]" />
-                </div>
-                <div className="w-14 h-14 bg-[#0066ff] rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center text-white transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                <ArrowRight size={18} className="text-blue-200" />
+                <div className="w-14 h-14 bg-[#0066ff] rounded-2xl shadow-lg shadow-blue-500/20 flex items-center justify-center text-white">
                   <Cloud size={28} />
                 </div>
               </div>
 
-              <div className="space-y-3 mb-10">
-                <h3 className="text-xs font-black text-[#1e40af] uppercase tracking-wider">Empty Knowledge Vault</h3>
-                <p className="text-[11px] text-[#3b82f6] font-bold leading-relaxed px-2">
+              {/* Text Area */}
+              <div className="space-y-3 mb-10 px-2">
+                <h3 className="text-xs font-black text-[#1e40af] uppercase tracking-wider">EMPTY KNOWLEDGE VAULT</h3>
+                <p className="text-[13px] text-[#3b82f6] font-bold leading-relaxed">
                   Your local data is one click away from becoming insights.
                 </p>
               </div>
 
-              {/* Action Button */}
-              <label className="w-full py-3.5 bg-white border-2 border-[#d1e6ff] text-[#0066ff] rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-50 hover:shadow-xl hover:shadow-blue-500/10 transition-all flex items-center justify-center active:scale-95 shadow-md">
-                Upload Excel / CSV
+              {/* Card Action Button */}
+              <label className="w-full py-4 bg-white border border-[#dcecfe] text-[#0066ff] rounded-2xl text-[12px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-50 transition-all flex items-center justify-center shadow-sm active:scale-95">
+                UPLOAD EXCEL / CSV
                 <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />
               </label>
             </div>
             
-            <div className="px-4 py-2 border-l-4 border-[#d1e6ff]">
-               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-loose">
-                 Pro Tip: Tables are persistent across your notebook session.
+            {/* Pro Tip Section */}
+            <div className="px-5 py-2 border-l-2 border-[#dcecfe]">
+               <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest leading-loose">
+                 PRO TIP: TABLES ARE PERSISTENT ACROSS YOUR NOTEBOOK SESSION.
                </p>
             </div>
           </div>
@@ -107,18 +106,19 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
               onClick={() => toggleTable(table.id)}
               className="w-full flex items-center gap-2 px-2 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-all text-left"
             >
-              {expanded[table.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <Table size={14} className="opacity-70" />
+              <div className="shrink-0">
+                {expanded[table.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </div>
+              <Table size={14} className="opacity-70 shrink-0" />
               <span className="truncate font-bold flex-1">{table.tableName}</span>
 
-              <div className="flex items-center gap-1.5 min-w-[32px] justify-end">
+              <div className="flex items-center gap-1.5 min-w-[32px] justify-end shrink-0">
                 {refreshing[table.tableName] ? (
                   <RefreshCw size={10} className="text-blue-500 animate-spin" />
                 ) : (table.rowCount === -1 || table.rowCount === undefined) ? (
                   <div
                     onClick={(e) => handleRefresh(e, table.tableName)}
                     className="p-1 hover:bg-blue-100 rounded text-blue-500 transition-colors cursor-pointer"
-                    title="Fetch statistics"
                   >
                     <RefreshCw size={10} />
                   </div>
@@ -143,7 +143,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                 {table.columns.map(col => (
                   <div
                     key={col.name}
-                    className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-blue-50 group/col"
+                    className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-blue-50 group/col cursor-help"
                   >
                     <span className="text-[11px] text-gray-500 font-mono font-bold truncate flex-1 group-hover/col:text-blue-600">
                       {col.name}
@@ -163,20 +163,9 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
       <div className="p-4 bg-gray-50/50 text-[10px] text-gray-400 border-t border-gray-100 font-bold uppercase tracking-widest space-y-1 mt-auto">
         <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isUploading ? 'bg-orange-500 animate-pulse' : 'bg-blue-500'}`}></div>
-          {isUploading ? 'Syncing to Cluster...' : 'Infrastructure Active'}
-        </div>
-        <div className="flex items-center gap-2">
-           <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-           VPC Node Connected
+          {isUploading ? 'SYNCING TO CLUSTER...' : 'INFRASTRUCTURE ACTIVE'}
         </div>
       </div>
-
-      <style>{`
-        @keyframes bounce-x {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(6px); opacity: 0.5; }
-        }
-      `}</style>
     </div>
   );
 };

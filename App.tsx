@@ -326,20 +326,23 @@ const App: React.FC = () => {
         const rawJsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
         const tableName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
 
-        // Infer semantic metadata from column headers and sample data
+        // Step 1: Infer column semantic metadata before table creation
         let aiComments: Record<string, string> = {};
         try {
           aiComments = await ai.inferColumnMetadata(tableName, rawJsonData);
         } catch (inferErr) {
-          console.warn("AI Metadata Inference failed, falling back to basic headers", inferErr);
+          console.warn("AI Metadata Inference failed:", inferErr);
         }
 
+        // Step 2: Create table with inferred comments
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(tableName, rawJsonData, currentNotebook.db_name, aiComments);
 
+        // Step 3: Update local state
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
 
+        // Step 4: Optionally update project topic name based on new data
         try {
           const newTopic = await ai.generateTopic(project.topicName, updatedTables);
           if (newTopic && newTopic !== project.topicName) {
