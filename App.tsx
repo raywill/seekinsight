@@ -12,7 +12,7 @@ import SqlPublishPanel from './components/SqlPublishPanel';
 import PythonPublishPanel from './components/PythonPublishPanel';
 import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
-import { Boxes, LayoutGrid, Loader2, Database, Sparkles, PencilLine, Check, X, ArrowRight, Trash2, Calendar, Database as DbIcon, Zap, Brain, BarChart3, Layers, Cpu, Activity, LogOut, Plus } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, Check, X, ArrowRight, Trash2, Calendar, LogOut, Plus } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -48,7 +48,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm("确定要删除这个 Notebook 及其所有数据吗？")) return;
+    if (!confirm("确定要彻底删除这个 Notebook 及其所有物理数据吗？")) return;
     await fetch(`${gatewayUrl}/notebooks/${id}`, { method: 'DELETE' });
     fetchNotebooks();
   };
@@ -73,7 +73,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20"><Boxes className="text-white" size={28} /></div>
              <div>
                <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">SeekInsight</h1>
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Shared Laboratory Platform</p>
+               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Personal Knowledge Graph</p>
              </div>
           </div>
           <button 
@@ -82,7 +82,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
             className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl font-black flex items-center gap-3 hover:bg-blue-700 transition-all shadow-2xl shadow-blue-500/20 active:scale-95 disabled:opacity-50"
           >
             {creating ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
-            CREATE NOTEBOOK
+            NEW NOTEBOOK
           </button>
         </header>
 
@@ -90,7 +90,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
            {notebooks.length === 0 && !creating && (
              <div className="col-span-full py-32 text-center space-y-4 border-2 border-dashed border-gray-200 rounded-[3rem]">
                 <div className="w-20 h-20 bg-blue-50 text-blue-300 rounded-3xl flex items-center justify-center mx-auto"><Sparkles size={40} /></div>
-                <h3 className="text-xl font-bold text-gray-400">No projects yet. Start your first research today.</h3>
+                <h3 className="text-xl font-bold text-gray-400">Empty Vault. Start your first research project.</h3>
              </div>
            )}
            {notebooks.map(nb => (
@@ -117,7 +117,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
                     {new Date(nb.created_at).toLocaleDateString()}
                   </div>
                   <div className="mt-6 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">NB_{nb.id.toUpperCase()}</span>
+                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">ID: {nb.id.toUpperCase()}</span>
                     <ArrowRight size={20} className="text-gray-200 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
                   </div>
                 </div>
@@ -135,7 +135,6 @@ const App: React.FC = () => {
   const [dbReady, setDbReady] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [hasUnreadSuggestions, setHasUnreadSuggestions] = useState(false);
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [tempTopic, setTempTopic] = useState("");
 
@@ -176,7 +175,6 @@ const App: React.FC = () => {
     const engine = new MySQLEngine();
     setDatabaseEngine(engine);
     
-    // Check URL for notebook context
     const params = new URLSearchParams(window.location.search);
     const nbId = params.get('nb');
     if (nbId) {
@@ -206,12 +204,13 @@ const App: React.FC = () => {
 
   const handleExit = () => {
     setCurrentNotebook(null);
+    setDbReady(false);
     window.history.pushState({}, '', '/');
   };
 
   const handleUpdateTopic = async (newTopic: string) => {
     if (!currentNotebook) return;
-    const trimmed = newTopic.trim().substring(0, 20) || "未命名主题";
+    const trimmed = newTopic.trim().substring(0, 30) || "未命名主题";
     setProject(prev => ({ ...prev, topicName: trimmed }));
     setIsEditingTopic(false);
     

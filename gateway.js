@@ -2,19 +2,16 @@
 import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
-import { exec, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { promisify } from 'util';
-import { performance } from 'perf_hooks';
 import crypto from 'crypto';
 
-const execPromise = promisify(exec);
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = 3001;
+const PORT = 3001; // 统一为 3001
 const VENV_PATH = path.join(process.cwd(), '.venv');
 const PYTHON_EXE = process.platform === 'win32' 
   ? path.join(VENV_PATH, 'Scripts', 'python.exe') 
@@ -71,7 +68,7 @@ async function initSystem() {
   `);
 }
 
-// Notebook Management APIs
+// Lobby APIs
 app.get('/notebooks', async (req, res) => {
   try {
     const pool = await getPool(SYSTEM_DB);
@@ -85,10 +82,17 @@ app.get('/notebooks', async (req, res) => {
 app.post('/notebooks', async (req, res) => {
   try {
     const id = crypto.randomBytes(4).toString('hex');
-    const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
+    // 规范命名: nb_yyyyMMddHHmmss_uuid
+    const now = new Date();
+    const timestamp = now.getFullYear().toString() + 
+                      (now.getMonth() + 1).toString().padStart(2, '0') + 
+                      now.getDate().toString().padStart(2, '0') + 
+                      now.getHours().toString().padStart(2, '0') + 
+                      now.getMinutes().toString().padStart(2, '0') + 
+                      now.getSeconds().toString().padStart(2, '0');
     const dbName = `nb_${timestamp}_${id}`;
     
-    // Physical DB Creation
+    // 物理库创建
     const rootConn = await mysql.createConnection({
         host: process.env.MYSQL_IP || '127.0.0.1',
         port: parseInt(process.env.MYSQL_PORT || '3306'),
@@ -98,11 +102,11 @@ app.post('/notebooks', async (req, res) => {
     await rootConn.query(`CREATE DATABASE \`${dbName}\``);
     await rootConn.end();
 
-    // Icon pool
+    // 随机图标
     const icons = ['Database', 'Zap', 'Brain', 'BarChart3', 'Layers', 'Boxes', 'Cpu', 'Activity'];
     const randomIcon = icons[Math.floor(Math.random() * icons.length)];
 
-    // Control Plane Registry
+    // 控制平面注册 (user_id 预留为 0)
     const sysPool = await getPool(SYSTEM_DB);
     await sysPool.query(
       `INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name) VALUES (?, ?, ?, ?, ?)`,
@@ -153,10 +157,10 @@ app.delete('/notebooks/:id', async (req, res) => {
   }
 });
 
-// Data Execution APIs
+// Execution APIs
 app.post('/sql', async (req, res) => {
   const { sql, dbName } = req.body;
-  if (!dbName) return res.status(400).json({ message: 'Missing dbName context' });
+  if (!dbName) return res.status(400).json({ message: 'Missing dbName' });
   try {
     const pool = await getPool(dbName);
     const [rows, fields] = await pool.query(sql);
@@ -169,7 +173,7 @@ app.post('/sql', async (req, res) => {
 
 app.post('/python', async (req, res) => {
   const { code, dbName } = req.body;
-  if (!dbName) return res.status(400).json({ message: 'Missing dbName context' });
+  if (!dbName) return res.status(400).json({ message: 'Missing dbName' });
 
   const host = process.env.MYSQL_IP || '127.0.0.1';
   const port = process.env.MYSQL_PORT || '3306';

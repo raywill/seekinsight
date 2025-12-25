@@ -82,8 +82,11 @@ export class MySQLEngine implements DatabaseEngine {
     const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
     if (!data || data.length === 0) throw new Error("Data is empty");
 
-    const columns: Column[] = Object.keys(data[0]).map(key => ({
-      name: key,
+    const originalKeys = Object.keys(data[0]);
+    
+    // Clean column names: Trim and replace non-alphanumeric characters with underscores
+    const columns: Column[] = originalKeys.map(key => ({
+      name: key.trim().replace(/[^a-zA-Z0-9]/g, '_'),
       type: typeof data[0][key] === 'number' ? 'DECIMAL(20,2)' : 'VARCHAR(255)',
       comment: aiComments?.[key] || `Imported: ${key}`
     }));
@@ -92,18 +95,20 @@ export class MySQLEngine implements DatabaseEngine {
     await this.executeQuery(`DROP TABLE IF EXISTS \`${sanitizedName}\``, dbName);
     await this.executeQuery(`CREATE TABLE \`${sanitizedName}\` (${ddlCols})`, dbName);
 
-    const keys = Object.keys(data[0]);
+    const cleanedKeys = columns.map(c => c.name);
     const batchSize = 100;
     for (let i = 0; i < data.length; i += batchSize) {
       const chunk = data.slice(i, i + batchSize);
       const valuesList = chunk.map(row => 
-        `(${keys.map(k => {
+        `(${originalKeys.map(k => {
           const val = row[k];
           if (val === null || val === undefined) return 'NULL';
           return typeof val === 'string' ? `'${val.replace(/'/g, "''")}'` : val;
         }).join(',')})`
       ).join(',');
-      await this.executeQuery(`INSERT INTO \`${sanitizedName}\` (\`${keys.join('`,`')}\`) VALUES ${valuesList}`, dbName);
+      
+      // Use cleaned column names in the INSERT statement
+      await this.executeQuery(`INSERT INTO \`${sanitizedName}\` (\`${cleanedKeys.join('`,`')}\`) VALUES ${valuesList}`, dbName);
     }
 
     return {
