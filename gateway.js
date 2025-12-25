@@ -18,19 +18,16 @@ const VENV_PYTHON = process.platform === 'win32'
   ? path.join(VENV_PATH, 'Scripts', 'python.exe') 
   : path.join(VENV_PATH, 'bin', 'python');
 
-// Function to find the best available python executable
 function getPythonExecutable() {
   if (fs.existsSync(VENV_PYTHON)) {
     return VENV_PYTHON;
   }
-  // Fallback to system python
   return process.platform === 'win32' ? 'python' : 'python3';
 }
 
 const SYSTEM_DB = 'seekinsight';
 const NOTEBOOK_LIST_TABLE = 'seekinsight_notebook_list';
 
-// Pool Management
 const pools = new Map();
 
 function getPoolConfig(db = '') {
@@ -43,8 +40,15 @@ function getPoolConfig(db = '') {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    // CRITICAL: Prevent mysql2 from converting DATETIME to JS Date objects (which forces UTC)
-    dateStrings: true 
+    // CRITICAL FIX: Prevent mysql2 from converting DATETIME to JS Date objects
+    dateStrings: true,
+    typeCast: function (field, next) {
+      // Force return strings for all date-related types to avoid timezone conversion in JS
+      if (field.type === 'DATETIME' || field.type === 'DATE' || field.type === 'TIMESTAMP') {
+        return field.string();
+      }
+      return next();
+    }
   };
 }
 
@@ -68,7 +72,6 @@ async function initSystem() {
   await rootConn.end();
 
   const sysPool = await getPool(SYSTEM_DB);
-  // Ensure the table has the suggestions_json column
   await sysPool.query(`
     CREATE TABLE IF NOT EXISTS \`${NOTEBOOK_LIST_TABLE}\` (
       id VARCHAR(50) PRIMARY KEY,
@@ -81,7 +84,6 @@ async function initSystem() {
     )
   `);
 
-  // Migration: Check if suggestions_json exists, if not add it
   try {
     const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${NOTEBOOK_LIST_TABLE}\` LIKE 'suggestions_json'`);
     if (columns.length === 0) {
@@ -92,7 +94,6 @@ async function initSystem() {
   }
 }
 
-// Lobby APIs
 app.get('/notebooks', async (req, res) => {
   try {
     const pool = await getPool(SYSTEM_DB);
@@ -199,7 +200,6 @@ app.delete('/notebooks/:id', async (req, res) => {
   }
 });
 
-// Execution APIs
 app.post('/sql', async (req, res) => {
   const { sql, dbName } = req.body;
   if (!dbName) return res.status(400).json({ message: 'Missing dbName' });
@@ -234,6 +234,7 @@ import json
 import sys
 import plotly.io as pio
 try:
+    # Use coerce_datetime=False to keep dates as strings if possible or rely on pandas default
     engine = create_engine("${connectionString}")
     def sql(query): return pd.read_sql(query, engine)
     def forge_plotly(fig): print(f"__PLOTLY_DATA__:{pio.to_json(fig)}")
@@ -267,8 +268,6 @@ except Exception as e:
 
   pyProcess.on('close', (exitCode) => {
     if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
-    
-    // If error was already handled by 'error' event, return
     if (res.headersSent) return;
 
     let plotlyData = null;

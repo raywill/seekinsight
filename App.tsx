@@ -24,13 +24,18 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
 
   const fetchNotebooks = () => {
     fetch(`${gatewayUrl}/notebooks`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Gateway Error");
+        return res.json();
+      })
       .then(data => {
-        setNotebooks(data || []);
+        // FIX: Ensure data is an array to prevent .map crash (White Screen)
+        setNotebooks(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(err => {
         console.error("Failed to fetch notebooks:", err);
+        setNotebooks([]);
         setLoading(false);
       });
   };
@@ -43,10 +48,11 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
     setCreating(true);
     try {
       const res = await fetch(`${gatewayUrl}/notebooks`, { method: 'POST' });
+      if (!res.ok) throw new Error("Create Failed");
       const nb = await res.json();
       onOpen(nb);
     } catch (e) {
-      alert("创建失败: 请检查后端服务是否启动");
+      alert("创建失败: 请检查后端服务是否启动并配置正确");
     } finally {
       setCreating(false);
     }
@@ -55,14 +61,23 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm("确定要彻底删除这个 Notebook 及其所有物理数据吗？")) return;
-    await fetch(`${gatewayUrl}/notebooks/${id}`, { method: 'DELETE' });
-    fetchNotebooks();
+    try {
+      await fetch(`${gatewayUrl}/notebooks/${id}`, { method: 'DELETE' });
+      fetchNotebooks();
+    } catch (e) {
+      alert("删除失败");
+    }
   };
 
   const renderIcon = (name: string) => {
-    const IconComponent = (Icons as any)[name];
-    if (!IconComponent) return <Database size={24} />;
-    return <IconComponent size={24} />;
+    try {
+      // FIX: Robust check for icon component to prevent rendering crash
+      const IconComponent = (Icons as any)[name];
+      if (typeof IconComponent !== 'function') return <Database size={24} />;
+      return <IconComponent size={24} />;
+    } catch (e) {
+      return <Database size={24} />;
+    }
   };
 
   if (loading) return (
@@ -189,8 +204,10 @@ const App: React.FC = () => {
       fetch(`${gatewayUrl}/notebooks`)
         .then(res => res.json())
         .then(notebooks => {
-          const found = notebooks.find((n: Notebook) => n.id === nbId);
-          if (found) handleOpenNotebook(found);
+          if (Array.isArray(notebooks)) {
+            const found = notebooks.find((n: Notebook) => n.id === nbId);
+            if (found) handleOpenNotebook(found);
+          }
         })
         .catch(err => console.error("Auto-open failed:", err));
     }
@@ -261,7 +278,6 @@ const App: React.FC = () => {
     });
   };
 
-  // AI HANDLERS
   const handleSqlAiGenerate = async (promptOverride?: string) => {
     const promptToUse = promptOverride || project.sqlAiPrompt;
     if (!promptToUse) return;
@@ -292,8 +308,7 @@ const App: React.FC = () => {
     try {
       const logs = project.lastSqlResult.logs?.join('\n') || '';
       const fixed = await ai.debugCode(project.sqlAiPrompt, DevMode.SQL, project.tables, project.sqlCode, logs);
-      setProject(prev => ({ ...prev, sqlCode: fixed, isSqlAiFixing: false }));
-      // Automatically run the fixed SQL
+      setProject(prev => ({ ...prev, sqlCode: fixed, isAiFixing: false, isSqlAiFixing: false }));
       handleRun(fixed);
     } catch (err) {
       setProject(prev => ({ ...prev, isSqlAiFixing: false }));
@@ -306,8 +321,7 @@ const App: React.FC = () => {
     try {
       const logs = project.lastPythonResult.logs?.join('\n') || '';
       const fixed = await ai.debugCode(project.pythonAiPrompt, DevMode.PYTHON, project.tables, project.pythonCode, logs);
-      setProject(prev => ({ ...prev, pythonCode: fixed, isPythonAiFixing: false }));
-      // Automatically run the fixed Python script
+      setProject(prev => ({ ...prev, pythonCode: fixed, isAiFixing: false, isPythonAiFixing: false }));
       handleRun(fixed);
     } catch (err) {
       setProject(prev => ({ ...prev, isPythonAiFixing: false }));
