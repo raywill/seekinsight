@@ -12,7 +12,7 @@ import SqlPublishPanel from './components/SqlPublishPanel';
 import PythonPublishPanel from './components/PythonPublishPanel';
 import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
-import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, Check, X, ArrowRight, Trash2, Calendar, LogOut, Plus } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, Check, X, ArrowRight, Trash2, Calendar, LogOut, Plus, Database } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -26,7 +26,11 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
     fetch(`${gatewayUrl}/notebooks`)
       .then(res => res.json())
       .then(data => {
-        setNotebooks(data);
+        setNotebooks(data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch notebooks:", err);
         setLoading(false);
       });
   };
@@ -41,6 +45,8 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
       const res = await fetch(`${gatewayUrl}/notebooks`, { method: 'POST' });
       const nb = await res.json();
       onOpen(nb);
+    } catch (e) {
+      alert("创建失败: 请检查后端服务是否启动");
     } finally {
       setCreating(false);
     }
@@ -53,15 +59,16 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
     fetchNotebooks();
   };
 
-  const getIcon = (name: string) => {
-    const IconComponent = (Icons as any)[name] || Icons.Database;
+  const renderIcon = (name: string) => {
+    const IconComponent = (Icons as any)[name];
+    if (!IconComponent) return <Database size={24} />;
     return <IconComponent size={24} />;
   };
 
   if (loading) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6">
       <Loader2 className="animate-spin text-blue-600" size={64} />
-      <h1 className="text-2xl font-black text-gray-900 tracking-tight">ACCESSING INSIGHT VAULT...</h1>
+      <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Accessing Insight Vault...</h1>
     </div>
   );
 
@@ -102,7 +109,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
                 <div className="relative z-10 flex flex-col h-full">
                   <div className="flex justify-between items-start mb-6">
                     <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-                      {getIcon(nb.icon_name)}
+                      {renderIcon(nb.icon_name)}
                     </div>
                     <button
                       onClick={(e) => handleDelete(e, nb.id)}
@@ -179,10 +186,13 @@ const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const nbId = params.get('nb');
     if (nbId) {
-      fetch(`${gatewayUrl}/notebooks`).then(res => res.json()).then(notebooks => {
-        const found = notebooks.find((n: Notebook) => n.id === nbId);
-        if (found) handleOpenNotebook(found);
-      });
+      fetch(`${gatewayUrl}/notebooks`)
+        .then(res => res.json())
+        .then(notebooks => {
+          const found = notebooks.find((n: Notebook) => n.id === nbId);
+          if (found) handleOpenNotebook(found);
+        })
+        .catch(err => console.error("Auto-open failed:", err));
     }
   }, []);
 
@@ -345,7 +355,6 @@ const App: React.FC = () => {
         });
       }
     } catch (err: any) {
-      // SI_DEBUG_MODE implementation: print to console if enabled
       if (process.env.SI_DEBUG_MODE !== 'false') {
         console.error(`[Execution Error - ${currentMode}]:`, err);
       }
@@ -377,15 +386,12 @@ const App: React.FC = () => {
     reader.onload = async (e) => {
       try {
         const rawFileData = e.target?.result;
-        // Optimization: Use cellDates: true and dateNF to ensure Excel dates are parsed as standard JS Date objects.
         const workbook = XLSX.read(rawFileData, { 
           type: 'binary', 
           cellDates: true,
           dateNF: 'yyyy-mm-dd'
         });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        
-        // 1. Get raw array to check for headers
         const rawArrayData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
         if (rawArrayData.length === 0) throw new Error("File is empty");
 
@@ -394,7 +400,6 @@ const App: React.FC = () => {
         let finalObjects: any[] = [];
         let suspiciousNoHeader = true;
 
-        // 2. Heuristic check: If any column has different type in Row 0 vs Row 1, it's likely a header
         if (rawArrayData.length > 1) {
           for (let col = 0; col < rawArrayData[0].length; col++) {
             const type0 = typeof rawArrayData[0][col];
@@ -406,19 +411,16 @@ const App: React.FC = () => {
           }
         }
 
-        // 3. AI Deep Dive if heuristic is suspicious (types are same)
         if (suspiciousNoHeader && rawArrayData.length > 0) {
           const aiResult = await ai.analyzeHeaders(sampleRows);
           if (aiResult.hasHeader) {
             finalHeaders = rawArrayData[0].map(h => String(h || `col_${Math.random().toString(36).substr(2, 4)}`));
-            // Convert array to objects starting from row 1
             finalObjects = rawArrayData.slice(1).map(row => {
               const obj: any = {};
               finalHeaders.forEach((h, i) => obj[h] = row[i]);
               return obj;
             });
           } else {
-            // No header - use AI generated headers and include row 0 as data
             finalHeaders = aiResult.headers;
             finalObjects = rawArrayData.map(row => {
               const obj: any = {};
@@ -427,7 +429,6 @@ const App: React.FC = () => {
             });
           }
         } else {
-          // Heuristic says there is a header
           finalHeaders = rawArrayData[0].map(h => String(h || `col_${Math.random().toString(36).substr(2, 4)}`));
           finalObjects = rawArrayData.slice(1).map(row => {
             const obj: any = {};
@@ -436,10 +437,7 @@ const App: React.FC = () => {
           });
         }
 
-        // Only trim filename for table name creation, supporting Chinese characters.
         const tableName = file.name.split('.')[0].trim();
-
-        // 4. Infer semantic metadata for comments
         let aiComments: Record<string, string> = {};
         try {
           aiComments = await ai.inferColumnMetadata(tableName, finalObjects);
@@ -447,7 +445,6 @@ const App: React.FC = () => {
           console.warn("AI Metadata Inference failed", inferErr);
         }
 
-        // 5. Create table in Database
         const db = getDatabaseEngine();
         const newTable = await db.createTableFromData(
           tableName, 
@@ -462,7 +459,6 @@ const App: React.FC = () => {
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
 
-        // 6. Regenerate topic if needed
         try {
           const newTopic = await ai.generateTopic(project.topicName, updatedTables);
           if (newTopic && newTopic !== project.topicName) {

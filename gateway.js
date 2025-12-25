@@ -42,7 +42,9 @@ function getPoolConfig(db = '') {
     database: db,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    // CRITICAL: Prevent mysql2 from converting DATETIME to JS Date objects (which forces UTC)
+    dateStrings: true 
   };
 }
 
