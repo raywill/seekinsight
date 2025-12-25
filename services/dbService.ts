@@ -6,13 +6,13 @@ export interface DatabaseEngine {
   executeQuery(sql: string): Promise<ExecutionResult>;
   createTableFromData(name: string, data: any[], aiComments?: Record<string, string>): Promise<TableMetadata>;
   getTables(): Promise<TableMetadata[]>;
-  refreshTableStats(tableName: string): Promise<number>; // 新增：刷新单表行数
+  refreshTableStats(tableName: string): Promise<number>;
   isReady(): boolean;
+  // New methods for persistent config
+  getConfig(key: string): Promise<string | null>;
+  setConfig(key: string, value: string): Promise<void>;
 }
 
-/**
- * Global database service instance.
- */
 let instance: DatabaseEngine | null = null;
 
 export const setDatabaseEngine = (engine: DatabaseEngine) => {

@@ -47,17 +47,14 @@ export const SYSTEM_PROMPTS = {
 
   METADATA_INFER: `You are a data architect. Generate brief semantic descriptions for database columns based on headers and sample data. Respond ONLY with a valid JSON object.`,
 
-  ANALYSIS: `You are a senior data analyst. Provide a professional executive summary and 3 actionable data insights in Markdown format based on the query and results. ${LANGUAGE_REQ}`,
+  ANALYSIS: (topic: string) => `You are a senior data analyst. The current business topic is: "${topic}". 
+    Provide a professional executive summary and 3 actionable data insights in Markdown format based on the query and results. 
+    Analyze the data strictly within the context of the business topic. ${LANGUAGE_REQ}`,
 
   CHART_REC: `You are a Data Visualization Expert. Analyze the dataset structure and recommend the most insightful charts.
     Rules:
     - Respond ONLY with a JSON object containing a "charts" array.
     - Supported chart types: "bar", "line", "pie", "area".
-    - If there's a time column, prefer "line" or "area".
-    - If there's a category and one metric, prefer "bar" or "pie".
-    - If there are multiple numeric metrics, include them in "yKeys".
-    - Limit to 3 charts max.
-    
     JSON Structure:
     {
       "charts": [
@@ -71,17 +68,18 @@ export const SYSTEM_PROMPTS = {
       ]
     }`,
 
-  SUGGESTIONS: `You are a strategic data consultant. Based on the database schema, generate actionable data analysis ideas.
+  SUGGESTIONS: (topic: string) => `You are a strategic data consultant. The current business project topic is: "${topic}". 
+    Based on this topic and the provided database schema, generate 3-5 high-value and actionable data analysis ideas (SQL or Python).
     Respond ONLY with a JSON object containing a "suggestions" array.
-    
-    Each suggestion object MUST have:
-    - "id": A unique string.
-    - "title": A short, professional title for the analysis.
-    - "prompt": A detailed natural language prompt describing the analysis intent.
-    - "category": A business domain (e.g., "Sales", "Inventory", "Customer", "Finance").
-    - "type": MUST be either "SQL" or "PYTHON".
-    
-    Balance the results: 4 SQL ideas and 4 Python ideas.
+    ${LANGUAGE_REQ}`,
+
+  TOPIC_GEN: `You are a senior data product manager. Your task is to summarize a concise business topic name for the current project.
+    Rules:
+    - Consider the current topic and all available table schemas.
+    - Output must be a single string, NO punctuation, NO markdown.
+    - MAXIMUM 10 Chinese characters.
+    - High priority to the current topic: if it still represents the data well, keep it.
+    - Output ONLY the result string.
     ${LANGUAGE_REQ}`
 };
 
@@ -90,5 +88,8 @@ export const USER_PROMPTS = {
     `Table: ${tableName}\nHeaders: ${headers.join(', ')}\nSample Data: ${JSON.stringify(sample)}`,
     
   CHART_REC: (query: string, columns: any[], sample: any[]) => 
-    `Query: "${query}"\nColumns: ${JSON.stringify(columns)}\nSample Data: ${JSON.stringify(sample)}`
+    `Query: "${query}"\nColumns: ${JSON.stringify(columns)}\nSample Data: ${JSON.stringify(sample)}`,
+
+  TOPIC_GEN: (currentTopic: string, schemas: string) => 
+    `Current Topic: ${currentTopic}\n\nDatabase Schemas:\n${schemas}\n\nSummarize a new topic name (max 10 chars):`
 };

@@ -7,6 +7,8 @@ export class SQLiteEngine implements DatabaseEngine {
   private db: any = null;
   private tables: TableMetadata[] = [];
   private ready: boolean = false;
+  // Added config store to satisfy DatabaseEngine interface
+  private configStorage: Record<string, string> = {};
 
   async init() {
     try {
@@ -40,6 +42,16 @@ export class SQLiteEngine implements DatabaseEngine {
 
   isReady() {
     return this.ready;
+  }
+
+  // Implementation of getConfig for DatabaseEngine
+  async getConfig(key: string): Promise<string | null> {
+    return this.configStorage[key] || null;
+  }
+
+  // Implementation of setConfig for DatabaseEngine
+  async setConfig(key: string, value: string): Promise<void> {
+    this.configStorage[key] = value;
   }
 
   async executeQuery(sql: string): Promise<ExecutionResult> {

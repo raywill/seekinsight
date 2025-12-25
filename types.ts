@@ -57,12 +57,12 @@ export interface AppMarketItem {
 
 export interface ProjectState {
   name: string;
+  topicName: string; // New field
   owner: string;
   tables: TableMetadata[];
   activeMode: DevMode;
   sqlCode: string;
   pythonCode: string;
-  // History for Undo
   lastSqlCodeBeforeAi: string | null;
   lastPythonCodeBeforeAi: string | null;
   sqlAiPrompt: string;
@@ -74,7 +74,6 @@ export interface ProjectState {
   isAnalyzing: boolean;
   isRecommendingCharts: boolean;
   isDeploying: boolean;
-  // AI Status split to avoid UI conflict
   isSqlAiGenerating: boolean;
   isSqlAiFixing: boolean;
   isPythonAiGenerating: boolean;

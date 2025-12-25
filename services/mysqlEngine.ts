@@ -6,11 +6,11 @@ export class MySQLEngine implements DatabaseEngine {
   private tables: TableMetadata[] = [];
   private ready: boolean = false;
   private sessionId: string | null = null;
+  private configTableName = '__seekinsight_config';
   
-  // Use the environment variable or fallback to localhost
   private gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
-  private getConfig() {
+  private getConfigParams() {
     return {
       dbHost: typeof process !== 'undefined' ? process.env.MYSQL_IP : undefined,
       dbPort: typeof process !== 'undefined' ? process.env.MYSQL_PORT : undefined,
@@ -21,7 +21,7 @@ export class MySQLEngine implements DatabaseEngine {
   }
 
   async init() {
-    const config = this.getConfig();
+    const config = this.getConfigParams();
     if (!config.dbHost || !config.dbPort) {
       throw new Error("Missing MYSQL_IP or MYSQL_PORT environment variables.");
     }
@@ -43,30 +43,57 @@ export class MySQLEngine implements DatabaseEngine {
       if (!response.ok) throw new Error(result.message || "Failed to connect to gateway.");
 
       this.sessionId = result.sessionId;
-      this.ready = true;
       
+      // Ensure config table exists
+      await this.executeQuery(`
+        CREATE TABLE IF NOT EXISTS \`${this.configTableName}\` (
+          cfg_key VARCHAR(50) PRIMARY KEY,
+          cfg_value TEXT
+        ) COMMENT 'Internal system configuration'
+      `);
+
+      this.ready = true;
       await this.loadExistingTables();
     } catch (err: any) {
       this.ready = false;
-      throw new Error(`Database backend connection failed: ${err.message}. Ensure gateway is reachable at ${this.gatewayUrl}`);
+      throw new Error(`Database backend connection failed: ${err.message}.`);
     }
   }
 
+  async getConfig(key: string): Promise<string | null> {
+    try {
+      const res = await this.executeQuery(`SELECT cfg_value FROM \`${this.configTableName}\` WHERE cfg_key = '${key}'`);
+      return res.data[0]?.cfg_value || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async setConfig(key: string, value: string): Promise<void> {
+    const sanitizedVal = value.replace(/'/g, "''");
+    await this.executeQuery(`REPLACE INTO \`${this.configTableName}\` (cfg_key, cfg_value) VALUES ('${key}', '${sanitizedVal}')`);
+  }
+
   private async loadExistingTables() {
-    const config = this.getConfig();
+    const config = this.getConfigParams();
     try {
       const tablesInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME 
         FROM information_schema.TABLES 
-        WHERE TABLE_SCHEMA = '${config.dbName}'
+        WHERE TABLE_SCHEMA = '${config.dbName}' 
+        AND TABLE_NAME NOT LIKE '__%'
       `);
       
-      if (tablesInfoRes.data.length === 0) return;
+      if (tablesInfoRes.data.length === 0) {
+        this.tables = [];
+        return;
+      }
 
       const columnsInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_COMMENT 
         FROM information_schema.COLUMNS 
         WHERE TABLE_SCHEMA = '${config.dbName}'
+        AND TABLE_NAME NOT LIKE '__%'
         ORDER BY TABLE_NAME, ORDINAL_POSITION
       `);
 
@@ -82,26 +109,16 @@ export class MySQLEngine implements DatabaseEngine {
         });
       });
 
-      const loadedTables: TableMetadata[] = tablesInfoRes.data.map(row => ({
+      this.tables = tablesInfoRes.data.map(row => ({
         id: Math.random().toString(36).substr(2, 9),
         tableName: row.TABLE_NAME,
         columns: columnsByTable[row.TABLE_NAME] || [],
         rowCount: -1 
       }));
 
-      this.tables = loadedTables;
     } catch (err) {
-      console.warn("Failed to load existing tables efficiently:", err);
-      try {
-        const res = await this.executeQuery(`SHOW TABLES`);
-        const tableNames = res.data.map(row => Object.values(row)[0] as string);
-        this.tables = tableNames.map(name => ({
-          id: Math.random().toString(36).substr(2, 9),
-          tableName: name,
-          columns: [],
-          rowCount: -1 
-        }));
-      } catch (e) {}
+      console.warn("Failed to load tables:", err);
+      this.tables = [];
     }
   }
 
@@ -131,10 +148,8 @@ export class MySQLEngine implements DatabaseEngine {
   async refreshTableStats(tableName: string): Promise<number> {
     const res = await this.executeQuery(`SELECT COUNT(*) as cnt FROM \`${tableName}\``);
     const count = parseInt(res.data[0].cnt || 0);
-    
     const table = this.tables.find(t => t.tableName === tableName);
     if (table) table.rowCount = count;
-    
     return count;
   }
 

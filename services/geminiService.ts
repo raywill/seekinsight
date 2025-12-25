@@ -3,6 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 
+// Initialize the Gemini API client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3001';
@@ -122,7 +123,7 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
 /**
  * Uses Gemini 3 Flash for quick summarization and analysis.
  */
-export const generateAnalysis = async (query: string, result: any[], prompt?: string): Promise<string> => {
+export const generateAnalysis = async (query: string, result: any[], topic: string, prompt?: string): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
   
   const userContent = `
@@ -131,13 +132,14 @@ Executed SQL: ${query}
 Result Data (Sample): ${JSON.stringify(result.slice(0, 5))}
   `.trim();
   
-  await logPrompt('ANALYSIS', `System: ${SYSTEM_PROMPTS.ANALYSIS}\nUser: ${userContent}`);
+  const systemInstruction = SYSTEM_PROMPTS.ANALYSIS(topic);
+  await logPrompt('ANALYSIS', `System: ${systemInstruction}\nUser: ${userContent}`);
   
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: userContent,
     config: {
-      systemInstruction: SYSTEM_PROMPTS.ANALYSIS,
+      systemInstruction: systemInstruction,
       temperature: 0.5,
     }
   });
@@ -191,20 +193,21 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
   }
 };
 
-export const generateSuggestions = async (tables: TableMetadata[]): Promise<Suggestion[]> => {
+export const generateSuggestions = async (tables: TableMetadata[], topic: string): Promise<Suggestion[]> => {
   const schemaStr = tables.map(t => 
     `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
   ).join('\n\n');
 
   const userContent = `Database Schema:\n${schemaStr}`;
-  await logPrompt('SUGGESTIONS', `System: ${SYSTEM_PROMPTS.SUGGESTIONS}\nUser: ${userContent}`);
+  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic);
+  await logPrompt('SUGGESTIONS', `System: ${systemInstruction}\nUser: ${userContent}`);
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: userContent,
       config: {
-        systemInstruction: SYSTEM_PROMPTS.SUGGESTIONS,
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -238,4 +241,26 @@ export const generateSuggestions = async (tables: TableMetadata[]): Promise<Sugg
     console.error("Gemini suggestion parsing failed", err);
     return [];
   }
+};
+
+export const generateTopic = async (currentTopic: string, tables: TableMetadata[]): Promise<string> => {
+  const schemaStr = tables.map(t => 
+    `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
+  ).join('\n\n');
+
+  const userContent = USER_PROMPTS.TOPIC_GEN(currentTopic, schemaStr);
+  const systemInstruction = SYSTEM_PROMPTS.TOPIC_GEN;
+  
+  await logPrompt('TOPIC_GEN', `System: ${systemInstruction}\nUser: ${userContent}`);
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: userContent,
+    config: {
+      systemInstruction: systemInstruction,
+      temperature: 0.3,
+    },
+  });
+
+  return (response.text || "").replace(/['"“”]/g, '').trim().substring(0, 10);
 };

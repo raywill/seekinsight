@@ -49,6 +49,23 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
   return data.choices[0].message.content;
 }
 
+export const generateTopic = async (currentTopic: string, tables: TableMetadata[]): Promise<string> => {
+  const schemaStr = tables.map(t => 
+    `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
+  ).join('\n\n');
+
+  const userContent = USER_PROMPTS.TOPIC_GEN(currentTopic, schemaStr);
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPTS.TOPIC_GEN },
+    { role: "user", content: userContent }
+  ];
+
+  await logPrompt('TOPIC_GEN', `System: ${SYSTEM_PROMPTS.TOPIC_GEN}\nUser: ${userContent}`);
+
+  const responseText = await callAliyun(messages, 0.3);
+  return responseText.replace(/['"“”]/g, '').trim().substring(0, 10);
+};
+
 export const generateCode = async (prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<string> => {
   const schemaStr = tables.map(t => 
     `Table: ${t.tableName}\nColumns:\n${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment}`).join('\n')}`
@@ -105,7 +122,7 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
   }
 };
 
-export const generateAnalysis = async (query: string, result: any[], prompt?: string): Promise<string> => {
+export const generateAnalysis = async (query: string, result: any[], topic: string, prompt?: string): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
   
   const userContent = `
@@ -114,12 +131,13 @@ Executed SQL: ${query}
 Result Data (Sample): ${JSON.stringify(result.slice(0, 5))}
   `.trim();
   
+  const systemInstruction = SYSTEM_PROMPTS.ANALYSIS(topic);
   const messages = [
-    { role: "system", content: SYSTEM_PROMPTS.ANALYSIS },
+    { role: "system", content: systemInstruction },
     { role: "user", content: userContent }
   ];
   
-  await logPrompt('ANALYSIS', `System: ${SYSTEM_PROMPTS.ANALYSIS}\nUser: ${userContent}`);
+  await logPrompt('ANALYSIS', `System: ${systemInstruction}\nUser: ${userContent}`);
   
   return await callAliyun(messages, 0.5);
 };
@@ -147,18 +165,19 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
   }
 };
 
-export const generateSuggestions = async (tables: TableMetadata[]): Promise<Suggestion[]> => {
+export const generateSuggestions = async (tables: TableMetadata[], topic: string): Promise<Suggestion[]> => {
   const schemaStr = tables.map(t => 
     `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
   ).join('\n\n');
 
   const userContent = `Database Schema:\n${schemaStr}`;
+  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic);
   const messages = [
-    { role: "system", content: SYSTEM_PROMPTS.SUGGESTIONS },
+    { role: "system", content: systemInstruction },
     { role: "user", content: userContent }
   ];
 
-  await logPrompt('SUGGESTIONS', `System: ${SYSTEM_PROMPTS.SUGGESTIONS}\nUser: ${userContent}`);
+  await logPrompt('SUGGESTIONS', `System: ${systemInstruction}\nUser: ${userContent}`);
 
   try {
     const responseText = await callAliyun(messages, 0.7, true);
