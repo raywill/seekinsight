@@ -55,6 +55,10 @@ export const SYSTEM_PROMPTS = {
     Rules:
     - Respond ONLY with a JSON object containing a "charts" array.
     - Supported chart types: "bar", "line", "pie", "area".
+    - If there's a time column, prefer "line" or "area".
+    - If there's a category and one metric, prefer "bar" or "pie".
+    - If there are multiple numeric metrics, include them in "yKeys".
+    - Limit to 4 charts max.
     JSON Structure:
     {
       "charts": [
@@ -71,6 +75,16 @@ export const SYSTEM_PROMPTS = {
   SUGGESTIONS: (topic: string) => `You are a strategic data consultant. The current business project topic is: "${topic}". 
     Based on this topic and the provided database schema, generate 3-5 high-value and actionable data analysis ideas (SQL or Python).
     Respond ONLY with a JSON object containing a "suggestions" array.
+
+    Each suggestion object MUST have:
+    - "id": A unique string.
+    - "title": A short, professional title for the analysis.
+    - "prompt": A detailed natural language prompt describing the analysis intent.
+    - "category": A business domain (e.g., "Sales", "Inventory", "Customer", "Finance").
+    - "type": MUST be either "SQL" or "PYTHON".
+
+    Balance the results: 4 SQL ideas and 4 Python ideas.
+
     ${LANGUAGE_REQ}`,
 
   TOPIC_GEN: `You are a senior data product manager. Your task is to summarize a concise business topic name for the current project.
