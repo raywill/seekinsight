@@ -15,7 +15,7 @@ import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
 import PublishDialog from './components/PublishDialog';
 import AppViewer from './components/AppViewer';
-import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, Check, X, ArrowRight, Trash2, Calendar, LogOut, Plus, Database } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, ArrowRight, Trash2, Calendar, LogOut, Plus, Database } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -409,17 +409,26 @@ const App: React.FC = () => {
   };
 
   const handleUpdateTopic = async (newTopic: string) => {
-    const trimmed = newTopic.trim().substring(0, 30) || "未命名主题";
-    setProject(prev => ({ ...prev, topicName: trimmed }));
-    setIsEditingTopic(false);
-
-    if (currentNotebook) {
-      await fetch(`${gatewayUrl}/notebooks/${currentNotebook.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: trimmed })
-      });
+    const trimmed = newTopic.trim();
+    if (!trimmed) {
+      setIsEditingTopic(false);
+      return;
     }
+    
+    const finalTopic = trimmed.substring(0, 30);
+    
+    if (finalTopic !== project.topicName) {
+      setProject(prev => ({ ...prev, topicName: finalTopic }));
+      if (currentNotebook) {
+        await fetch(`${gatewayUrl}/notebooks/${currentNotebook.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: finalTopic })
+        });
+      }
+    }
+    
+    setIsEditingTopic(false);
   };
 
   const handleSqlAiGenerate = async (promptOverride?: string) => {
@@ -724,11 +733,13 @@ const App: React.FC = () => {
                   autoFocus
                   value={tempTopic}
                   onChange={e => setTempTopic(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleUpdateTopic(tempTopic)}
+                  onKeyDown={e => {
+                      if (e.key === 'Enter') handleUpdateTopic(tempTopic);
+                      if (e.key === 'Escape') setIsEditingTopic(false);
+                  }}
+                  onBlur={() => handleUpdateTopic(tempTopic)}
                   className="bg-transparent border-none outline-none text-sm font-bold text-gray-800 px-2 w-48"
                 />
-                <button onClick={() => handleUpdateTopic(tempTopic)} className="p-1 hover:bg-blue-600 hover:text-white rounded text-blue-600 transition-colors"><Check size={14}/></button>
-                <button onClick={() => setIsEditingTopic(false)} className="p-1 hover:bg-gray-200 rounded text-gray-400 transition-colors"><X size={14}/></button>
               </div>
             ) : (
               <div
