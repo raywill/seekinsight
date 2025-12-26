@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { PublishedApp, DevMode, ExecutionResult, AIChartConfig } from '../types';
-import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid } from 'lucide-react';
+import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid, MoreVertical } from 'lucide-react';
 import SqlResultPanel from './SqlResultPanel';
 import * as ai from '../services/aiProvider';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
@@ -78,6 +78,32 @@ const CustomChartTooltip = ({ active, payload, label, type, xKey, yKeys, data }:
   return null;
 };
 
+const SimpleMarkdown = ({ content }: { content: string }) => {
+  if (!content) return null;
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-4">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('###')) return <h3 key={i} className="text-sm font-black text-gray-900 mt-6 mb-2 uppercase tracking-tight">{trimmed.replace(/^###\s*/, '')}</h3>;
+        if (trimmed.startsWith('##')) return <h2 key={i} className="text-base font-black text-gray-900 mt-8 mb-3 border-b border-gray-100 pb-1">{trimmed.replace(/^##\s*/, '')}</h2>;
+        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+          return (
+            <div key={i} className="flex gap-3 items-start pl-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+              <p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p>
+            </div>
+          );
+        }
+        if (!trimmed) return <div key={i} className="h-2" />;
+        
+        const formattedLine = trimmed.replace(/\*\*(.*?)\*\*/g, '<b class="font-black text-gray-800">$1</b>');
+        return <p key={i} className="text-xs text-gray-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
+      })}
+    </div>
+  );
+};
+
 const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config, rawData }) => {
   const { type, xKey, yKeys, title, description } = config;
   const data = useMemo(() => processChartData(rawData, xKey, yKeys, type === 'pie'), [rawData, xKey, yKeys, type]);
@@ -138,24 +164,6 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
   );
 };
 
-const SimpleMarkdown = ({ content }: { content: string }) => {
-  if (!content) return null;
-  const lines = content.split('\n');
-  return (
-    <div className="space-y-4">
-      {lines.map((line, i) => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('###')) return <h3 key={i} className="text-sm font-black text-gray-900 mt-6 mb-2 uppercase tracking-tight">{trimmed.replace(/^###\s*/, '')}</h3>;
-        if (trimmed.startsWith('##')) return <h2 key={i} className="text-base font-black text-gray-900 mt-8 mb-3 border-b border-gray-100 pb-1">{trimmed.replace(/^##\s*/, '')}</h2>;
-        if (trimmed.startsWith('-') || trimmed.startsWith('*')) return <div key={i} className="flex gap-3 items-start pl-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /><p className="text-sm text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p></div>;
-        if (!trimmed) return <div key={i} className="h-2" />;
-        const formattedLine = trimmed.replace(/\*\*(.*?)\*\*/g, '<b class="font-black text-gray-800">$1</b>');
-        return <p key={i} className="text-sm text-gray-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
-      })}
-    </div>
-  );
-};
-
 const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [analysisReport, setAnalysisReport] = useState<string>('');
@@ -163,6 +171,7 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isRecommendingCharts, setIsRecommendingCharts] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (app.snapshot_json) {
@@ -245,6 +254,7 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
           await onClone(app);
       } finally {
           setIsCloning(false);
+          setIsMenuOpen(false);
       }
   }
 
@@ -267,34 +277,49 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-             {app.source_notebook_id && onEdit && (
-                 <button 
-                    onClick={() => onEdit(app)}
-                    className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
-                 >
-                   <PencilLine size={16} /> Edit
-                 </button>
-             )}
-             
-             {onClone && (
-                 <button 
-                    onClick={handleCloneClick}
-                    disabled={isCloning}
-                    className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
-                 >
-                   {isCloning ? <RefreshCw size={16} className="animate-spin" /> : <GitFork size={16} />} 
-                   Clone
-                 </button>
-             )}
-
+          <div className="relative">
              <button 
-                onClick={onClose} 
-                className="p-2.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-xl transition-colors"
-                title="Back to Marketplace"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-900 outline-none"
              >
-               <LayoutGrid size={20} />
+                <MoreVertical size={20} />
              </button>
+
+             {isMenuOpen && (
+               <>
+                 <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
+                 <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                    {app.source_notebook_id && onEdit && (
+                        <button 
+                           onClick={() => { onEdit(app); setIsMenuOpen(false); }}
+                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                          <PencilLine size={16} className="text-gray-400" /> Edit
+                        </button>
+                    )}
+                    
+                    {onClone && (
+                        <button 
+                           onClick={handleCloneClick}
+                           disabled={isCloning}
+                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                          {isCloning ? <RefreshCw size={16} className="animate-spin text-blue-500" /> : <GitFork size={16} className="text-gray-400" />} 
+                          Clone
+                        </button>
+                    )}
+
+                    <div className="h-px bg-gray-100 my-1"></div>
+
+                    <button 
+                       onClick={onClose} 
+                       className="w-full text-left px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 hover:text-red-600 transition-colors"
+                    >
+                      <LayoutGrid size={16} className="text-gray-400" /> Marketplace
+                    </button>
+                 </div>
+               </>
+             )}
           </div>
         </div>
 

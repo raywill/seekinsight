@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PublishedApp, DevMode, ExecutionResult } from '../types';
-import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid } from 'lucide-react';
+import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 
 interface Props {
@@ -16,6 +16,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
   const [params, setParams] = useState(app.params_schema || '{}');
   const [isRunning, setIsRunning] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (app.snapshot_json) {
@@ -85,8 +86,9 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
         await onClone(app);
     } finally {
         setIsCloning(false);
+        setIsMenuOpen(false);
     }
-}
+  }
 
   return (
     <div className="fixed inset-0 z-[150] bg-gray-100 flex items-center justify-center">
@@ -107,34 +109,49 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-             {app.source_notebook_id && onEdit && (
-                 <button 
-                    onClick={() => onEdit(app)}
-                    className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
-                 >
-                   <PencilLine size={16} /> Edit
-                 </button>
-             )}
-
-            {onClone && (
-                 <button 
-                    onClick={handleCloneClick}
-                    disabled={isCloning}
-                    className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
-                 >
-                   {isCloning ? <RefreshCw size={16} className="animate-spin" /> : <GitFork size={16} />} 
-                   Clone
-                 </button>
-             )}
-
+          <div className="relative">
              <button 
-                onClick={onClose} 
-                className="p-2.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-xl transition-colors"
-                title="Back to Marketplace"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-900 outline-none"
              >
-               <LayoutGrid size={20} />
+                <MoreVertical size={20} />
              </button>
+
+             {isMenuOpen && (
+               <>
+                 <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
+                 <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                    {app.source_notebook_id && onEdit && (
+                        <button 
+                           onClick={() => { onEdit(app); setIsMenuOpen(false); }}
+                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                          <PencilLine size={16} className="text-gray-400" /> Edit
+                        </button>
+                    )}
+                    
+                    {onClone && (
+                        <button 
+                           onClick={handleCloneClick}
+                           disabled={isCloning}
+                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                          {isCloning ? <RefreshCw size={16} className="animate-spin text-purple-500" /> : <GitFork size={16} className="text-gray-400" />} 
+                          Clone
+                        </button>
+                    )}
+
+                    <div className="h-px bg-gray-100 my-1"></div>
+
+                    <button 
+                       onClick={onClose} 
+                       className="w-full text-left px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 hover:text-red-600 transition-colors"
+                    >
+                      <LayoutGrid size={16} className="text-gray-400" /> Marketplace
+                    </button>
+                 </div>
+               </>
+             )}
           </div>
         </div>
 
