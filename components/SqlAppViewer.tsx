@@ -338,7 +338,7 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
                   className="w-full py-4 rounded-xl text-white font-black shadow-xl transition-all active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
                 >
                   {isRunning ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} />}
-                  Run App & Refresh AI
+                  Refresh Data
                 </button>
                 <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
                   <Database size={12} /> Source: {app.source_db_name}
@@ -351,30 +351,10 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
              
              {/* Scrollable Upper Area: Insights + Charts */}
              <div className="flex-1 overflow-y-auto p-8 space-y-10 min-h-0 bg-gray-50/30">
-                {/* Analysis Report Section */}
-                {(analysisReport || isAnalyzing) && (
-                    <div className="max-w-5xl mx-auto animate-in slide-in-from-bottom-2 duration-500">
-                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            {isAnalyzing ? <RefreshCw size={14} className="animate-spin text-blue-500"/> : <Sparkles size={16} className="text-blue-500" />} 
-                            Key Strategic Insights
-                        </h4>
-                        <div className={`bg-white border border-blue-100 p-8 rounded-[2rem] shadow-sm shadow-blue-500/5 ${isAnalyzing ? 'animate-pulse' : ''}`}>
-                            {isAnalyzing ? (
-                                <div className="space-y-3">
-                                    <div className="h-4 bg-gray-100 rounded w-3/4"></div>
-                                    <div className="h-4 bg-gray-100 rounded w-full"></div>
-                                    <div className="h-4 bg-gray-100 rounded w-5/6"></div>
-                                </div>
-                            ) : (
-                                <SimpleMarkdown content={analysisReport} />
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Charts Area */}
+                
+                {/* Charts Area - Now First */}
                 {(isRecommendingCharts || (result?.chartConfigs && result.chartConfigs.length > 0)) && (
-                     <div className="max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-700 delay-100">
+                     <div className="max-w-5xl mx-auto animate-in slide-in-from-bottom-2 duration-500">
                          <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                             {isRecommendingCharts ? <RefreshCw size={14} className="animate-spin text-blue-500"/> : <Layers size={16} className="text-blue-500" />}
                             Visual Breakdown
@@ -395,6 +375,27 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
                          </div>
                      </div>
                  )}
+
+                {/* Analysis Report Section - Now Second */}
+                {(analysisReport || isAnalyzing) && (
+                    <div className="max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-700 delay-100">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            {isAnalyzing ? <RefreshCw size={14} className="animate-spin text-blue-500"/> : <Sparkles size={16} className="text-blue-500" />} 
+                            Key Strategic Insights
+                        </h4>
+                        <div className={`bg-white border border-blue-100 p-8 rounded-[2rem] shadow-sm shadow-blue-500/5 ${isAnalyzing ? 'animate-pulse' : ''}`}>
+                            {isAnalyzing ? (
+                                <div className="space-y-3">
+                                    <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                                    <div className="h-4 bg-gray-100 rounded w-full"></div>
+                                    <div className="h-4 bg-gray-100 rounded w-5/6"></div>
+                                </div>
+                            ) : (
+                                <SimpleMarkdown content={analysisReport} />
+                            )}
+                        </div>
+                    </div>
+                )}
              </div>
 
              {/* Result Panel (Fixed at Bottom) */}

@@ -102,14 +102,6 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void
                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Personal Knowledge Graph</p>
              </div>
           </div>
-          <button
-            onClick={handleCreate}
-            disabled={creating}
-            className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl font-black flex items-center gap-3 hover:bg-blue-700 transition-all shadow-2xl shadow-blue-500/20 active:scale-95 disabled:opacity-50"
-          >
-            {creating ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
-            NEW NOTEBOOK
-          </button>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -150,7 +142,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void
               <div className="w-16 h-16 rounded-full bg-gray-50 group-hover:bg-white group-hover:shadow-md flex items-center justify-center transition-all text-gray-300 group-hover:text-blue-500">
                 {creating ? <Loader2 className="animate-spin" size={24} /> : <Plus size={32} />}
               </div>
-              <h3 className="text-sm font-black text-gray-400 group-hover:text-blue-600 uppercase tracking-widest transition-colors">Create Blank Notebook</h3>
+              <h3 className="text-sm font-black text-gray-400 group-hover:text-blue-600 uppercase tracking-widest transition-colors">Create New Notebook</h3>
            </div>
 
            {/* Existing Notebooks */}
@@ -281,7 +273,7 @@ const App: React.FC = () => {
   const syncRoute = useCallback(async () => {
     const params = new URLSearchParams(window.location.search);
     const nbId = params.get('nb');
-    const appId = params.get('id');
+    const appId = params.get('app'); // Changed from 'id' to 'app'
     const view = params.get('view');
 
     // 1. App View
@@ -479,7 +471,7 @@ const App: React.FC = () => {
       const app = await fetchApp(appId);
       if (app) {
           setViewingApp(app);
-          window.history.pushState({}, '', `?id=${appId}`);
+          window.history.pushState({}, '', `?app=${appId}`); // Changed from 'id' to 'app'
       }
   }
   

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { PublishedApp, DevMode } from '../types';
 import { fetchApps, deleteApp } from '../services/appService';
 import * as Icons from 'lucide-react';
-import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2, Trash2 } from 'lucide-react';
+import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2, Trash2, Home } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
@@ -72,10 +72,10 @@ const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp 
 
           <button 
             onClick={onClose} 
-            className="flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-xl transition-all font-bold text-sm"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl transition-all font-bold text-xs uppercase tracking-wider shadow-sm"
           >
-            <X size={20} />
-            Exit Market
+            <Home size={16} />
+            Back to Home
           </button>
         </div>
 
@@ -98,7 +98,7 @@ const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp 
             </div>
 
             {/* Apps Grid */}
-            <div className="flex-1 overflow-y-auto px-8 pb-20">
+            <div className="flex-1 overflow-y-auto px-8 pb-20 pt-6">
               {loading ? (
                  <div className="flex justify-center py-20">
                     <Loader2 size={40} className="animate-spin text-blue-300" />
