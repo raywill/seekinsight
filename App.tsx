@@ -403,20 +403,27 @@ const App: React.FC = () => {
       try {
         let finalHeaders: string[] = [];
         let finalObjects: any[] = [];
-        // Updated regex to support international characters (Chinese, etc.) using Unicode property escapes
         const tableName = file.name
           .split('.')[0]
           .trim()
           .replace(/[^\p{L}\p{N}_]/gu, '_');
 
         if (isTxt) {
-          // 1. Parse TXT as paragraphs
-          const textContent = e.target?.result as string;
-          // Simple visual check for messy encoding: if text has too many replacement characters, it might be GBK
-          if (textContent.includes('')) {
-            console.warn("Possible encoding mismatch detected in TXT file.");
-          }
+          // Robust encoding detection waterfall for .txt files
+          const buffer = e.target?.result as ArrayBuffer;
+          let textContent = "";
           
+          try {
+            // 1. Try UTF-8 (Strict)
+            const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+            textContent = utf8Decoder.decode(buffer);
+          } catch (e) {
+            // 2. Fallback to GB18030 (Superset of GBK, covers almost all Chinese files)
+            console.warn("UTF-8 decoding failed, falling back to GB18030/GBK");
+            const gbkDecoder = new TextDecoder('gb18030');
+            textContent = gbkDecoder.decode(buffer);
+          }
+
           const paragraphs = textContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
           
           finalHeaders = ["paragraph_id", "content"];
@@ -425,8 +432,8 @@ const App: React.FC = () => {
             "content": text
           }));
         } else {
-          // 2. Parse Excel/CSV
-          const rawFileData = e.target?.result;
+          // Parse Excel/CSV
+          const rawFileData = e.target?.result as string;
           const workbook = XLSX.read(rawFileData, { 
             type: 'binary', 
             cellDates: true,
@@ -477,7 +484,6 @@ const App: React.FC = () => {
           }
         }
 
-        // Common Logic: Infer Column Metadata
         let aiComments: Record<string, string> = {};
         try {
           aiComments = await ai.inferColumnMetadata(tableName, finalObjects);
@@ -499,7 +505,6 @@ const App: React.FC = () => {
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
 
-        // Topic Refresh
         try {
           const newTopic = await ai.generateTopic(project.topicName, updatedTables);
           if (newTopic && newTopic !== project.topicName) {
@@ -518,7 +523,8 @@ const App: React.FC = () => {
     };
 
     if (isTxt) {
-      reader.readAsText(file); 
+      // Use ArrayBuffer for encoding detection
+      reader.readAsArrayBuffer(file);
     } else {
       reader.readAsBinaryString(file);
     }
