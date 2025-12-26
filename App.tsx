@@ -156,7 +156,7 @@ const App: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [hasNewSuggestions, setHasNewSuggestions] = useState(false); // ADDED: Tracking new AI insights
+  const [hasNewSuggestions, setHasNewSuggestions] = useState(false);
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [tempTopic, setTempTopic] = useState("");
 
@@ -403,11 +403,20 @@ const App: React.FC = () => {
       try {
         let finalHeaders: string[] = [];
         let finalObjects: any[] = [];
-        const tableName = file.name.split('.')[0].trim().replace(/[^a-zA-Z0-9]/g, '_');
+        // Updated regex to support international characters (Chinese, etc.) using Unicode property escapes
+        const tableName = file.name
+          .split('.')[0]
+          .trim()
+          .replace(/[^\p{L}\p{N}_]/gu, '_');
 
         if (isTxt) {
           // 1. Parse TXT as paragraphs
           const textContent = e.target?.result as string;
+          // Simple visual check for messy encoding: if text has too many replacement characters, it might be GBK
+          if (textContent.includes('')) {
+            console.warn("Possible encoding mismatch detected in TXT file.");
+          }
+          
           const paragraphs = textContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
           
           finalHeaders = ["paragraph_id", "content"];
@@ -509,7 +518,7 @@ const App: React.FC = () => {
     };
 
     if (isTxt) {
-      reader.readAsText(file); // Text files need encoding-aware reading
+      reader.readAsText(file); 
     } else {
       reader.readAsBinaryString(file);
     }
@@ -523,7 +532,6 @@ const App: React.FC = () => {
       const updatedSuggestions = [...project.suggestions, ...newSuggestions];
       setProject(prev => ({ ...prev, suggestions: updatedSuggestions }));
       
-      // FIX: Notify user with a badge if they are not looking at the hub
       if (project.activeMode !== DevMode.INSIGHT_HUB) {
         setHasNewSuggestions(true);
       }
@@ -615,12 +623,11 @@ const App: React.FC = () => {
                 key={tab.id} 
                 onClick={() => {
                   setProject(p => ({ ...p, activeMode: tab.id as DevMode }));
-                  if (tab.id === DevMode.INSIGHT_HUB) setHasNewSuggestions(false); // Clear badge on enter
+                  if (tab.id === DevMode.INSIGHT_HUB) setHasNewSuggestions(false); 
                 }} 
                 className={`pb-4 text-sm font-black relative ${project.activeMode === tab.id ? 'text-blue-600' : 'text-gray-400'}`}
               >
                 {tab.label}
-                {/* NOTIFICATION BADGE (RED DOT) */}
                 {tab.id === DevMode.INSIGHT_HUB && hasNewSuggestions && (
                   <div className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
                 )}
