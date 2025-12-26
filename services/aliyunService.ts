@@ -5,6 +5,32 @@ import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3001';
 
+// Helper to truncate large strings in samples
+const sanitizeSample = (data: any[], maxRows = 5, maxCharsPerField = 200): any[] => {
+  return data.slice(0, maxRows).map(row => {
+    if (Array.isArray(row)) {
+      // For header analysis (array of arrays)
+      return row.map(cell => 
+        (typeof cell === 'string' && cell.length > maxCharsPerField) 
+          ? cell.substring(0, maxCharsPerField) + '...(truncated)' 
+          : cell
+      );
+    } else if (typeof row === 'object' && row !== null) {
+      // For metadata inference (array of objects)
+      const safeRow: any = {};
+      for (const [key, val] of Object.entries(row)) {
+        if (typeof val === 'string' && val.length > maxCharsPerField) {
+          safeRow[key] = val.substring(0, maxCharsPerField) + '...(truncated)';
+        } else {
+          safeRow[key] = val;
+        }
+      }
+      return safeRow;
+    }
+    return row;
+  });
+};
+
 async function logPrompt(type: string, content: string) {
   if (!IS_DEBUG) return;
   try {
@@ -50,7 +76,10 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
 }
 
 export const analyzeHeaders = async (sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }> => {
-  const userContent = USER_PROMPTS.HEADER_ANALYSIS(sample);
+  // Truncate individual cells to avoid massive payloads (e.g. huge text files)
+  const safeSample = sanitizeSample(sample, 5, 200);
+  
+  const userContent = USER_PROMPTS.HEADER_ANALYSIS(safeSample);
   const messages = [
     { role: "system", content: SYSTEM_PROMPTS.HEADER_ANALYSIS },
     { role: "user", content: userContent }
@@ -106,8 +135,11 @@ export const debugCode = async (prompt: string, mode: DevMode, tables: TableMeta
     `Table: ${t.tableName}\nColumns:\n${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment}`).join('\n')}`
   ).join('\n\n');
 
+  // TRUNCATE THE ERROR LOG TO PREVENT MASSIVE PAYLOADS
+  const safeError = error.length > 2000 ? error.substring(0, 2000) + '\n...(truncated logs)' : error;
+
   const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr);
-  const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${error}`;
+  const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${safeError}`;
   const messages = [
     { role: "system", content: systemInstruction },
     { role: "user", content: userContent }
@@ -121,10 +153,13 @@ export const debugCode = async (prompt: string, mode: DevMode, tables: TableMeta
 
 export const inferColumnMetadata = async (tableName: string, data: any[]): Promise<Record<string, string>> => {
   if (!data || data.length === 0) return {};
-  const sample = data.slice(0, 5);
+  
+  // Truncate fields to prevent "whole book" uploads from exceeding context window
+  // Limit to 5 rows, max 200 chars per field
+  const safeSample = sanitizeSample(data, 5, 200);
   const headers = Object.keys(data[0]);
 
-  const userContent = USER_PROMPTS.METADATA_INFER(tableName, headers, sample);
+  const userContent = USER_PROMPTS.METADATA_INFER(tableName, headers, safeSample);
   const messages = [
     { role: "system", content: SYSTEM_PROMPTS.METADATA_INFER },
     { role: "user", content: userContent }
@@ -143,10 +178,13 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
 export const generateAnalysis = async (query: string, result: any[], topic: string, prompt?: string): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
   
+  // Also truncate analysis sample data just in case
+  const safeResult = sanitizeSample(result, 5, 300);
+
   const userContent = `
 ${prompt ? `Business Requirement: ${prompt}` : ''}
 Executed SQL: ${query}
-Result Data (Sample): ${JSON.stringify(result.slice(0, 5))}
+Result Data (Sample): ${JSON.stringify(safeResult)}
   `.trim();
   
   const systemInstruction = SYSTEM_PROMPTS.ANALYSIS(topic);
@@ -163,9 +201,11 @@ Result Data (Sample): ${JSON.stringify(result.slice(0, 5))}
 export const recommendCharts = async (query: string, result: any[]): Promise<AIChartConfig[]> => {
   if (!result || result.length === 0) return [];
   const columns = Object.keys(result[0]);
-  const sample = result.slice(0, 10);
+  
+  // Truncate chart recommendation sample
+  const safeSample = sanitizeSample(result, 10, 100);
 
-  const userContent = USER_PROMPTS.CHART_REC(query, columns, sample);
+  const userContent = USER_PROMPTS.CHART_REC(query, columns, safeSample);
   const messages = [
     { role: "system", content: SYSTEM_PROMPTS.CHART_REC },
     { role: "user", content: userContent }

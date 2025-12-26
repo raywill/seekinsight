@@ -680,7 +680,21 @@ const App: React.FC = () => {
             const gbkDecoder = new TextDecoder('gb18030');
             textContent = gbkDecoder.decode(buffer);
           }
-          const paragraphs = textContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
+          
+          // Robust Paragraph Parsing
+          let text = textContent
+            .replace(/\r\n|\r/g, '\n')
+            .replace(/\u2028|\u2029/g, '\n')
+            .replace(/\u00A0|\u3000/g, ' ')
+            .trim();
+
+          let paragraphs: string[] = [];
+          if (/\n\s*\n/.test(text)) {
+             paragraphs = text.split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
+          } else {
+             paragraphs = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
+          }
+          
           finalHeaders = ["paragraph_id", "content"];
           finalObjects = paragraphs.map((text, index) => ({ "paragraph_id": index + 1, "content": text }));
         } else {
