@@ -1,28 +1,47 @@
 
 import React, { useState, useEffect } from 'react';
 import { PublishedApp, DevMode } from '../types';
-import { fetchApps } from '../services/appService';
+import { fetchApps, deleteApp } from '../services/appService';
 import * as Icons from 'lucide-react';
-import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2 } from 'lucide-react';
+import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2, Trash2 } from 'lucide-react';
 import AppViewer from './AppViewer';
 
 interface Props {
   onClose: () => void;
   onLoadApp?: (app: PublishedApp) => void;
+  onOpenApp?: (appId: string) => void; // New prop for URL routing
 }
 
-const AppMarket: React.FC<Props> = ({ onClose, onLoadApp }) => {
+const AppMarket: React.FC<Props> = ({ onClose, onLoadApp, onOpenApp }) => {
   const [apps, setApps] = useState<PublishedApp[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedApp, setSelectedApp] = useState<PublishedApp | null>(null);
   const [search, setSearch] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
+    loadApps();
+  }, []);
+
+  const loadApps = () => {
+    setLoading(true);
     fetchApps().then(data => {
       setApps(data);
       setLoading(false);
     });
-  }, []);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      if (!confirm("Are you sure you want to delete this app?")) return;
+      setDeletingId(id);
+      const success = await deleteApp(id);
+      if (success) {
+          setApps(prev => prev.filter(a => a.id !== id));
+      } else {
+          alert("Failed to delete app");
+      }
+      setDeletingId(null);
+  }
 
   const filteredApps = apps.filter(app => 
     app.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -89,14 +108,24 @@ const AppMarket: React.FC<Props> = ({ onClose, onLoadApp }) => {
                   {filteredApps.map(app => (
                     <div 
                       key={app.id}
-                      onClick={() => setSelectedApp(app)}
+                      onClick={() => onOpenApp?.(app.id)}
                       className="group bg-white border border-gray-100 rounded-[2.5rem] p-8 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer relative flex flex-col items-start text-left hover:-translate-y-2 duration-300"
                     >
-                      <div 
-                        className="w-16 h-16 rounded-3xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 shadow-sm"
-                        style={{ backgroundColor: `${app.color || '#3B82F6'}15` }}
-                      >
-                        {getIcon(app.icon, app.color || '#3B82F6', 32)}
+                      <div className="flex justify-between w-full">
+                          <div 
+                            className="w-16 h-16 rounded-3xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 shadow-sm"
+                            style={{ backgroundColor: `${app.color || '#3B82F6'}15` }}
+                          >
+                            {getIcon(app.icon, app.color || '#3B82F6', 32)}
+                          </div>
+                          
+                          <button
+                            onClick={(e) => handleDelete(e, app.id)}
+                            className="p-2 h-10 w-10 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                            title="Delete App"
+                          >
+                             {deletingId === app.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                          </button>
                       </div>
                       
                       <div className="mb-4">
@@ -126,18 +155,6 @@ const AppMarket: React.FC<Props> = ({ onClose, onLoadApp }) => {
             </div>
         </div>
       </div>
-
-      {selectedApp && (
-        <AppViewer 
-          app={selectedApp} 
-          onClose={() => setSelectedApp(null)} 
-          onLoadToWorkspace={(app) => {
-            onLoadApp?.(app);
-            setSelectedApp(null);
-            onClose();
-          }} 
-        />
-      )}
     </>
   );
 };

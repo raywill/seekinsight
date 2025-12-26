@@ -13,6 +13,7 @@ interface Props {
   resultSnapshot: ExecutionResult | null;
   defaultTitle?: string;
   defaultDescription?: string;
+  analysisReport?: string;
 }
 
 const PublishDialog: React.FC<Props> = ({ 
@@ -23,7 +24,8 @@ const PublishDialog: React.FC<Props> = ({
   dbName, 
   resultSnapshot,
   defaultTitle,
-  defaultDescription
+  defaultDescription,
+  analysisReport
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -58,7 +60,7 @@ const PublishDialog: React.FC<Props> = ({
         }
       }
 
-      await publishApp(title, description, author, type, code, dbName, params, resultSnapshot || undefined);
+      await publishApp(title, description, author, type, code, dbName, params, resultSnapshot || undefined, analysisReport);
       setSuccess(true);
       setTimeout(() => {
         onClose();

@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { PublishedApp, DevMode, ExecutionResult } from '../types';
-import { X, Play, Copy, RefreshCw, Database, Terminal, Settings2, BarChart3 } from 'lucide-react';
+import { PublishedApp, DevMode, ExecutionResult, AIChartConfig } from '../types';
+import { X, Play, Copy, RefreshCw, Database, Terminal, Settings2, BarChart3, FileText, Layers, Sparkles } from 'lucide-react';
 import SqlResultPanel from './SqlResultPanel';
 import PythonResultPanel from './PythonResultPanel';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 
 interface Props {
   app: PublishedApp;
@@ -11,15 +12,168 @@ interface Props {
   onLoadToWorkspace: (app: PublishedApp) => void;
 }
 
+// Re-using chart logic from SqlPublishPanel for self-contained viewer
+const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#f43f5e', '#64748b'];
+
+const processChartData = (data: any[], xKey: string, yKeys: string[], limitOthers: boolean = false) => {
+  if (!data || data.length === 0 || !xKey) return [];
+  const aggregatedMap: Record<string, any> = {};
+  
+  data.forEach(row => {
+    const category = String(row[xKey] ?? 'N/A');
+    if (!aggregatedMap[category]) {
+      aggregatedMap[category] = { [xKey]: category };
+      yKeys.forEach(yk => { if (yk) aggregatedMap[category][yk] = 0; });
+    }
+    yKeys.forEach(yk => {
+      if (yk && row[yk] !== undefined) {
+        aggregatedMap[category][yk] += (Number(row[yk]) || 0);
+      }
+    });
+  });
+
+  let resultData = Object.values(aggregatedMap);
+  if (limitOthers && yKeys[0]) {
+    const primaryMetric = yKeys[0];
+    resultData.sort((a: any, b: any) => (Number(b[primaryMetric]) || 0) - (Number(a[primaryMetric]) || 0));
+    if (resultData.length > 7) {
+      const top = resultData.slice(0, 6);
+      const rest = resultData.slice(6);
+      const othersObj: any = { [xKey]: 'Others' };
+      yKeys.forEach(yk => {
+        othersObj[yk] = rest.reduce((sum, item: any) => sum + (Number(item[yk]) || 0), 0);
+      });
+      return [...top, othersObj];
+    }
+  }
+  return resultData;
+};
+
+const CustomChartTooltip = ({ active, payload, label, type, xKey, yKeys, data }: any) => {
+  if (active && payload && payload.length) {
+    const tooltipTitle = type === 'pie' ? payload[0].payload[xKey] : (label || payload[0].payload[xKey]);
+    const total = type === 'pie' && data ? data.reduce((s: number, c: any) => s + (Number(c[yKeys[0]]) || 0), 0) : 0;
+    return (
+      <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-xl min-w-[140px]">
+        <p className="text-[11px] font-black text-gray-900 mb-2 border-b border-gray-50 pb-1 truncate">{tooltipTitle}</p>
+        <div className="space-y-1.5">
+          {payload.map((p: any, i: number) => (
+            <div key={i} className="flex items-center gap-4 justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color || p.fill }}></div>
+                <span className="text-[9px] font-bold text-gray-400 uppercase">{p.dataKey}:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-black text-blue-600">{Number(p.value).toLocaleString()}</span>
+                {type === 'pie' && total > 0 && (
+                  <span className="text-[9px] font-bold text-gray-400">({((p.value / total) * 100).toFixed(1)}%)</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config, rawData }) => {
+  const { type, xKey, yKeys, title, description } = config;
+  const data = React.useMemo(() => processChartData(rawData, xKey, yKeys, type === 'pie'), [rawData, xKey, yKeys, type]);
+
+  const chart = (() => {
+    switch (type) {
+      case 'line':
+        return (
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
+            {yKeys.map((key, i) => (
+              <Line key={key} type="monotone" dataKey={key} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length], strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5 }} isAnimationActive={false} />
+            ))}
+          </LineChart>
+        );
+      case 'pie':
+        return (
+          <PieChart>
+            <Pie data={data} dataKey={yKeys[0]} nameKey={xKey} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={3} isAnimationActive={false}>
+              {data.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
+            </Pie>
+            <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
+            <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
+          </PieChart>
+        );
+      default: 
+        const ChartComponent = type === 'area' ? AreaChart : BarChart;
+        return (
+          <ChartComponent data={data}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis dataKey={xKey} fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+            <Tooltip content={<CustomChartTooltip type={type} xKey={xKey} yKeys={yKeys} data={data} />} />
+            {yKeys.map((key, i) => (
+              type === 'area' ? 
+                <Area key={key} type="monotone" dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.15} strokeWidth={2} isAnimationActive={false} /> :
+                <Bar key={key} dataKey={key} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+            ))}
+          </ChartComponent>
+        );
+    }
+  })();
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-[1.5rem] p-5 space-y-4 shadow-sm mb-4">
+      <div className="flex justify-between items-start">
+        <div className="max-w-[80%]">
+          <h4 className="text-xs font-black text-gray-900 tracking-tight line-clamp-1">{title}</h4>
+          {description && <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide mt-0.5 line-clamp-1">{description}</p>}
+        </div>
+        <div className="p-1.5 bg-gray-50 text-blue-500 rounded-lg"><BarChart3 size={12} /></div>
+      </div>
+      <div className="h-48 w-full"><ResponsiveContainer width="100%" height="100%">{chart}</ResponsiveContainer></div>
+    </div>
+  );
+};
+
+const SimpleMarkdown = ({ content }: { content: string }) => {
+  if (!content) return null;
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-4">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('###')) return <h3 key={i} className="text-sm font-black text-gray-900 mt-6 mb-2 uppercase tracking-tight">{trimmed.replace(/^###\s*/, '')}</h3>;
+        if (trimmed.startsWith('##')) return <h2 key={i} className="text-base font-black text-gray-900 mt-8 mb-3 border-b border-gray-100 pb-1">{trimmed.replace(/^##\s*/, '')}</h2>;
+        if (trimmed.startsWith('-') || trimmed.startsWith('*')) return <div key={i} className="flex gap-3 items-start pl-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /><p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p></div>;
+        if (!trimmed) return <div key={i} className="h-2" />;
+        const formattedLine = trimmed.replace(/\*\*(.*?)\*\*/g, '<b class="font-black text-gray-800">$1</b>');
+        return <p key={i} className="text-xs text-gray-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
+      })}
+    </div>
+  );
+};
+
 const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
+  const [analysisReport, setAnalysisReport] = useState<string>('');
   const [params, setParams] = useState(app.params_schema || '{}');
   const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
     if (app.snapshot_json) {
       try {
-        setResult(JSON.parse(app.snapshot_json));
+        const parsed = JSON.parse(app.snapshot_json);
+        // Check if new format (Composite) or legacy (just ExecutionResult)
+        if (parsed.result && (parsed.analysis !== undefined || parsed.result.data)) {
+            setResult(parsed.result);
+            setAnalysisReport(parsed.analysis || '');
+        } else {
+            // Legacy assumption: it's just ExecutionResult
+            setResult(parsed);
+        }
       } catch (e) {
         console.error("Failed to parse snapshot", e);
       }
@@ -35,9 +189,7 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
       if (app.type === DevMode.PYTHON) {
         // Inject params
         try {
-            // Validate JSON
             JSON.parse(params); 
-            // Prepend params
             codeToRun = `SI_PARAMS = ${params}\n\n${app.code}`;
         } catch(e) {
             alert("Invalid JSON Params");
@@ -64,6 +216,7 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
         columns: data.columns || [],
         logs: data.logs,
         plotlyData: data.plotlyData,
+        chartConfigs: result?.chartConfigs, // Preserve charts if any, or need new logic to regen charts (usually separate AI call)
         timestamp: new Date().toLocaleTimeString(),
         isError: !res.ok
       };
@@ -78,11 +231,11 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-white w-full max-w-6xl h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[150] bg-gray-100 flex items-center justify-center">
+      <div className="bg-white w-full h-full flex flex-col animate-in fade-in duration-300">
         
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+        {/* Fullscreen Header */}
+        <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between bg-white z-10 shadow-sm">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${app.type === DevMode.SQL ? 'bg-blue-600 shadow-blue-200' : 'bg-purple-600 shadow-purple-200'}`}>
                {app.type === DevMode.SQL ? <BarChart3 size={24} /> : <Terminal size={24} />}
@@ -130,6 +283,18 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
                </div>
              )}
 
+            {/* Analysis Report Section for SQL Apps */}
+            {app.type === DevMode.SQL && analysisReport && (
+                <div className="mb-8">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Sparkles size={14} className="text-blue-500" /> Key Insights
+                    </h4>
+                    <div className="bg-white border border-gray-100 p-4 rounded-xl max-h-96 overflow-y-auto shadow-sm">
+                        <SimpleMarkdown content={analysisReport} />
+                    </div>
+                </div>
+            )}
+
              <div className="mt-auto">
                 <button 
                   onClick={handleRun}
@@ -146,13 +311,29 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
           </div>
 
           {/* Result Area */}
-          <div className="flex-1 bg-white flex flex-col relative">
-             <div className="absolute inset-0 overflow-hidden">
-               {app.type === DevMode.SQL ? (
-                 <SqlResultPanel result={result} isLoading={isRunning} />
-               ) : (
-                 <PythonResultPanel result={result} isLoading={isRunning} />
-               )}
+          <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
+             
+             {/* Charts Area for SQL Apps */}
+             {app.type === DevMode.SQL && result?.chartConfigs && result.chartConfigs.length > 0 && (
+                 <div className="h-1/3 border-b border-gray-100 bg-gray-50/30 p-4 overflow-x-auto whitespace-nowrap">
+                     <div className="flex gap-4 h-full">
+                        {result.chartConfigs.map((cfg, idx) => (
+                            <div key={idx} className="w-96 h-full inline-block whitespace-normal">
+                                <ChartCard config={cfg} rawData={result.data} />
+                            </div>
+                        ))}
+                     </div>
+                 </div>
+             )}
+
+             <div className="flex-1 relative">
+                <div className="absolute inset-0 overflow-hidden">
+                    {app.type === DevMode.SQL ? (
+                        <SqlResultPanel result={result} isLoading={isRunning} />
+                    ) : (
+                        <PythonResultPanel result={result} isLoading={isRunning} />
+                    )}
+                </div>
              </div>
           </div>
         </div>

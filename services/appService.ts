@@ -21,6 +21,27 @@ export const fetchApps = async (): Promise<PublishedApp[]> => {
   }
 };
 
+export const fetchApp = async (id: string): Promise<PublishedApp | null> => {
+    try {
+        const res = await fetch(`${GATEWAY_URL}/apps/${id}`);
+        if (!res.ok) throw new Error('App not found');
+        return await res.json();
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
+}
+
+export const deleteApp = async (id: string): Promise<boolean> => {
+    try {
+        const res = await fetch(`${GATEWAY_URL}/apps/${id}`, { method: 'DELETE' });
+        return res.ok;
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
 export const publishApp = async (
   title: string,
   description: string,
@@ -29,8 +50,16 @@ export const publishApp = async (
   code: string,
   source_db_name: string,
   params_schema?: any,
-  resultSnapshot?: ExecutionResult
+  resultSnapshot?: ExecutionResult,
+  analysisReport?: string
 ): Promise<string> => {
+  
+  // Create a composite snapshot containing both result and report
+  const compositeSnapshot = {
+      result: resultSnapshot,
+      analysis: analysisReport
+  };
+
   const res = await fetch(`${GATEWAY_URL}/apps`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -42,7 +71,7 @@ export const publishApp = async (
       code,
       source_db_name,
       params_schema: params_schema ? JSON.stringify(params_schema) : null,
-      snapshot_json: resultSnapshot ? JSON.stringify(resultSnapshot) : null
+      snapshot_json: JSON.stringify(compositeSnapshot)
     })
   });
   

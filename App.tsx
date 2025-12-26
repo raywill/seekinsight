@@ -4,6 +4,7 @@ import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, TableMeta
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
+import { fetchApp } from './services/appService';
 import { MySQLEngine } from './services/mysqlEngine';
 import DataSidebar from './components/DataSidebar';
 import SqlWorkspace from './components/SqlWorkspace';
@@ -13,6 +14,7 @@ import PythonPublishPanel from './components/PythonPublishPanel';
 import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
 import PublishDialog from './components/PublishDialog';
+import AppViewer from './components/AppViewer';
 import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, Check, X, ArrowRight, Trash2, Calendar, LogOut, Plus, Database } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -168,6 +170,8 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
 const App: React.FC = () => {
   const [currentNotebook, setCurrentNotebook] = useState<Notebook | null>(null);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
+  const [viewingApp, setViewingApp] = useState<PublishedApp | null>(null);
+  
   const [dbReady, setDbReady] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -214,9 +218,20 @@ const App: React.FC = () => {
     const engine = new MySQLEngine();
     setDatabaseEngine(engine);
 
+    // Initial URL Routing Logic
     const params = new URLSearchParams(window.location.search);
     const nbId = params.get('nb');
-    if (nbId) {
+    const appId = params.get('id'); // for ?id={uuid}
+    const view = params.get('view'); // for ?view=market
+
+    if (appId) {
+        // Direct link to App
+        fetchApp(appId).then(app => {
+            if (app) setViewingApp(app);
+        });
+    } else if (view === 'market') {
+        setIsMarketOpen(true);
+    } else if (nbId) {
       fetch(`${gatewayUrl}/notebooks`)
         .then(res => res.json())
         .then(notebooks => {
@@ -262,7 +277,7 @@ const App: React.FC = () => {
     setDbReady(true);
   };
 
-  const handleLoadApp = async (app: PublishedApp) => {
+  const handleLoadAppToWorkspace = async (app: PublishedApp) => {
     // 1. Switch context to the app's source database
     const db = getDatabaseEngine();
     
@@ -273,6 +288,21 @@ const App: React.FC = () => {
     let pythonCodeWithParams = app.code;
     if (app.type === DevMode.PYTHON && app.params_schema) {
       pythonCodeWithParams = `SI_PARAMS = ${app.params_schema}\n\n` + app.code;
+    }
+
+    let loadedResult = null;
+    let loadedAnalysis = '';
+    
+    if (app.snapshot_json) {
+        try {
+            const parsed = JSON.parse(app.snapshot_json);
+            if (parsed.result) {
+                loadedResult = parsed.result;
+                loadedAnalysis = parsed.analysis || '';
+            } else {
+                loadedResult = parsed;
+            }
+        } catch(e) {}
     }
 
     // 2. Update Project State to reflect the loaded App
@@ -287,14 +317,21 @@ const App: React.FC = () => {
       sqlAiPrompt: app.type === DevMode.SQL ? app.title : prev.sqlAiPrompt,
       pythonAiPrompt: app.type === DevMode.PYTHON ? app.title : prev.pythonAiPrompt,
       // Load snapshot directly into results for instant viewing
-      lastSqlResult: app.type === DevMode.SQL && app.snapshot_json ? JSON.parse(app.snapshot_json) : null,
-      lastPythonResult: app.type === DevMode.PYTHON && app.snapshot_json ? JSON.parse(app.snapshot_json) : null,
+      lastSqlResult: app.type === DevMode.SQL ? loadedResult : null,
+      lastPythonResult: app.type === DevMode.PYTHON ? loadedResult : null,
+      analysisReport: loadedAnalysis
     }));
 
     // 3. IMPORTANT: Detach from current notebook to avoid overwriting its metadata
     // We are now in a "Temporary App Session"
     setCurrentNotebook(null); 
     setDbReady(true);
+    
+    // Close viewers/market
+    setViewingApp(null);
+    setIsMarketOpen(false);
+    // Reset URL
+    window.history.pushState({}, '', '/');
 
     // 4. Auto-execute to ensure live data
     // Slight delay to ensure state update propagates
@@ -309,6 +346,34 @@ const App: React.FC = () => {
     setHasNewSuggestions(false);
     window.history.pushState({}, '', '/');
   };
+  
+  const handleOpenMarket = () => {
+      setIsMarketOpen(true);
+      window.history.pushState({}, '', '?view=market');
+  }
+
+  const handleCloseMarket = () => {
+      setIsMarketOpen(false);
+      window.history.pushState({}, '', '/');
+  }
+  
+  const handleOpenAppById = async (appId: string) => {
+      const app = await fetchApp(appId);
+      if (app) {
+          setViewingApp(app);
+          window.history.pushState({}, '', `?id=${appId}`);
+      }
+  }
+  
+  const handleCloseAppViewer = () => {
+      setViewingApp(null);
+      // If we were in market view, go back to market URL, else root
+      if (isMarketOpen) {
+          window.history.pushState({}, '', '?view=market');
+      } else {
+          window.history.pushState({}, '', '/');
+      }
+  }
 
   const syncSuggestionsToDb = async (suggestions: Suggestion[]) => {
     if (!currentNotebook) return;
@@ -598,6 +663,28 @@ const App: React.FC = () => {
     syncSuggestionsToDb(updated);
   };
 
+  // View Routing: If URL has ?id={uuid}, show App Viewer regardless of DB state
+  if (viewingApp) {
+      return (
+          <AppViewer 
+             app={viewingApp}
+             onClose={handleCloseAppViewer}
+             onLoadToWorkspace={handleLoadAppToWorkspace}
+          />
+      );
+  }
+
+  // View Routing: If URL has ?view=market, show Market regardless of DB state
+  if (isMarketOpen) {
+      return (
+         <AppMarket 
+            onClose={handleCloseMarket}
+            onLoadApp={handleLoadAppToWorkspace}
+            onOpenApp={handleOpenAppById}
+         />
+      );
+  }
+
   if (!dbReady && !currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
 
   return (
@@ -640,7 +727,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsMarketOpen(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold"><LayoutGrid size={16} /> Market</button>
+          <button onClick={handleOpenMarket} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold"><LayoutGrid size={16} /> Market</button>
           <button onClick={handleExit} className="w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"><LogOut size={18} /></button>
         </div>
       </header>
@@ -769,12 +856,6 @@ const App: React.FC = () => {
             />
         )}
       </div>
-      {isMarketOpen && (
-        <AppMarket 
-            onClose={() => setIsMarketOpen(false)} 
-            onLoadApp={handleLoadApp}
-        />
-      )}
       
       <PublishDialog 
          isOpen={isPublishOpen} 
@@ -785,6 +866,7 @@ const App: React.FC = () => {
          resultSnapshot={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult}
          defaultTitle={project.topicName}
          defaultDescription={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
+         analysisReport={project.analysisReport}
       />
     </div>
   );

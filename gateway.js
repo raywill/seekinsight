@@ -126,6 +126,19 @@ app.get('/apps', async (req, res) => {
   }
 });
 
+app.get('/apps/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = await getPool(SYSTEM_DB);
+    const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` WHERE id = ?`, [id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'App not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("[Apps GET Single Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.post('/apps', async (req, res) => {
   try {
     const { title, description, author, type, code, source_db_name, params_schema, snapshot_json } = req.body;
@@ -140,6 +153,18 @@ app.post('/apps', async (req, res) => {
     res.json({ success: true, id });
   } catch (err) {
     console.error("[Apps POST Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.delete('/apps/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = await getPool(SYSTEM_DB);
+    await pool.query(`DELETE FROM \`${PUBLISHED_APPS_TABLE}\` WHERE id = ?`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[Apps DELETE Error]:", err);
     res.status(500).json({ message: err.message });
   }
 });
