@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { DevMode, ExecutionResult } from '../types';
 import { publishApp } from '../services/appService';
-import { X, Rocket, Sparkles, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { X, Rocket, Sparkles, AlertCircle, CheckCircle2, RefreshCw, ExternalLink, ArrowLeft } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onOpenApp?: (appId: string) => void;
   type: DevMode;
   code: string;
   dbName: string | null;
@@ -18,7 +20,8 @@ interface Props {
 
 const PublishDialog: React.FC<Props> = ({ 
   isOpen, 
-  onClose, 
+  onClose,
+  onOpenApp,
   type, 
   code, 
   dbName, 
@@ -34,6 +37,7 @@ const PublishDialog: React.FC<Props> = ({
   const [paramsJson, setParamsJson] = useState('{\n  "threshold": 0.5,\n  "region": "Global"\n}');
   const [isPublishing, setIsPublishing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [newAppId, setNewAppId] = useState<string | null>(null);
 
   // Auto-fill form when dialog opens
   useEffect(() => {
@@ -41,6 +45,7 @@ const PublishDialog: React.FC<Props> = ({
       setTitle(defaultTitle || '');
       setDescription(defaultDescription || '');
       setSuccess(false); // Reset success state
+      setNewAppId(null);
     }
   }, [isOpen, defaultTitle, defaultDescription]);
 
@@ -61,7 +66,7 @@ const PublishDialog: React.FC<Props> = ({
         }
       }
 
-      await publishApp(
+      const id = await publishApp(
         title, 
         description, 
         author, 
@@ -73,18 +78,22 @@ const PublishDialog: React.FC<Props> = ({
         resultSnapshot || undefined, 
         analysisReport
       );
+      
+      setNewAppId(id);
       setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        setSuccess(false);
-        setTitle('');
-        setDescription('');
-      }, 2000);
+      // Removed setTimeout auto-close to allow user choice
     } catch (e) {
       alert("Publish failed");
     } finally {
       setIsPublishing(false);
     }
+  };
+
+  const handleViewApp = () => {
+      if (newAppId && onOpenApp) {
+          onOpenApp(newAppId);
+          onClose(); // Clean up dialog state
+      }
   };
 
   return (
@@ -93,12 +102,33 @@ const PublishDialog: React.FC<Props> = ({
       <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {success ? (
-          <div className="p-16 flex flex-col items-center justify-center text-center">
+          <div className="p-12 flex flex-col items-center justify-center text-center">
             <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 animate-bounce">
               <CheckCircle2 size={40} />
             </div>
             <h3 className="text-2xl font-black text-gray-900 mb-2">Published Successfully!</h3>
-            <p className="text-gray-500">Your app is now live in the marketplace.</p>
+            <p className="text-gray-500 mb-8 max-w-xs mx-auto">Your app is now live in the marketplace and ready to be shared.</p>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <button 
+                    onClick={onClose}
+                    className="flex-1 py-3.5 px-6 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                >
+                    <ArrowLeft size={18} />
+                    Back to Workbook
+                </button>
+                <button 
+                    onClick={handleViewApp}
+                    className={`flex-1 py-3.5 px-6 text-white font-black rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 ${
+                        type === DevMode.SQL 
+                            ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30' 
+                            : 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/30'
+                    }`}
+                >
+                    View App
+                    <ExternalLink size={18} />
+                </button>
+            </div>
           </div>
         ) : (
           <>

@@ -992,6 +992,7 @@ const App: React.FC = () => {
       <PublishDialog 
          isOpen={isPublishOpen} 
          onClose={() => setIsPublishOpen(false)}
+         onOpenApp={handleOpenAppById}
          type={project.activeMode === DevMode.SQL ? DevMode.SQL : DevMode.PYTHON}
          code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
          dbName={project.dbName}
