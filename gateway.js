@@ -126,7 +126,11 @@ app.post('/notebooks', async (req, res) => {
     await rootConn.query(`CREATE DATABASE \`${dbName}\``);
     await rootConn.end();
 
-    const icons = ['Database', 'Zap', 'Brain', 'BarChart3', 'Layers', 'Boxes', 'Cpu', 'Activity'];
+    const icons = [
+      'Database', 'Zap', 'Brain', 'BarChart3', 'Layers', 'Boxes', 'Cpu', 'Activity',
+      'LineChart', 'PieChart', 'Table', 'FileText', 'Globe', 'Server', 'Cloud', 'Code2',
+      'Terminal', 'ShieldCheck', 'Search', 'Filter', 'FolderGit2'
+    ];
     const randomIcon = icons[Math.floor(Math.random() * icons.length)];
 
     const sysPool = await getPool(SYSTEM_DB);

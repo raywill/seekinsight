@@ -71,10 +71,10 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
   const renderIcon = (name: string) => {
     try {
       const IconComponent = (Icons as any)[name];
-      if (typeof IconComponent !== 'function') return <Database size={24} />;
-      return <IconComponent size={24} />;
+      if (typeof IconComponent !== 'function') return <Database size={20} />;
+      return <IconComponent size={20} />;
     } catch (e) {
-      return <Database size={24} />;
+      return <Database size={20} />;
     }
   };
 
@@ -106,7 +106,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
           </button>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {notebooks.length === 0 && !creating && (
              <div className="col-span-full py-32 text-center space-y-4 border-2 border-dashed border-gray-200 rounded-[3rem]">
                 <div className="w-20 h-20 bg-blue-50 text-blue-300 rounded-3xl flex items-center justify-center mx-auto"><Sparkles size={40} /></div>
@@ -117,28 +117,36 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
              <div
                key={nb.id}
                onClick={() => onOpen(nb)}
-               className="group bg-white border border-gray-100 rounded-[2.5rem] p-8 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden"
+               className="group bg-white border border-gray-100 rounded-3xl p-6 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[180px]"
              >
-                <div className="relative z-10 flex flex-col h-full">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-                      {renderIcon(nb.icon_name)}
-                    </div>
-                    <button
-                      onClick={(e) => handleDelete(e, nb.id)}
-                      className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                <div className="flex justify-between items-start mb-3">
+                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl transition-transform group-hover:scale-110">
+                    {renderIcon(nb.icon_name)}
                   </div>
-                  <h3 className="text-xl font-black text-gray-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-1">{nb.topic}</h3>
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-auto pt-6">
+                  <button
+                    onClick={(e) => handleDelete(e, nb.id)}
+                    className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1 leading-tight">
+                    {nb.topic}
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium line-clamp-2">
+                    Analysis project on {nb.db_name}
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     <Calendar size={12} />
                     {new Date(nb.created_at).toLocaleDateString()}
                   </div>
-                  <div className="mt-6 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">ID: {nb.id.toUpperCase()}</span>
-                    <ArrowRight size={20} className="text-gray-200 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    <ArrowRight size={14} />
                   </div>
                 </div>
              </div>
