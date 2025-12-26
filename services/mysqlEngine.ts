@@ -132,23 +132,38 @@ export class MySQLEngine implements DatabaseEngine {
     const originalKeys = Object.keys(data[0]);
     
     // 1. Scan for Max Length per Column (Inference)
-    // We scan the first 1000 rows to determine the appropriate SQL type
+    // We scan ALL rows to determine the appropriate SQL type to avoid truncation on outlier rows
     const maxLengths: Record<string, number> = {};
-    const sampleSize = Math.min(data.length, 1000);
     
+    // Initialize maxLengths
     for (const key of originalKeys) {
       maxLengths[key] = 0;
-      for (let i = 0; i < sampleSize; i++) {
+    }
+
+    // Perform full scan for string lengths
+    for (let i = 0; i < data.length; i++) {
+      for (const key of originalKeys) {
         const val = data[i][key];
         if (typeof val === 'string') {
-          maxLengths[key] = Math.max(maxLengths[key], val.length);
+          const len = val.length;
+          if (len > maxLengths[key]) {
+            maxLengths[key] = len;
+          }
         }
       }
     }
 
     // 2. Infer Columns and Types based on Data and Max Length
     const columns: Column[] = originalKeys.map(key => {
-      const firstVal = data[0][key];
+      // Find first non-null value for type inference fallback
+      let firstVal = data[0][key];
+      for(let i=0; i < data.length; i++) {
+        if (data[i][key] !== null && data[i][key] !== undefined) {
+          firstVal = data[i][key];
+          break;
+        }
+      }
+
       const maxLen = maxLengths[key];
       let inferredType = 'VARCHAR(255)';
 
