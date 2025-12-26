@@ -32,6 +32,14 @@ export const fetchApp = async (id: string): Promise<PublishedApp | null> => {
     }
 }
 
+export const incrementAppViews = async (id: string): Promise<void> => {
+    try {
+        await fetch(`${GATEWAY_URL}/apps/${id}/view`, { method: 'POST' });
+    } catch (err) {
+        console.warn("Failed to increment view count", err);
+    }
+}
+
 export const deleteApp = async (id: string): Promise<boolean> => {
     try {
         const res = await fetch(`${GATEWAY_URL}/apps/${id}`, { method: 'DELETE' });

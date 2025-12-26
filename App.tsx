@@ -15,7 +15,7 @@ import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
 import PublishDialog from './components/PublishDialog';
 import AppViewer from './components/AppViewer';
-import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, ArrowRight, Trash2, Calendar, LogOut, Plus, Database, Globe, Zap } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, ArrowRight, Trash2, Calendar, LogOut, Plus, Database, Globe, Zap, Eye } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -69,6 +69,13 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void
     } catch (e) {
       alert("删除失败");
     }
+  };
+
+  const handleOpenNotebook = (nb: Notebook) => {
+      // Optimistic Update locally? No need, backend handles it.
+      // Send view increment
+      fetch(`${gatewayUrl}/notebooks/${nb.id}/view`, { method: 'POST' }).catch(console.warn);
+      onOpen(nb);
   };
 
   const renderIcon = (name: string) => {
@@ -149,7 +156,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void
            {notebooks.map(nb => (
              <div
                key={nb.id}
-               onClick={() => onOpen(nb)}
+               onClick={() => handleOpenNotebook(nb)}
                className="group bg-white border border-gray-100 rounded-3xl p-6 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[180px]"
              >
                 <div className="flex justify-between items-start mb-5">
@@ -171,9 +178,16 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    <Calendar size={12} />
-                    {new Date(nb.created_at).toLocaleDateString()}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <Calendar size={12} />
+                      {new Date(nb.created_at).toLocaleDateString()}
+                    </div>
+                    {nb.views !== undefined && nb.views > 0 && (
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-md">
+                           <Eye size={10} /> {nb.views}
+                        </div>
+                    )}
                   </div>
                   <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-blue-600 group-hover:text-white transition-all">
                     <ArrowRight size={14} />
@@ -471,7 +485,10 @@ const App: React.FC = () => {
       const app = await fetchApp(appId);
       if (app) {
           setViewingApp(app);
-          window.history.pushState({}, '', `?app=${appId}`); // Changed from 'id' to 'app'
+          // Also increment view here if coming directly from URL, though ideally API handles dedup or gateway call
+          // But since app viewer doesn't have ID until fetch, we might just rely on user clicking or specific analytic call
+          fetch(`${gatewayUrl}/apps/${appId}/view`, { method: 'POST' }).catch(console.warn);
+          window.history.pushState({}, '', `?app=${appId}`); 
       }
   }
   

@@ -172,7 +172,7 @@ async function initDemoData(sysPool) {
 
   // 3. Create Notebook Entry
   await sysPool.query(
-    `INSERT IGNORE INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, created_at) VALUES (?, ?, ?, ?, ?, NOW())`,
+    `INSERT IGNORE INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, created_at, views) VALUES (?, ?, ?, ?, ?, NOW(), 120)`,
     [DEMO_NB_ID, DEMO_DB_NAME, 'Health Tracker Demo', 0, 'Activity']
   );
 
@@ -218,7 +218,7 @@ ORDER BY avg_daily_steps DESC;`;
   };
 
   await sysPool.query(
-    `INSERT IGNORE INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, source_notebook_id, snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT IGNORE INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, source_notebook_id, snapshot_json, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 350)`,
     [
       DEMO_APP_ID, 
       'Yearly Health Habits Review', 
@@ -255,9 +255,18 @@ async function initSystem() {
       user_id INT DEFAULT 0,
       icon_name VARCHAR(50),
       suggestions_json TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      views INT DEFAULT 0
     )
   `);
+
+  // Migration: Add views column to Notebooks if missing
+  try {
+    const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${NOTEBOOK_LIST_TABLE}\` LIKE 'views'`);
+    if (columns.length === 0) {
+      await sysPool.query(`ALTER TABLE \`${NOTEBOOK_LIST_TABLE}\` ADD COLUMN views INT DEFAULT 0`);
+    }
+  } catch (err) {}
 
   try {
     const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${NOTEBOOK_LIST_TABLE}\` LIKE 'suggestions_json'`);
@@ -281,9 +290,18 @@ async function initSystem() {
       source_notebook_id VARCHAR(50),
       params_schema TEXT,
       snapshot_json LONGTEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      views INT DEFAULT 0
     )
   `);
+
+  // Migration: Add views column to Apps if missing
+  try {
+    const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${PUBLISHED_APPS_TABLE}\` LIKE 'views'`);
+    if (columns.length === 0) {
+      await sysPool.query(`ALTER TABLE \`${PUBLISHED_APPS_TABLE}\` ADD COLUMN views INT DEFAULT 0`);
+    }
+  } catch (err) {}
 
   try {
     const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${PUBLISHED_APPS_TABLE}\` LIKE 'source_notebook_id'`);
@@ -310,7 +328,7 @@ async function initSystem() {
 app.get('/apps', async (req, res) => {
   try {
     const pool = await getPool(SYSTEM_DB);
-    const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
+    const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY views DESC, created_at DESC`);
     res.json(rows);
   } catch (err) {
     console.error("[Apps GET Error]:", err);
@@ -331,6 +349,19 @@ app.get('/apps/:id', async (req, res) => {
   }
 });
 
+// Increment App View
+app.post('/apps/:id/view', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = await getPool(SYSTEM_DB);
+    await pool.query(`UPDATE \`${PUBLISHED_APPS_TABLE}\` SET views = views + 1 WHERE id = ?`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[Apps View Increment Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.post('/apps', async (req, res) => {
   try {
     const { title, description, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
@@ -338,7 +369,7 @@ app.post('/apps', async (req, res) => {
     const pool = await getPool(SYSTEM_DB);
     
     await pool.query(
-      `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
       [id, title, description, author || 'User', type, code, source_db_name, source_notebook_id, params_schema, snapshot_json]
     );
     
@@ -374,6 +405,19 @@ app.get('/notebooks', async (req, res) => {
   }
 });
 
+// Increment Notebook View
+app.post('/notebooks/:id/view', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = await getPool(SYSTEM_DB);
+    await pool.query(`UPDATE \`${NOTEBOOK_LIST_TABLE}\` SET views = views + 1 WHERE id = ?`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    if (IS_DEBUG) console.error("[Notebook View Increment Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.post('/notebooks', async (req, res) => {
   try {
     const id = crypto.randomBytes(4).toString('hex');
@@ -404,11 +448,11 @@ app.post('/notebooks', async (req, res) => {
 
     const sysPool = await getPool(SYSTEM_DB);
     await sysPool.query(
-      `INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name) VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, views) VALUES (?, ?, ?, ?, ?, 0)`,
       [id, dbName, '未命名主题', 0, randomIcon]
     );
 
-    res.json({ id, db_name: dbName, topic: '未命名主题', icon_name: randomIcon });
+    res.json({ id, db_name: dbName, topic: '未命名主题', icon_name: randomIcon, views: 0 });
   } catch (err) {
     if (IS_DEBUG) console.error("[Lobby POST Error]:", err);
     res.status(500).json({ message: err.message });
@@ -462,7 +506,7 @@ app.post('/notebooks/clone', async (req, res) => {
         const sysPool = await getPool(SYSTEM_DB);
         const iconName = 'Copy'; // Clone icon
         await sysPool.query(
-            `INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, suggestions_json) VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, suggestions_json, views) VALUES (?, ?, ?, ?, ?, ?, 0)`,
             [id, newDbName, new_topic || 'Cloned Notebook', 0, iconName, suggestions_json]
         );
         

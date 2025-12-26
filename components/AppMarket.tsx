@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { PublishedApp, DevMode } from '../types';
-import { fetchApps, deleteApp } from '../services/appService';
+import { fetchApps, deleteApp, incrementAppViews } from '../services/appService';
 import * as Icons from 'lucide-react';
-import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2, Trash2, Home } from 'lucide-react';
+import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2, Trash2, Home, Eye } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
@@ -28,6 +28,12 @@ const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp 
       setApps(data);
       setLoading(false);
     });
+  };
+
+  const handleOpen = (appId: string) => {
+      // Fire and forget increment
+      incrementAppViews(appId);
+      onOpenApp?.(appId);
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -108,7 +114,7 @@ const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp 
                   {filteredApps.map(app => (
                     <div 
                       key={app.id}
-                      onClick={() => onOpenApp?.(app.id)}
+                      onClick={() => handleOpen(app.id)}
                       className="group bg-white border border-gray-100 rounded-[2.5rem] p-8 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer relative flex flex-col items-start text-left hover:-translate-y-2 duration-300"
                     >
                       <div className="flex justify-between w-full">
@@ -144,8 +150,9 @@ const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp 
                           </div>
                           <span className="text-xs font-bold text-gray-400">{app.author}</span>
                         </div>
-                        <div className="px-2 py-1 bg-gray-50 rounded text-[9px] font-black text-gray-400 uppercase">
-                          {app.type}
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                          <Eye size={12} />
+                          <span className="text-[10px] font-black">{app.views || 0}</span>
                         </div>
                       </div>
                     </div>

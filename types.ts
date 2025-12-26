@@ -56,6 +56,7 @@ export interface PublishedApp {
   params_schema?: string; // JSON string
   snapshot_json?: string; // JSON string of ExecutionResult
   created_at: string;
+  views?: number; // Click count
   // UI helper for Market display
   icon?: string; 
   color?: string;
@@ -73,6 +74,7 @@ export interface Notebook {
   icon_name: string;
   suggestions_json?: string;
   created_at: string;
+  views?: number; // Click count
 }
 
 export interface ProjectState {
