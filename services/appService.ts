@@ -1,5 +1,5 @@
 
-import { PublishedApp, DevMode, ExecutionResult } from '../types';
+import { PublishedApp, DevMode, ExecutionResult, Notebook } from '../types';
 
 const GATEWAY_URL = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
@@ -49,6 +49,7 @@ export const publishApp = async (
   type: DevMode,
   code: string,
   source_db_name: string,
+  source_notebook_id: string | undefined,
   params_schema?: any,
   resultSnapshot?: ExecutionResult,
   analysisReport?: string
@@ -70,6 +71,7 @@ export const publishApp = async (
       type,
       code,
       source_db_name,
+      source_notebook_id,
       params_schema: params_schema ? JSON.stringify(params_schema) : null,
       snapshot_json: JSON.stringify(compositeSnapshot)
     })
@@ -79,3 +81,18 @@ export const publishApp = async (
   const data = await res.json();
   return data.id;
 };
+
+export const cloneNotebook = async (
+    source_db_name: string, 
+    new_topic: string, 
+    suggestions_json: string | undefined
+): Promise<Notebook> => {
+    const res = await fetch(`${GATEWAY_URL}/notebooks/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_db_name, new_topic, suggestions_json })
+    });
+    
+    if (!res.ok) throw new Error("Clone failed");
+    return await res.json();
+}

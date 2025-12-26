@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DevMode, ExecutionResult } from '../types';
 import { publishApp } from '../services/appService';
@@ -10,6 +9,7 @@ interface Props {
   type: DevMode;
   code: string;
   dbName: string | null;
+  sourceNotebookId?: string | null;
   resultSnapshot: ExecutionResult | null;
   defaultTitle?: string;
   defaultDescription?: string;
@@ -22,6 +22,7 @@ const PublishDialog: React.FC<Props> = ({
   type, 
   code, 
   dbName, 
+  sourceNotebookId,
   resultSnapshot,
   defaultTitle,
   defaultDescription,
@@ -60,7 +61,18 @@ const PublishDialog: React.FC<Props> = ({
         }
       }
 
-      await publishApp(title, description, author, type, code, dbName, params, resultSnapshot || undefined, analysisReport);
+      await publishApp(
+        title, 
+        description, 
+        author, 
+        type, 
+        code, 
+        dbName, 
+        sourceNotebookId || undefined, 
+        params, 
+        resultSnapshot || undefined, 
+        analysisReport
+      );
       setSuccess(true);
       setTimeout(() => {
         onClose();

@@ -10,9 +10,11 @@ interface Props {
   onClose: () => void;
   onLoadApp?: (app: PublishedApp) => void;
   onOpenApp?: (appId: string) => void; // New prop for URL routing
+  onEditApp?: (app: PublishedApp) => void;
+  onCloneApp?: (app: PublishedApp) => void;
 }
 
-const AppMarket: React.FC<Props> = ({ onClose, onLoadApp, onOpenApp }) => {
+const AppMarket: React.FC<Props> = ({ onClose, onLoadApp, onOpenApp, onEditApp, onCloneApp }) => {
   const [apps, setApps] = useState<PublishedApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

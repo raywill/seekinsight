@@ -106,11 +106,19 @@ async function initSystem() {
       type VARCHAR(20) NOT NULL, 
       code MEDIUMTEXT,
       source_db_name VARCHAR(100),
+      source_notebook_id VARCHAR(50),
       params_schema TEXT,
       snapshot_json LONGTEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  try {
+    const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${PUBLISHED_APPS_TABLE}\` LIKE 'source_notebook_id'`);
+    if (columns.length === 0) {
+        await sysPool.query(`ALTER TABLE \`${PUBLISHED_APPS_TABLE}\` ADD COLUMN source_notebook_id VARCHAR(50)`);
+    }
+  } catch (e) {}
 }
 
 // --- Apps API ---
@@ -141,13 +149,13 @@ app.get('/apps/:id', async (req, res) => {
 
 app.post('/apps', async (req, res) => {
   try {
-    const { title, description, author, type, code, source_db_name, params_schema, snapshot_json } = req.body;
+    const { title, description, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
     const id = crypto.randomBytes(4).toString('hex');
     const pool = await getPool(SYSTEM_DB);
     
     await pool.query(
-      `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, params_schema, snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, title, description, author || 'User', type, code, source_db_name, params_schema, snapshot_json]
+      `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, title, description, author || 'User', type, code, source_db_name, source_notebook_id, params_schema, snapshot_json]
     );
     
     res.json({ success: true, id });
@@ -221,6 +229,68 @@ app.post('/notebooks', async (req, res) => {
     if (IS_DEBUG) console.error("[Lobby POST Error]:", err);
     res.status(500).json({ message: err.message });
   }
+});
+
+// CLONE Notebook Logic
+app.post('/notebooks/clone', async (req, res) => {
+    const { source_db_name, new_topic, suggestions_json } = req.body;
+    
+    try {
+        const id = crypto.randomBytes(4).toString('hex');
+        const now = new Date();
+        const timestamp = now.getFullYear().toString() + 
+                          (now.getMonth() + 1).toString().padStart(2, '0') + 
+                          now.getDate().toString().padStart(2, '0') + 
+                          now.getHours().toString().padStart(2, '0') + 
+                          now.getMinutes().toString().padStart(2, '0') + 
+                          now.getSeconds().toString().padStart(2, '0');
+        const newDbName = `nb_${timestamp}_${id}`;
+
+        const rootConn = await mysql.createConnection({
+            host: process.env.MYSQL_IP || '127.0.0.1',
+            port: parseInt(process.env.MYSQL_PORT || '3306'),
+            user: process.env.MYSQL_USER || 'root',
+            password: process.env.MYSQL_PASSWORD || ''
+        });
+
+        // 1. Create New Database
+        await rootConn.query(`CREATE DATABASE \`${newDbName}\``);
+
+        // 2. Clone Tables (Structure and Data)
+        // Get list of tables from source
+        const [tables] = await rootConn.query(`
+            SELECT TABLE_NAME 
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'
+        `, [source_db_name]);
+
+        for (const row of tables) {
+            const tableName = row.TABLE_NAME;
+            // Create table like source
+            await rootConn.query(`CREATE TABLE \`${newDbName}\`.\`${tableName}\` LIKE \`${source_db_name}\`.\`${tableName}\``);
+            // Insert data
+            await rootConn.query(`INSERT INTO \`${newDbName}\`.\`${tableName}\` SELECT * FROM \`${source_db_name}\`.\`${tableName}\``);
+        }
+        
+        await rootConn.end();
+
+        // 3. Register Notebook
+        const sysPool = await getPool(SYSTEM_DB);
+        const iconName = 'Copy'; // Clone icon
+        await sysPool.query(
+            `INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, suggestions_json) VALUES (?, ?, ?, ?, ?, ?)`,
+            [id, newDbName, new_topic || 'Cloned Notebook', 0, iconName, suggestions_json]
+        );
+        
+        // 4. Return new notebook object
+        const [newNb] = await sysPool.query(`SELECT * FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
+        
+        res.json(newNb[0]);
+
+    } catch(err) {
+        console.error("[Clone Error]:", err);
+        res.status(500).json({ message: "Failed to clone notebook: " + err.message });
+    }
 });
 
 app.patch('/notebooks/:id', async (req, res) => {

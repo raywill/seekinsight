@@ -4,7 +4,7 @@ import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, TableMeta
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
-import { fetchApp } from './services/appService';
+import { fetchApp, cloneNotebook } from './services/appService';
 import { MySQLEngine } from './services/mysqlEngine';
 import DataSidebar from './components/DataSidebar';
 import SqlWorkspace from './components/SqlWorkspace';
@@ -279,68 +279,114 @@ const App: React.FC = () => {
     setDbReady(true);
   };
 
+  // Helper to extract state from app snapshot
+  const restoreAppState = (app: PublishedApp, prev: ProjectState): ProjectState => {
+      let pythonCodeWithParams = app.code;
+      if (app.type === DevMode.PYTHON && app.params_schema) {
+        // Prepend params for editable context
+        pythonCodeWithParams = `SI_PARAMS = ${app.params_schema}\n\n` + app.code;
+      }
+
+      let loadedResult = null;
+      let loadedAnalysis = '';
+      
+      if (app.snapshot_json) {
+          try {
+              const parsed = JSON.parse(app.snapshot_json);
+              if (parsed.result) {
+                  loadedResult = parsed.result;
+                  loadedAnalysis = parsed.analysis || '';
+              } else {
+                  loadedResult = parsed;
+              }
+          } catch(e) {}
+      }
+
+      return {
+          ...prev,
+          activeMode: app.type,
+          sqlCode: app.type === DevMode.SQL ? app.code : prev.sqlCode,
+          pythonCode: app.type === DevMode.PYTHON ? pythonCodeWithParams : prev.pythonCode,
+          sqlAiPrompt: app.type === DevMode.SQL ? app.title : prev.sqlAiPrompt,
+          pythonAiPrompt: app.type === DevMode.PYTHON ? app.title : prev.pythonAiPrompt,
+          lastSqlResult: app.type === DevMode.SQL ? loadedResult : prev.lastSqlResult,
+          lastPythonResult: app.type === DevMode.PYTHON ? loadedResult : prev.lastPythonResult,
+          analysisReport: loadedAnalysis || prev.analysisReport,
+          isAnalyzing: false, // Reset loading states
+          isRecommendingCharts: false
+      };
+  }
+
   const handleLoadAppToWorkspace = async (app: PublishedApp) => {
-    // 1. Switch context to the app's source database
     const db = getDatabaseEngine();
-    
-    // Attempt to load tables from source DB. 
-    // Note: If the source DB is deleted or inaccessible, this might return []
     const tables = await db.getTables(app.source_db_name);
     
-    let pythonCodeWithParams = app.code;
-    if (app.type === DevMode.PYTHON && app.params_schema) {
-      pythonCodeWithParams = `SI_PARAMS = ${app.params_schema}\n\n` + app.code;
-    }
+    // Switch to Temporary App Session
+    setProject(prev => {
+        const newState = restoreAppState(app, prev);
+        return {
+            ...newState,
+            dbName: app.source_db_name,
+            tables: tables,
+            topicName: app.title,
+        };
+    });
 
-    let loadedResult = null;
-    let loadedAnalysis = '';
-    
-    if (app.snapshot_json) {
-        try {
-            const parsed = JSON.parse(app.snapshot_json);
-            if (parsed.result) {
-                loadedResult = parsed.result;
-                loadedAnalysis = parsed.analysis || '';
-            } else {
-                loadedResult = parsed;
-            }
-        } catch(e) {}
-    }
-
-    // 2. Update Project State to reflect the loaded App
-    setProject(prev => ({
-      ...prev,
-      dbName: app.source_db_name, // Switch execution context
-      tables: tables, // Update sidebar
-      topicName: app.title, // Use App title as topic
-      activeMode: app.type, // Switch tab
-      sqlCode: app.type === DevMode.SQL ? app.code : prev.sqlCode,
-      pythonCode: app.type === DevMode.PYTHON ? pythonCodeWithParams : prev.pythonCode,
-      sqlAiPrompt: app.type === DevMode.SQL ? app.title : prev.sqlAiPrompt,
-      pythonAiPrompt: app.type === DevMode.PYTHON ? app.title : prev.pythonAiPrompt,
-      // Load snapshot directly into results for instant viewing
-      lastSqlResult: app.type === DevMode.SQL ? loadedResult : null,
-      lastPythonResult: app.type === DevMode.PYTHON ? loadedResult : null,
-      analysisReport: loadedAnalysis
-    }));
-
-    // 3. IMPORTANT: Detach from current notebook to avoid overwriting its metadata
-    // We are now in a "Temporary App Session"
     setCurrentNotebook(null); 
     setDbReady(true);
-    
-    // Close viewers/market
     setViewingApp(null);
     setIsMarketOpen(false);
-    // Reset URL
     window.history.pushState({}, '', '/');
 
-    // 4. Auto-execute to ensure live data
-    // Slight delay to ensure state update propagates
-    setTimeout(() => {
-      handleRun(app.type === DevMode.SQL ? app.code : pythonCodeWithParams);
-    }, 500);
+    // Auto-execute logic handled by restoring result snapshot, no need to re-run immediately
   };
+
+  const handleEditApp = async (app: PublishedApp) => {
+    if (!app.source_notebook_id) {
+        alert("This app was created before the edit feature was enabled, or the source notebook link is missing.");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${gatewayUrl}/notebooks`);
+        const notebooks: Notebook[] = await res.json();
+        const originalNb = notebooks.find(nb => nb.id === app.source_notebook_id);
+
+        if (originalNb) {
+            await handleOpenNotebook(originalNb);
+            // Restore code/prompt/results on top of the opened notebook state
+            setProject(prev => restoreAppState(app, prev));
+            
+            setViewingApp(null);
+            setIsMarketOpen(false);
+        } else {
+            alert("The original notebook seems to have been deleted.");
+        }
+    } catch (e) {
+        alert("Failed to find original notebook.");
+    }
+  }
+
+  const handleCloneApp = async (app: PublishedApp) => {
+      try {
+          let suggestionsJson = undefined;
+          
+          const newNotebook = await cloneNotebook(
+              app.source_db_name,
+              `Clone of ${app.title}`,
+              suggestionsJson
+          );
+          
+          await handleOpenNotebook(newNotebook);
+          // Restore code/prompt/results on top of the new notebook state
+          setProject(prev => restoreAppState(app, prev));
+
+          setViewingApp(null);
+          setIsMarketOpen(false);
+      } catch (e: any) {
+          alert(`Failed to clone app: ${e.message}`);
+      }
+  }
 
   const handleExit = () => {
     setCurrentNotebook(null);
@@ -369,7 +415,6 @@ const App: React.FC = () => {
   
   const handleCloseAppViewer = () => {
       setViewingApp(null);
-      // Always return to market when closing an App Viewer
       setIsMarketOpen(true);
       window.history.pushState({}, '', '?view=market');
   }
@@ -452,7 +497,6 @@ const App: React.FC = () => {
   };
 
   const handleRun = async (codeOverride?: string) => {
-    // We relax the check for currentNotebook because App Sessions don't have one
     if (!dbReady || !project.dbName) return; 
     
     const currentMode = project.activeMode;
@@ -518,7 +562,6 @@ const App: React.FC = () => {
   };
 
   const handleUpload = async (file: File) => {
-    // Only allow upload if we are in a valid DB context
     if (!dbReady || !project.dbName || isUploading) return;
     setIsUploading(true);
     setUploadProgress(null);
@@ -605,7 +648,7 @@ const App: React.FC = () => {
         const newTable = await db.createTableFromData(
           tableName, 
           finalObjects, 
-          project.dbName!, // Use project.dbName instead of currentNotebook.db_name
+          project.dbName!,
           aiComments,
           (percent) => { if (finalObjects.length > 500) setUploadProgress(percent); }
         );
@@ -662,29 +705,30 @@ const App: React.FC = () => {
     syncSuggestionsToDb(updated);
   };
 
-  // View Routing: If URL has ?id={uuid}, show App Viewer regardless of DB state
   if (viewingApp) {
       return (
           <AppViewer 
              app={viewingApp}
              onClose={handleCloseAppViewer}
              onLoadToWorkspace={handleLoadAppToWorkspace}
+             onEdit={handleEditApp}
+             onClone={handleCloneApp}
           />
       );
   }
 
-  // View Routing: If URL has ?view=market, show Market regardless of DB state
   if (isMarketOpen) {
       return (
          <AppMarket 
             onClose={handleCloseMarket}
             onLoadApp={handleLoadAppToWorkspace}
             onOpenApp={handleOpenAppById}
+            onEditApp={handleEditApp}
+            onCloneApp={handleCloneApp}
          />
       );
   }
 
-  
   if (!dbReady && !currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
 
   return (
@@ -863,6 +907,7 @@ const App: React.FC = () => {
          type={project.activeMode === DevMode.SQL ? DevMode.SQL : DevMode.PYTHON}
          code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
          dbName={project.dbName}
+         sourceNotebookId={project.id}
          resultSnapshot={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult}
          defaultTitle={project.topicName}
          defaultDescription={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}

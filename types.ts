@@ -52,6 +52,7 @@ export interface PublishedApp {
   type: DevMode.SQL | DevMode.PYTHON;
   code: string;
   source_db_name: string;
+  source_notebook_id?: string; // Link to original notebook
   params_schema?: string; // JSON string
   snapshot_json?: string; // JSON string of ExecutionResult
   created_at: string;

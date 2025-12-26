@@ -1,19 +1,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { PublishedApp, DevMode, ExecutionResult } from '../types';
-import { X, Play, Copy, RefreshCw, Database, Terminal, Settings2 } from 'lucide-react';
+import { X, Play, Copy, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 
 interface Props {
   app: PublishedApp;
   onClose: () => void;
   onLoadToWorkspace: (app: PublishedApp) => void;
+  onEdit?: (app: PublishedApp) => void;
+  onClone?: (app: PublishedApp) => void;
 }
 
-const PythonAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
+const PythonAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace, onEdit, onClone }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [params, setParams] = useState(app.params_schema || '{}');
   const [isRunning, setIsRunning] = useState(false);
+  const [isCloning, setIsCloning] = useState(false);
 
   useEffect(() => {
     if (app.snapshot_json) {
@@ -76,6 +79,16 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) =
     }
   };
 
+  const handleCloneClick = async () => {
+    if (!onClone) return;
+    setIsCloning(true);
+    try {
+        await onClone(app);
+    } finally {
+        setIsCloning(false);
+    }
+}
+
   return (
     <div className="fixed inset-0 z-[150] bg-gray-100 flex items-center justify-center">
       <div className="bg-white w-full h-full flex flex-col animate-in fade-in duration-300">
@@ -96,11 +109,31 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) =
             </div>
           </div>
           <div className="flex items-center gap-3">
+             {app.source_notebook_id && onEdit && (
+                 <button 
+                    onClick={() => onEdit(app)}
+                    className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                 >
+                   <PencilLine size={16} /> Edit
+                 </button>
+             )}
+
+            {onClone && (
+                 <button 
+                    onClick={handleCloneClick}
+                    disabled={isCloning}
+                    className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                 >
+                   {isCloning ? <RefreshCw size={16} className="animate-spin" /> : <GitFork size={16} />} 
+                   Clone
+                 </button>
+             )}
+
              <button 
                 onClick={() => onLoadToWorkspace(app)}
                 className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
              >
-               <Copy size={16} /> Load into Workspace
+               <Copy size={16} /> Load Session
              </button>
              <button onClick={onClose} className="p-2.5 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-colors">
                <X size={20} />
