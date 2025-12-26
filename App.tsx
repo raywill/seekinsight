@@ -462,6 +462,8 @@ const App: React.FC = () => {
     setCurrentNotebook(null);
     setDbReady(false);
     setHasNewSuggestions(false);
+    setIsMarketOpen(false); // Fix: Force close market
+    setViewingApp(null); // Fix: Force close app viewer
     // Push history
     window.history.pushState({}, '', '/');
   };
