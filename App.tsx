@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, TableMetadata } from './types';
+import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, TableMetadata, PublishedApp } from './types';
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
@@ -12,6 +12,7 @@ import SqlPublishPanel from './components/SqlPublishPanel';
 import PythonPublishPanel from './components/PythonPublishPanel';
 import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
+import PublishDialog from './components/PublishDialog';
 import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, Check, X, ArrowRight, Trash2, Calendar, LogOut, Plus, Database } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -174,9 +175,10 @@ const App: React.FC = () => {
   const [hasNewSuggestions, setHasNewSuggestions] = useState(false);
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [tempTopic, setTempTopic] = useState("");
+  
+  // Publish Dialog State
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
 
-  const sqlReqId = useRef(0);
-  const pythonReqId = useRef(0);
   const gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
   const [project, setProject] = useState<ProjectState>({
@@ -260,6 +262,47 @@ const App: React.FC = () => {
     setDbReady(true);
   };
 
+  const handleLoadApp = async (app: PublishedApp) => {
+    // 1. Switch context to the app's source database
+    const db = getDatabaseEngine();
+    
+    // Attempt to load tables from source DB. 
+    // Note: If the source DB is deleted or inaccessible, this might return []
+    const tables = await db.getTables(app.source_db_name);
+    
+    let pythonCodeWithParams = app.code;
+    if (app.type === DevMode.PYTHON && app.params_schema) {
+      pythonCodeWithParams = `SI_PARAMS = ${app.params_schema}\n\n` + app.code;
+    }
+
+    // 2. Update Project State to reflect the loaded App
+    setProject(prev => ({
+      ...prev,
+      dbName: app.source_db_name, // Switch execution context
+      tables: tables, // Update sidebar
+      topicName: app.title, // Use App title as topic
+      activeMode: app.type, // Switch tab
+      sqlCode: app.type === DevMode.SQL ? app.code : prev.sqlCode,
+      pythonCode: app.type === DevMode.PYTHON ? pythonCodeWithParams : prev.pythonCode,
+      sqlAiPrompt: app.type === DevMode.SQL ? app.title : prev.sqlAiPrompt,
+      pythonAiPrompt: app.type === DevMode.PYTHON ? app.title : prev.pythonAiPrompt,
+      // Load snapshot directly into results for instant viewing
+      lastSqlResult: app.type === DevMode.SQL && app.snapshot_json ? JSON.parse(app.snapshot_json) : null,
+      lastPythonResult: app.type === DevMode.PYTHON && app.snapshot_json ? JSON.parse(app.snapshot_json) : null,
+    }));
+
+    // 3. IMPORTANT: Detach from current notebook to avoid overwriting its metadata
+    // We are now in a "Temporary App Session"
+    setCurrentNotebook(null); 
+    setDbReady(true);
+
+    // 4. Auto-execute to ensure live data
+    // Slight delay to ensure state update propagates
+    setTimeout(() => {
+      handleRun(app.type === DevMode.SQL ? app.code : pythonCodeWithParams);
+    }, 500);
+  };
+
   const handleExit = () => {
     setCurrentNotebook(null);
     setDbReady(false);
@@ -281,16 +324,17 @@ const App: React.FC = () => {
   };
 
   const handleUpdateTopic = async (newTopic: string) => {
-    if (!currentNotebook) return;
     const trimmed = newTopic.trim().substring(0, 30) || "未命名主题";
     setProject(prev => ({ ...prev, topicName: trimmed }));
     setIsEditingTopic(false);
 
-    await fetch(`${gatewayUrl}/notebooks/${currentNotebook.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: trimmed })
-    });
+    if (currentNotebook) {
+      await fetch(`${gatewayUrl}/notebooks/${currentNotebook.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: trimmed })
+      });
+    }
   };
 
   const handleSqlAiGenerate = async (promptOverride?: string) => {
@@ -344,19 +388,22 @@ const App: React.FC = () => {
   };
 
   const handleRun = async (codeOverride?: string) => {
-    if (!dbReady || !currentNotebook) return;
+    // We relax the check for currentNotebook because App Sessions don't have one
+    if (!dbReady || !project.dbName) return; 
+    
     const currentMode = project.activeMode;
     const currentCode = codeOverride || (currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode);
     setProject(prev => ({ ...prev, isExecuting: true }));
+    
     try {
       let result: ExecutionResult;
       if (currentMode === DevMode.SQL) {
-        result = await getDatabaseEngine().executeQuery(currentCode, currentNotebook.db_name);
+        result = await getDatabaseEngine().executeQuery(currentCode, project.dbName);
       } else {
         const response = await fetch(`${gatewayUrl}/python`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: currentCode, dbName: currentNotebook.db_name })
+          body: JSON.stringify({ code: currentCode, dbName: project.dbName })
         });
         const data = await response.json();
         result = { 
@@ -407,7 +454,8 @@ const App: React.FC = () => {
   };
 
   const handleUpload = async (file: File) => {
-    if (!dbReady || !currentNotebook || isUploading) return;
+    // Only allow upload if we are in a valid DB context
+    if (!dbReady || !project.dbName || isUploading) return;
     setIsUploading(true);
     setUploadProgress(null);
 
@@ -424,43 +472,27 @@ const App: React.FC = () => {
           .replace(/[^\p{L}\p{N}_]/gu, '_');
 
         if (isTxt) {
-          // Robust encoding detection waterfall for .txt files
           const buffer = e.target?.result as ArrayBuffer;
           let textContent = "";
-          
           try {
-            // 1. Try UTF-8 (Strict)
             const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
             textContent = utf8Decoder.decode(buffer);
           } catch (e) {
-            // 2. Fallback to GB18030 (Superset of GBK, covers almost all Chinese files)
             console.warn("UTF-8 decoding failed, falling back to GB18030/GBK");
             const gbkDecoder = new TextDecoder('gb18030');
             textContent = gbkDecoder.decode(buffer);
           }
-
           const paragraphs = textContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
-          
           finalHeaders = ["paragraph_id", "content"];
-          finalObjects = paragraphs.map((text, index) => ({
-            "paragraph_id": index + 1,
-            "content": text
-          }));
+          finalObjects = paragraphs.map((text, index) => ({ "paragraph_id": index + 1, "content": text }));
         } else {
-          // Parse Excel/CSV
           const rawFileData = e.target?.result as string;
-          const workbook = XLSX.read(rawFileData, { 
-            type: 'binary', 
-            cellDates: true,
-            dateNF: 'yyyy-mm-dd'
-          });
+          const workbook = XLSX.read(rawFileData, { type: 'binary', cellDates: true, dateNF: 'yyyy-mm-dd' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const rawArrayData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
           if (rawArrayData.length === 0) throw new Error("File is empty");
-
           const sampleRows = rawArrayData.slice(0, 5);
           let suspiciousNoHeader = true;
-
           if (rawArrayData.length > 1) {
             for (let col = 0; col < rawArrayData[0].length; col++) {
               const type0 = typeof rawArrayData[0][col];
@@ -471,7 +503,6 @@ const App: React.FC = () => {
               }
             }
           }
-
           if (suspiciousNoHeader && rawArrayData.length > 0) {
             const aiResult = await ai.analyzeHeaders(sampleRows);
             if (aiResult.hasHeader) {
@@ -510,11 +541,9 @@ const App: React.FC = () => {
         const newTable = await db.createTableFromData(
           tableName, 
           finalObjects, 
-          currentNotebook.db_name, 
+          project.dbName!, // Use project.dbName instead of currentNotebook.db_name
           aiComments,
-          (percent) => {
-            if (finalObjects.length > 500) setUploadProgress(percent);
-          }
+          (percent) => { if (finalObjects.length > 500) setUploadProgress(percent); }
         );
 
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
@@ -537,12 +566,8 @@ const App: React.FC = () => {
       }
     };
 
-    if (isTxt) {
-      // Use ArrayBuffer for encoding detection
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsBinaryString(file);
-    }
+    if (isTxt) reader.readAsArrayBuffer(file);
+    else reader.readAsBinaryString(file);
   };
 
   const handleFetchSuggestions = async () => {
@@ -573,7 +598,7 @@ const App: React.FC = () => {
     syncSuggestionsToDb(updated);
   };
 
-  if (!currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
+  if (!dbReady && !currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
@@ -606,6 +631,9 @@ const App: React.FC = () => {
                 onClick={() => { setTempTopic(project.topicName); setIsEditingTopic(true); }}
               >
                 <span className="text-sm font-black text-gray-700 tracking-tight">{project.topicName}</span>
+                {!currentNotebook && (
+                   <span className="ml-2 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase">App Session</span>
+                )}
                 <PencilLine size={14} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
               </div>
             )}
@@ -623,15 +651,16 @@ const App: React.FC = () => {
           onUploadFile={handleUpload}
           onRefreshTableStats={async t => {
             try {
-              const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook.db_name);
-              setProject(prev => ({
-                ...prev,
-                tables: prev.tables.map(table =>
-                  table.tableName === t ? { ...table, rowCount: count } : table
-                )
-              }));
+              if (project.dbName) {
+                const count = await getDatabaseEngine().refreshTableStats(t, project.dbName);
+                setProject(prev => ({
+                    ...prev,
+                    tables: prev.tables.map(table =>
+                    table.tableName === t ? { ...table, rowCount: count } : table
+                    )
+                }));
+              }
             } catch (e: any) {
-               // Handle deletion: if error indicates table is missing, remove it from UI
                const msg = e.message || "";
                if (msg.includes("doesn't exist") || msg.includes("no such table")) {
                   setProject(prev => ({
@@ -722,10 +751,39 @@ const App: React.FC = () => {
              )}
           </div>
         </main>
-        {project.activeMode === DevMode.SQL && <SqlPublishPanel result={project.lastSqlResult} analysis={project.analysisReport} isAnalyzing={project.isAnalyzing} isRecommendingCharts={project.isRecommendingCharts} onDeploy={async () => {}} isDeploying={false} />}
-        {project.activeMode === DevMode.PYTHON && <PythonPublishPanel result={project.lastPythonResult} onDeploy={async () => {}} isDeploying={false} />}
+        {project.activeMode === DevMode.SQL && (
+            <SqlPublishPanel 
+                result={project.lastSqlResult} 
+                analysis={project.analysisReport} 
+                isAnalyzing={project.isAnalyzing} 
+                isRecommendingCharts={project.isRecommendingCharts} 
+                onDeploy={() => setIsPublishOpen(true)} 
+                isDeploying={false} 
+            />
+        )}
+        {project.activeMode === DevMode.PYTHON && (
+            <PythonPublishPanel 
+                result={project.lastPythonResult} 
+                onDeploy={async () => setIsPublishOpen(true)} 
+                isDeploying={false} 
+            />
+        )}
       </div>
-      {isMarketOpen && <AppMarket onClose={() => setIsMarketOpen(false)} />}
+      {isMarketOpen && (
+        <AppMarket 
+            onClose={() => setIsMarketOpen(false)} 
+            onLoadApp={handleLoadApp}
+        />
+      )}
+      
+      <PublishDialog 
+         isOpen={isPublishOpen} 
+         onClose={() => setIsPublishOpen(false)}
+         type={project.activeMode === DevMode.SQL ? DevMode.SQL : DevMode.PYTHON}
+         code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
+         dbName={project.dbName}
+         resultSnapshot={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult}
+      />
     </div>
   );
 };

@@ -44,16 +44,25 @@ export interface Suggestion {
   type: DevMode.SQL | DevMode.PYTHON;
 }
 
-export interface AppMarketItem {
+export interface PublishedApp {
   id: string;
-  name: string;
-  icon: string;
-  color: string;
+  title: string;
   description: string;
   author: string;
-  category: string;
   type: DevMode.SQL | DevMode.PYTHON;
+  code: string;
+  source_db_name: string;
+  params_schema?: string; // JSON string
+  snapshot_json?: string; // JSON string of ExecutionResult
+  created_at: string;
+  // UI helper for Market display
+  icon?: string; 
+  color?: string;
+  category?: string;
 }
+
+// Deprecated in favor of PublishedApp, but kept for compatibility if needed
+export interface AppMarketItem extends PublishedApp {}
 
 export interface Notebook {
   id: string;

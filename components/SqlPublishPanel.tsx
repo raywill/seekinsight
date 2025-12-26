@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ExecutionResult, AIChartConfig } from '../types';
+import { ExecutionResult, AIChartConfig, DevMode } from '../types';
 import { FileText, BarChart3, Rocket, RefreshCw, Sparkles, CheckCircle2, Layers, AlertCircle, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 
@@ -9,7 +9,7 @@ interface Props {
   analysis: string;
   isAnalyzing: boolean;
   isRecommendingCharts: boolean;
-  onDeploy: () => Promise<void>;
+  onDeploy: () => void;
   isDeploying: boolean;
 }
 
@@ -98,7 +98,6 @@ const SimpleMarkdown = ({ content }: { content: string }) => {
         }
         if (!trimmed) return <div key={i} className="h-2" />;
         
-        // Handle bold text **text**
         const formattedLine = trimmed.replace(/\*\*(.*?)\*\*/g, '<b class="font-black text-gray-800">$1</b>');
         return <p key={i} className="text-xs text-gray-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
       })}
@@ -204,15 +203,6 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
 
 const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRecommendingCharts, onDeploy, isDeploying }) => {
   const [tab, setTab] = useState<'report' | 'viz'>('viz');
-  const [deployed, setDeployed] = useState(false);
-
-  const handleDeploy = async () => {
-    if (isDeploying) return;
-    await onDeploy();
-    setDeployed(true);
-    setTimeout(() => setDeployed(false), 3000);
-  };
-
   const hasData = result && result.data && result.data.length > 0;
 
   return (
@@ -312,12 +302,12 @@ const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRec
 
       <div className="p-6 bg-white border-t border-gray-100">
         <button 
-          onClick={handleDeploy} 
+          onClick={onDeploy} 
           disabled={isDeploying || !hasData} 
           className="w-full py-4 bg-gray-900 text-white rounded-[1.25rem] text-sm font-black flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-50 active:scale-95"
         >
-          {isDeploying ? <RefreshCw size={18} className="animate-spin" /> : (deployed ? <CheckCircle2 size={18} className="text-green-400" /> : <Rocket size={18} />)}
-          {deployed ? 'APP LIVE ON CLOUD' : 'PUBLISH AS DASHBOARD'}
+          <Rocket size={18} />
+          PUBLISH AS DASHBOARD
         </button>
       </div>
     </div>

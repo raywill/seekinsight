@@ -5,28 +5,17 @@ import { Rocket, RefreshCw, Box, ShieldCheck, Activity, Globe, CheckCircle2, Zap
 
 interface Props {
   result: ExecutionResult | null;
-  onDeploy: () => Promise<void>;
+  onDeploy: () => void;
   isDeploying: boolean;
 }
 
 const PythonPublishPanel: React.FC<Props> = ({ result, onDeploy, isDeploying }) => {
-  const [deployed, setDeployed] = useState(false);
-
-  const handleDeploy = async () => {
-    await onDeploy();
-    setDeployed(true);
-    setTimeout(() => setDeployed(false), 3000);
-  };
-
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
-      <div className="p-4 border-b border-gray-200 bg-purple-50/30 flex items-center justify-between">
+      <div className="p-4 border-b border-gray-200 bg-purple-50/30 flex items-center justify-center">
         <h2 className="text-[11px] font-black text-purple-700 uppercase tracking-widest flex items-center gap-2">
           <Box size={14} /> Deployment Hub
         </h2>
-        <div className="flex gap-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -77,12 +66,12 @@ const PythonPublishPanel: React.FC<Props> = ({ result, onDeploy, isDeploying }) 
 
       <div className="p-6 bg-gray-50 border-t border-gray-100">
         <button 
-          onClick={handleDeploy} 
+          onClick={onDeploy} 
           disabled={isDeploying || !result} 
           className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-50 active:scale-[0.98]"
         >
-          {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : (deployed ? <CheckCircle2 size={16} /> : <Rocket size={16} />)}
-          {deployed ? 'SCRIPT PUBLISHED' : 'DEPLOY TO SERVERLESS URL'}
+          <Rocket size={16} />
+          DEPLOY TO SERVERLESS URL
         </button>
       </div>
     </div>

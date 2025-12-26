@@ -9,7 +9,7 @@ import crypto from 'crypto';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for snapshots
 
 const PORT = 3001;
 const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
@@ -27,6 +27,7 @@ function getPythonExecutable() {
 
 const SYSTEM_DB = 'seekinsight';
 const NOTEBOOK_LIST_TABLE = 'seekinsight_notebook_list';
+const PUBLISHED_APPS_TABLE = 'seekinsight_published_apps';
 
 const pools = new Map();
 
@@ -72,6 +73,8 @@ async function initSystem() {
   await rootConn.end();
 
   const sysPool = await getPool(SYSTEM_DB);
+  
+  // Notebook List Table
   await sysPool.query(`
     CREATE TABLE IF NOT EXISTS \`${NOTEBOOK_LIST_TABLE}\` (
       id VARCHAR(50) PRIMARY KEY,
@@ -92,7 +95,56 @@ async function initSystem() {
   } catch (err) {
     if (IS_DEBUG) console.error("Migration error:", err);
   }
+
+  // Published Apps Table
+  await sysPool.query(`
+    CREATE TABLE IF NOT EXISTS \`${PUBLISHED_APPS_TABLE}\` (
+      id VARCHAR(50) PRIMARY KEY,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      author VARCHAR(100) DEFAULT 'Anonymous',
+      type VARCHAR(20) NOT NULL, 
+      code MEDIUMTEXT,
+      source_db_name VARCHAR(100),
+      params_schema TEXT,
+      snapshot_json LONGTEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
+
+// --- Apps API ---
+
+app.get('/apps', async (req, res) => {
+  try {
+    const pool = await getPool(SYSTEM_DB);
+    const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
+    res.json(rows);
+  } catch (err) {
+    console.error("[Apps GET Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/apps', async (req, res) => {
+  try {
+    const { title, description, author, type, code, source_db_name, params_schema, snapshot_json } = req.body;
+    const id = crypto.randomBytes(4).toString('hex');
+    const pool = await getPool(SYSTEM_DB);
+    
+    await pool.query(
+      `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, params_schema, snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, title, description, author || 'User', type, code, source_db_name, params_schema, snapshot_json]
+    );
+    
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error("[Apps POST Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- Notebook API ---
 
 app.get('/notebooks', async (req, res) => {
   try {
@@ -242,6 +294,10 @@ try:
     engine = create_engine("${connectionString}")
     def sql(query): return pd.read_sql(query, engine)
     def forge_plotly(fig): print(f"__PLOTLY_DATA__:{pio.to_json(fig)}")
+    
+    # Init empty params if not injected
+    if 'SI_PARAMS' not in globals():
+        SI_PARAMS = {}
 except Exception as e:
     print(f"Bridge Setup Error: {str(e)}", file=sys.stderr)
 `;

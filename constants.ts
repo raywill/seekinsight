@@ -1,4 +1,3 @@
-
 import { TableMetadata, DevMode, AppMarketItem } from './types';
 
 // Global Feature Toggles
@@ -26,13 +25,6 @@ export const DEFAULT_TABLES: TableMetadata[] = [
       { name: 'segment', type: 'STRING', comment: 'User marketing segment' }
     ]
   }
-];
-
-export const MOCK_APPS: AppMarketItem[] = [
-  { id: '1', name: 'Global Sales Forecast', icon: 'TrendingUp', color: '#3B82F6', description: 'Predicts regional sales trends using historical CRM data.', author: 'DataTeam Alpha', category: 'Finance', type: DevMode.SQL },
-  { id: '2', name: 'User Churn Analyzer', icon: 'UserMinus', color: '#EF4444', description: 'Identifies high-risk segments based on engagement logs.', author: 'Growth Ops', category: 'Marketing', type: DevMode.PYTHON },
-  { id: '3', name: 'Inventory Optimizer', icon: 'Box', color: '#F59E0B', description: 'Dynamic stock level monitoring for multi-warehouse setups.', author: 'SupplyChain Pro', category: 'Logistics', type: DevMode.SQL },
-  { id: '4', name: 'Fraud Detection Engine', icon: 'ShieldAlert', color: '#DC2626', description: 'Anomaly detection for real-time transaction processing.', author: 'Security Lab', category: 'Finance', type: DevMode.PYTHON },
 ];
 
 export const INITIAL_SQL = `-- Generate regional revenue insights (pure mock data, no table dependency)
@@ -73,3 +65,58 @@ print(df.describe(include='all'))
 # Visualize with ForgePlot
 fig = px.bar(df, x='category', y='value')
 forge_plotly(fig)`;
+
+export const MOCK_APPS: AppMarketItem[] = [
+  { 
+    id: '1', 
+    title: 'Global Sales Forecast', 
+    icon: 'TrendingUp', 
+    color: '#3B82F6', 
+    description: 'Predicts regional sales trends using historical CRM data.', 
+    author: 'DataTeam Alpha', 
+    category: 'Finance', 
+    type: DevMode.SQL,
+    code: INITIAL_SQL,
+    source_db_name: 'demo_db',
+    created_at: '2023-10-01T12:00:00Z'
+  },
+  { 
+    id: '2', 
+    title: 'User Churn Analyzer', 
+    icon: 'UserMinus', 
+    color: '#EF4444', 
+    description: 'Identifies high-risk segments based on engagement logs.', 
+    author: 'Growth Ops', 
+    category: 'Marketing', 
+    type: DevMode.PYTHON,
+    code: INITIAL_PYTHON,
+    source_db_name: 'demo_db',
+    created_at: '2023-10-02T12:00:00Z'
+  },
+  { 
+    id: '3', 
+    title: 'Inventory Optimizer', 
+    icon: 'Box', 
+    color: '#F59E0B', 
+    description: 'Dynamic stock level monitoring for multi-warehouse setups.', 
+    author: 'SupplyChain Pro', 
+    category: 'Logistics', 
+    type: DevMode.SQL,
+    code: INITIAL_SQL,
+    source_db_name: 'demo_db',
+    created_at: '2023-10-03T12:00:00Z'
+  },
+  { 
+    id: '4', 
+    title: 'Fraud Detection Engine', 
+    icon: 'ShieldAlert', 
+    color: '#DC2626', 
+    description: 'Anomaly detection for real-time transaction processing.', 
+    author: 'Security Lab', 
+    category: 'Finance', 
+    type: DevMode.PYTHON,
+    code: INITIAL_PYTHON,
+    source_db_name: 'demo_db',
+    created_at: '2023-10-04T12:00:00Z'
+  },
+];
