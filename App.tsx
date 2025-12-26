@@ -86,7 +86,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-12 overflow-y-auto">
+    <div className="h-screen bg-gray-50/50 p-12 overflow-y-auto">
       <div className="max-w-6xl mx-auto space-y-12">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-4">
