@@ -125,15 +125,15 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
   })();
 
   return (
-    <div className="bg-white border border-gray-100 rounded-[1.5rem] p-5 space-y-4 shadow-sm mb-4">
-      <div className="flex justify-between items-start">
+    <div className="bg-white border border-gray-100 rounded-[1.5rem] p-5 space-y-4 shadow-sm h-full flex flex-col">
+      <div className="flex justify-between items-start shrink-0">
         <div className="max-w-[80%]">
           <h4 className="text-xs font-black text-gray-900 tracking-tight line-clamp-1">{title}</h4>
           {description && <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide mt-0.5 line-clamp-1">{description}</p>}
         </div>
         <div className="p-1.5 bg-gray-50 text-blue-500 rounded-lg"><BarChart3 size={12} /></div>
       </div>
-      <div className="h-48 w-full"><ResponsiveContainer width="100%" height="100%">{chart}</ResponsiveContainer></div>
+      <div className="flex-1 w-full min-h-[160px]"><ResponsiveContainer width="100%" height="100%">{chart}</ResponsiveContainer></div>
     </div>
   );
 };
@@ -147,10 +147,10 @@ const SimpleMarkdown = ({ content }: { content: string }) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('###')) return <h3 key={i} className="text-sm font-black text-gray-900 mt-6 mb-2 uppercase tracking-tight">{trimmed.replace(/^###\s*/, '')}</h3>;
         if (trimmed.startsWith('##')) return <h2 key={i} className="text-base font-black text-gray-900 mt-8 mb-3 border-b border-gray-100 pb-1">{trimmed.replace(/^##\s*/, '')}</h2>;
-        if (trimmed.startsWith('-') || trimmed.startsWith('*')) return <div key={i} className="flex gap-3 items-start pl-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /><p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p></div>;
+        if (trimmed.startsWith('-') || trimmed.startsWith('*')) return <div key={i} className="flex gap-3 items-start pl-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /><p className="text-sm text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p></div>;
         if (!trimmed) return <div key={i} className="h-2" />;
         const formattedLine = trimmed.replace(/\*\*(.*?)\*\*/g, '<b class="font-black text-gray-800">$1</b>');
-        return <p key={i} className="text-xs text-gray-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
+        return <p key={i} className="text-sm text-gray-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
       })}
     </div>
   );
@@ -235,7 +235,7 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
       <div className="bg-white w-full h-full flex flex-col animate-in fade-in duration-300">
         
         {/* Fullscreen Header */}
-        <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between bg-white z-10 shadow-sm">
+        <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between bg-white z-20 shadow-sm shrink-0">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${app.type === DevMode.SQL ? 'bg-blue-600 shadow-blue-200' : 'bg-purple-600 shadow-purple-200'}`}>
                {app.type === DevMode.SQL ? <BarChart3 size={24} /> : <Terminal size={24} />}
@@ -264,7 +264,7 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar / Controls */}
-          <div className="w-80 bg-gray-50 border-r border-gray-100 p-6 flex flex-col overflow-y-auto">
+          <div className="w-80 bg-gray-50 border-r border-gray-100 p-6 flex flex-col overflow-y-auto shrink-0 z-10">
              <div className="mb-8">
                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Description</h4>
                <p className="text-sm text-gray-600 leading-relaxed font-medium">{app.description || "No description provided."}</p>
@@ -283,18 +283,6 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
                </div>
              )}
 
-            {/* Analysis Report Section for SQL Apps */}
-            {app.type === DevMode.SQL && analysisReport && (
-                <div className="mb-8">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <Sparkles size={14} className="text-blue-500" /> Key Insights
-                    </h4>
-                    <div className="bg-white border border-gray-100 p-4 rounded-xl max-h-96 overflow-y-auto shadow-sm">
-                        <SimpleMarkdown content={analysisReport} />
-                    </div>
-                </div>
-            )}
-
              <div className="mt-auto">
                 <button 
                   onClick={handleRun}
@@ -310,30 +298,47 @@ const AppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) => {
              </div>
           </div>
 
-          {/* Result Area */}
+          {/* Main Visual Content (Scrollable) + Result Panel (Bottom) */}
           <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
              
-             {/* Charts Area for SQL Apps */}
-             {app.type === DevMode.SQL && result?.chartConfigs && result.chartConfigs.length > 0 && (
-                 <div className="h-1/3 border-b border-gray-100 bg-gray-50/30 p-4 overflow-x-auto whitespace-nowrap">
-                     <div className="flex gap-4 h-full">
-                        {result.chartConfigs.map((cfg, idx) => (
-                            <div key={idx} className="w-96 h-full inline-block whitespace-normal">
-                                <ChartCard config={cfg} rawData={result.data} />
-                            </div>
-                        ))}
-                     </div>
-                 </div>
-             )}
+             {/* Scrollable Upper Area: Insights + Charts */}
+             <div className="flex-1 overflow-y-auto p-8 space-y-10 min-h-0 bg-gray-50/30">
+                {/* Analysis Report Section (Moved from Sidebar) */}
+                {app.type === DevMode.SQL && analysisReport && (
+                    <div className="max-w-5xl mx-auto animate-in slide-in-from-bottom-2 duration-500">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Sparkles size={16} className="text-blue-500" /> Key Strategic Insights
+                        </h4>
+                        <div className="bg-white border border-blue-100 p-8 rounded-[2rem] shadow-sm shadow-blue-500/5">
+                            <SimpleMarkdown content={analysisReport} />
+                        </div>
+                    </div>
+                )}
 
-             <div className="flex-1 relative">
-                <div className="absolute inset-0 overflow-hidden">
-                    {app.type === DevMode.SQL ? (
-                        <SqlResultPanel result={result} isLoading={isRunning} />
-                    ) : (
-                        <PythonResultPanel result={result} isLoading={isRunning} />
-                    )}
-                </div>
+                {/* Charts Area for SQL Apps */}
+                {app.type === DevMode.SQL && result?.chartConfigs && result.chartConfigs.length > 0 && (
+                     <div className="max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-700 delay-100">
+                         <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Layers size={16} className="text-blue-500" /> Visual Breakdown
+                         </h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {result.chartConfigs.map((cfg, idx) => (
+                                <div key={idx} className="h-72">
+                                    <ChartCard config={cfg} rawData={result.data} />
+                                </div>
+                            ))}
+                         </div>
+                     </div>
+                 )}
+             </div>
+
+             {/* Result Panel (Fixed at Bottom) */}
+             <div className="shrink-0 relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] border-t border-gray-200">
+                {app.type === DevMode.SQL ? (
+                    <SqlResultPanel result={result} isLoading={isRunning} />
+                ) : (
+                    <PythonResultPanel result={result} isLoading={isRunning} />
+                )}
              </div>
           </div>
         </div>

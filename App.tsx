@@ -156,6 +156,8 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
            ))}
         </div>
 
+        <div className="flex-1 flex overflow-hidden"></div> {/* Placeholder for flex consistency if needed */}
+
         <div className="flex justify-center pt-16 pb-6 opacity-60 hover:opacity-100 transition-opacity duration-300">
            <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] flex items-center gap-3 cursor-default select-none hover:text-blue-400 transition-colors">
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.6)] animate-pulse"></div>
@@ -367,12 +369,9 @@ const App: React.FC = () => {
   
   const handleCloseAppViewer = () => {
       setViewingApp(null);
-      // If we were in market view, go back to market URL, else root
-      if (isMarketOpen) {
-          window.history.pushState({}, '', '?view=market');
-      } else {
-          window.history.pushState({}, '', '/');
-      }
+      // Always return to market when closing an App Viewer
+      setIsMarketOpen(true);
+      window.history.pushState({}, '', '?view=market');
   }
 
   const syncSuggestionsToDb = async (suggestions: Suggestion[]) => {
@@ -685,6 +684,7 @@ const App: React.FC = () => {
       );
   }
 
+  
   if (!dbReady && !currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
 
   return (
