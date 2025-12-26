@@ -809,6 +809,7 @@ const App: React.FC = () => {
       return (
          <AppMarket 
             onClose={handleCloseMarket}
+            onHome={handleExit}
             onOpenApp={handleOpenAppById}
             onEditApp={handleEditApp}
             onCloneApp={handleCloneApp}

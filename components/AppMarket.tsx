@@ -7,12 +7,13 @@ import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, Lay
 
 interface Props {
   onClose: () => void;
+  onHome?: () => void;
   onOpenApp?: (appId: string) => void; // New prop for URL routing
   onEditApp?: (app: PublishedApp) => void;
   onCloneApp?: (app: PublishedApp) => void;
 }
 
-const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp }) => {
+const AppMarket: React.FC<Props> = ({ onClose, onHome, onOpenApp, onEditApp, onCloneApp }) => {
   const [apps, setApps] = useState<PublishedApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -77,11 +78,11 @@ const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp 
           </div>
 
           <button 
-            onClick={onClose} 
+            onClick={onHome || onClose} 
             className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl transition-all font-bold text-xs uppercase tracking-wider shadow-sm"
           >
             <Home size={16} />
-            Back to Home
+            Home
           </button>
         </div>
 
