@@ -144,6 +144,13 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
              </div>
            ))}
         </div>
+
+        <div className="flex justify-center pt-16 pb-6 opacity-60 hover:opacity-100 transition-opacity duration-300">
+           <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] flex items-center gap-3 cursor-default select-none hover:text-blue-400 transition-colors">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.6)] animate-pulse"></div>
+              powered by seekdb
+           </span>
+        </div>
       </div>
     </div>
   );
