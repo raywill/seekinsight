@@ -134,7 +134,9 @@ const SqlWorkspace: React.FC<Props> = ({
 
     // Look backwards from cursor to find current word
     let start = cursorIndex;
-    while (start > 0 && /[\w\d_]/.test(currentCode[start - 1])) {
+    // Modified regex to include English letters, numbers, underscores AND Unicode chars (Chinese, etc.)
+    // Matches any char that is NOT a separator (whitespace, punctuation, brackets, quotes)
+    while (start > 0 && /[a-zA-Z0-9_\u0080-\uFFFF]/.test(currentCode[start - 1])) {
       start--;
     }
     const currentWord = currentCode.substring(start, cursorIndex);
@@ -232,97 +234,4 @@ const SqlWorkspace: React.FC<Props> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
-      <div className="px-8 py-4 bg-blue-50/30 border-b border-blue-100/50">
-        <div className="relative group w-full">
-          <input
-            value={prompt}
-            onChange={(e) => onPromptChange(e.target.value)}
-            placeholder="Ask AI to write SQL... e.g. Show revenue trends by segment"
-            className="w-full pl-10 pr-40 py-2.5 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 shadow-sm transition-all"
-          />
-          <Database size={16} className="absolute left-3.5 top-3.5 text-blue-400" />
-          <button 
-            onClick={onTriggerAi} 
-            disabled={isAiGenerating || isAiFixing || !prompt} 
-            className="absolute right-2 top-2 px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-            Generate SQL
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col relative">
-        {isUndoVisible && (
-          <div className="absolute top-4 right-6 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
-            <button 
-              onClick={() => { onUndo?.(); setIsUndoVisible(false); }} 
-              className="flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-sm border border-blue-200 text-blue-600 rounded-lg text-[10px] font-black shadow-xl hover:bg-blue-50 transition-all active:scale-95"
-            >
-              <RotateCcw size={12} /> Revert AI Change
-            </button>
-          </div>
-        )}
-        
-        <BaseCodeEditor 
-          ref={editorRef} 
-          code={code} 
-          onChange={handleCodeChange} 
-          onKeyDown={handleKeyDown} 
-          language="sql" 
-          placeholder="-- Write SQL here..." 
-          readOnly={isAiGenerating || isAiFixing} 
-        />
-
-        {/* Autocomplete Dropdown */}
-        {showSuggestions && (
-          <div 
-            className="absolute z-[100] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden min-w-[200px] max-w-[300px] animate-in fade-in zoom-in-95 duration-75"
-            style={{ 
-              top: cursorPosition.top, 
-              left: cursorPosition.left 
-            }}
-          >
-            <div className="text-[9px] font-black uppercase tracking-widest bg-gray-50 px-3 py-1.5 text-gray-400 border-b border-gray-100 flex justify-between">
-              <span>Suggestions</span>
-              <span className="text-[8px] bg-gray-200 px-1 rounded text-gray-500">TAB</span>
-            </div>
-            <div className="max-h-[200px] overflow-y-auto">
-              {suggestions.map((item, idx) => (
-                <div
-                  key={`${item.value}-${idx}`}
-                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-xs font-mono border-l-2 transition-colors ${
-                    idx === highlightedIndex 
-                      ? 'bg-blue-50 border-blue-500 text-blue-700' 
-                      : 'bg-white border-transparent text-gray-600 hover:bg-gray-50'
-                  }`}
-                  onClick={() => insertSuggestion(item)}
-                  onMouseEnter={() => setHighlightedIndex(idx)}
-                >
-                  {renderIcon(item.type)}
-                  <div className="flex flex-col truncate">
-                    <span className="font-bold truncate">{item.label}</span>
-                    {item.detail && <span className="text-[9px] text-gray-400 font-sans truncate">{item.detail}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <div className="px-6 py-3 border-t border-gray-100 bg-white flex justify-between items-center shrink-0 z-10">
-          <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-            <div className="flex items-center gap-1.5"><Code2 size={12} className="text-blue-400" /><span>ANSI SQL</span></div>
-          </div>
-          <button onClick={onRun} disabled={isExecuting || isAiGenerating || isAiFixing} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50">
-            {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Execute Query
-          </button>
-        </div>
-      </div>
-
-      <SqlResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiFixing} />
-    </div>
-  );
-};
-
-export default SqlWorkspace;
+      <div className="px-8 py-
