@@ -783,6 +783,8 @@ const App: React.FC = () => {
          code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
          dbName={project.dbName}
          resultSnapshot={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult}
+         defaultTitle={project.topicName}
+         defaultDescription={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DevMode, ExecutionResult } from '../types';
 import { publishApp } from '../services/appService';
 import { X, Rocket, Sparkles, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
@@ -11,15 +11,35 @@ interface Props {
   code: string;
   dbName: string | null;
   resultSnapshot: ExecutionResult | null;
+  defaultTitle?: string;
+  defaultDescription?: string;
 }
 
-const PublishDialog: React.FC<Props> = ({ isOpen, onClose, type, code, dbName, resultSnapshot }) => {
+const PublishDialog: React.FC<Props> = ({ 
+  isOpen, 
+  onClose, 
+  type, 
+  code, 
+  dbName, 
+  resultSnapshot,
+  defaultTitle,
+  defaultDescription
+}) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [author, setAuthor] = useState('');
   const [paramsJson, setParamsJson] = useState('{\n  "threshold": 0.5,\n  "region": "Global"\n}');
   const [isPublishing, setIsPublishing] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Auto-fill form when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setTitle(defaultTitle || '');
+      setDescription(defaultDescription || '');
+      setSuccess(false); // Reset success state
+    }
+  }, [isOpen, defaultTitle, defaultDescription]);
 
   if (!isOpen) return null;
 
