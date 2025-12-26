@@ -681,7 +681,7 @@ const App: React.FC = () => {
             textContent = gbkDecoder.decode(buffer);
           }
           
-          // Robust Paragraph Parsing
+          // 1. Unify newlines and spaces
           let text = textContent
             .replace(/\r\n|\r/g, '\n')
             .replace(/\u2028|\u2029/g, '\n')
