@@ -122,7 +122,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
                onClick={() => onOpen(nb)}
                className="group bg-white border border-gray-100 rounded-3xl p-6 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[180px]"
              >
-                <div className="flex justify-between items-start mb-3">
+                <div className="flex justify-between items-start mb-5">
                   <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl transition-transform group-hover:scale-110">
                     {renderIcon(nb.icon_name)}
                   </div>
@@ -140,7 +140,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
                   </h3>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between">
+                <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     <Calendar size={12} />
                     {new Date(nb.created_at).toLocaleDateString()}
