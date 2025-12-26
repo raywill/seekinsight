@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { PublishedApp, DevMode, ExecutionResult, AIChartConfig } from '../types';
-import { X, Play, Copy, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork } from 'lucide-react';
+import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid } from 'lucide-react';
 import SqlResultPanel from './SqlResultPanel';
 import * as ai from '../services/aiProvider';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
@@ -9,7 +9,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 interface Props {
   app: PublishedApp;
   onClose: () => void;
-  onLoadToWorkspace: (app: PublishedApp) => void;
   onEdit?: (app: PublishedApp) => void;
   onClone?: (app: PublishedApp) => void;
 }
@@ -157,7 +156,7 @@ const SimpleMarkdown = ({ content }: { content: string }) => {
   );
 };
 
-const SqlAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace, onEdit, onClone }) => {
+const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [analysisReport, setAnalysisReport] = useState<string>('');
   const [isRunning, setIsRunning] = useState(false);
@@ -290,13 +289,11 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace, onEdit
              )}
 
              <button 
-                onClick={() => onLoadToWorkspace(app)}
-                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                onClick={onClose} 
+                className="p-2.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-xl transition-colors"
+                title="Back to Marketplace"
              >
-               <Copy size={16} /> Load Session
-             </button>
-             <button onClick={onClose} className="p-2.5 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-colors">
-               <X size={20} />
+               <LayoutGrid size={20} />
              </button>
           </div>
         </div>

@@ -4,17 +4,15 @@ import { PublishedApp, DevMode } from '../types';
 import { fetchApps, deleteApp } from '../services/appService';
 import * as Icons from 'lucide-react';
 import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2, Trash2 } from 'lucide-react';
-import AppViewer from './AppViewer';
 
 interface Props {
   onClose: () => void;
-  onLoadApp?: (app: PublishedApp) => void;
   onOpenApp?: (appId: string) => void; // New prop for URL routing
   onEditApp?: (app: PublishedApp) => void;
   onCloneApp?: (app: PublishedApp) => void;
 }
 
-const AppMarket: React.FC<Props> = ({ onClose, onLoadApp, onOpenApp, onEditApp, onCloneApp }) => {
+const AppMarket: React.FC<Props> = ({ onClose, onOpenApp, onEditApp, onCloneApp }) => {
   const [apps, setApps] = useState<PublishedApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

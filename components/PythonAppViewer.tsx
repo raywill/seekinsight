@@ -1,18 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { PublishedApp, DevMode, ExecutionResult } from '../types';
-import { X, Play, Copy, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork } from 'lucide-react';
+import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 
 interface Props {
   app: PublishedApp;
   onClose: () => void;
-  onLoadToWorkspace: (app: PublishedApp) => void;
   onEdit?: (app: PublishedApp) => void;
   onClone?: (app: PublishedApp) => void;
 }
 
-const PythonAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace, onEdit, onClone }) => {
+const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [params, setParams] = useState(app.params_schema || '{}');
   const [isRunning, setIsRunning] = useState(false);
@@ -130,13 +129,11 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace, onE
              )}
 
              <button 
-                onClick={() => onLoadToWorkspace(app)}
-                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                onClick={onClose} 
+                className="p-2.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-xl transition-colors"
+                title="Back to Marketplace"
              >
-               <Copy size={16} /> Load Session
-             </button>
-             <button onClick={onClose} className="p-2.5 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-colors">
-               <X size={20} />
+               <LayoutGrid size={20} />
              </button>
           </div>
         </div>

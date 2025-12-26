@@ -317,30 +317,6 @@ const App: React.FC = () => {
       };
   }
 
-  const handleLoadAppToWorkspace = async (app: PublishedApp) => {
-    const db = getDatabaseEngine();
-    const tables = await db.getTables(app.source_db_name);
-    
-    // Switch to Temporary App Session
-    setProject(prev => {
-        const newState = restoreAppState(app, prev);
-        return {
-            ...newState,
-            dbName: app.source_db_name,
-            tables: tables,
-            topicName: app.title,
-        };
-    });
-
-    setCurrentNotebook(null); 
-    setDbReady(true);
-    setViewingApp(null);
-    setIsMarketOpen(false);
-    window.history.pushState({}, '', '/');
-
-    // Auto-execute logic handled by restoring result snapshot, no need to re-run immediately
-  };
-
   const handleEditApp = async (app: PublishedApp) => {
     if (!app.source_notebook_id) {
         alert("This app was created before the edit feature was enabled, or the source notebook link is missing.");
@@ -710,7 +686,6 @@ const App: React.FC = () => {
           <AppViewer 
              app={viewingApp}
              onClose={handleCloseAppViewer}
-             onLoadToWorkspace={handleLoadAppToWorkspace}
              onEdit={handleEditApp}
              onClone={handleCloneApp}
           />
@@ -721,7 +696,6 @@ const App: React.FC = () => {
       return (
          <AppMarket 
             onClose={handleCloseMarket}
-            onLoadApp={handleLoadAppToWorkspace}
             onOpenApp={handleOpenAppById}
             onEditApp={handleEditApp}
             onCloneApp={handleCloneApp}
