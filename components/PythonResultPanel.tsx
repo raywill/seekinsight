@@ -9,11 +9,12 @@ interface Props {
   isLoading: boolean;
   onDebug?: () => void;
   isAiLoading?: boolean;
+  fullHeight?: boolean;
 }
 
 const MIN_HEIGHT = 240;
 
-const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoading }) => {
+const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoading, fullHeight = false }) => {
   const [activeTab, setActiveTab] = useState<'console' | 'plot'>('console');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
@@ -24,11 +25,12 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error') || l.toLowerCase().includes('traceback')));
 
   const startResize = useCallback((e: React.MouseEvent) => {
+    if (fullHeight) return;
     setIsResizing(true);
     startY.current = e.pageY;
     startHeight.current = height;
     document.body.style.cursor = 'ns-resize';
-  }, [height]);
+  }, [height, fullHeight]);
 
   const stopResize = useCallback(() => {
     setIsResizing(false);
@@ -65,25 +67,29 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
     }
   }, [result, hasError]);
 
+  const containerStyle = fullHeight ? { height: '100%', flex: 1 } : { height };
+
   if (isLoading) return (
-    <div style={{ height }} className="border-t border-gray-200 bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse">
+    <div style={containerStyle} className="border-t border-gray-200 bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse">
       <Box size={24} className="animate-spin mb-3" />
       <p className="text-[10px] font-black uppercase tracking-[0.2em]">Executing Python Runtime...</p>
     </div>
   );
 
   if (!result) return (
-    <div style={{ height }} className="border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-300">
+    <div style={containerStyle} className="border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-300">
       <TerminalIcon size={24} className="opacity-10 mb-2" />
       <p className="text-xs font-black uppercase tracking-widest">Ready for Scripting</p>
     </div>
   );
 
   return (
-    <div style={{ height }} className="border-t border-gray-200 bg-white flex flex-col overflow-hidden relative group/resizer">
-      <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-purple-500 z-50 flex items-center justify-center">
-        <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-purple-400"></div>
-      </div>
+    <div style={containerStyle} className="border-t border-gray-200 bg-white flex flex-col overflow-hidden relative group/resizer">
+      {!fullHeight && (
+        <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-purple-500 z-50 flex items-center justify-center">
+          <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-purple-400"></div>
+        </div>
+      )}
 
       <div className={`px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50'}`}>
         <div className="flex gap-1">
