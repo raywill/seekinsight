@@ -15,11 +15,11 @@ import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
 import PublishDialog from './components/PublishDialog';
 import AppViewer from './components/AppViewer';
-import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, ArrowRight, Trash2, Calendar, LogOut, Plus, Database } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, ArrowRight, Trash2, Calendar, LogOut, Plus, Database, Globe, Zap } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
+const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void }> = ({ onOpen, onOpenMarket }) => {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -113,12 +113,47 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {notebooks.length === 0 && !creating && (
-             <div className="col-span-full py-32 text-center space-y-4 border-2 border-dashed border-gray-200 rounded-[3rem]">
-                <div className="w-20 h-20 bg-blue-50 text-blue-300 rounded-3xl flex items-center justify-center mx-auto"><Sparkles size={40} /></div>
-                <h3 className="text-xl font-bold text-gray-400">Empty Vault. Start your first insightful project.</h3>
-             </div>
-           )}
+           
+           {/* Card 1: Marketplace Entry */}
+           <div 
+             onClick={onOpenMarket}
+             className="group relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 cursor-pointer hover:shadow-2xl hover:shadow-slate-500/30 transition-all text-white min-h-[180px] flex flex-col justify-between hover:-translate-y-1 duration-300"
+           >
+              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Globe size={100} />
+              </div>
+              <div className="flex justify-between items-start mb-5 relative z-10">
+                <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 group-hover:bg-white/20 transition-colors">
+                  <LayoutGrid size={20} className="text-blue-300" />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="text-lg font-black text-white mb-1 tracking-tight">App Marketplace</h3>
+                <p className="text-xs font-medium text-slate-400">Explore community templates & clone ready-made apps.</p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between relative z-10">
+                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-300 uppercase tracking-widest">
+                    <Zap size={12} className="fill-blue-300" />
+                    Featured
+                 </div>
+                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-blue-500 transition-colors">
+                    <ArrowRight size={14} />
+                 </div>
+              </div>
+           </div>
+
+           {/* Card 2: Create New (Alternative Entry) */}
+           <div 
+             onClick={handleCreate}
+             className={`group bg-white border-2 border-dashed border-gray-200 rounded-3xl p-6 hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer flex flex-col justify-center items-center gap-4 min-h-[180px] ${creating ? 'opacity-50 pointer-events-none' : ''}`}
+           >
+              <div className="w-16 h-16 rounded-full bg-gray-50 group-hover:bg-white group-hover:shadow-md flex items-center justify-center transition-all text-gray-300 group-hover:text-blue-500">
+                {creating ? <Loader2 className="animate-spin" size={24} /> : <Plus size={32} />}
+              </div>
+              <h3 className="text-sm font-black text-gray-400 group-hover:text-blue-600 uppercase tracking-widest transition-colors">Create Blank Notebook</h3>
+           </div>
+
+           {/* Existing Notebooks */}
            {notebooks.map(nb => (
              <div
                key={nb.id}
@@ -772,7 +807,7 @@ const App: React.FC = () => {
       );
   }
 
-  if (!dbReady && !currentNotebook) return <Lobby onOpen={handleOpenNotebook} />;
+  if (!dbReady && !currentNotebook) return <Lobby onOpen={handleOpenNotebook} onOpenMarket={handleOpenMarket} />;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
@@ -816,7 +851,6 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={handleOpenMarket} className="flex items-center gap-2 px-5 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold"><LayoutGrid size={16} /> Market</button>
           <button onClick={handleExit} className="w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"><LogOut size={18} /></button>
         </div>
       </header>
