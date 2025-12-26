@@ -176,12 +176,17 @@ export class MySQLEngine implements DatabaseEngine {
         inferredType = 'DOUBLE';
       }
       else if (typeof firstVal === 'string') {
-        if (/^\d{4}-\d{2}-\d{2}/.test(firstVal)) {
-          inferredType = 'DATETIME(6)';
-        } else if (maxLen > 16383) {
+        // Fix: Prioritize length check over date pattern to avoid 'Data too long' errors
+        // Fix: Use 191 as threshold for VARCHAR to be safe with utf8mb4 indexing limits
+        if (maxLen > 16777215) {
+          inferredType = 'LONGTEXT';
+        } else if (maxLen > 65535) {
           inferredType = 'MEDIUMTEXT';
-        } else if (maxLen > 255) {
+        } else if (maxLen > 191) {
           inferredType = 'TEXT';
+        } else if (/^\d{4}-\d{2}-\d{2}/.test(firstVal) && maxLen <= 30) {
+          // Only infer Date if max length is reasonable
+          inferredType = 'DATETIME(6)';
         } else {
           inferredType = 'VARCHAR(255)';
         }
