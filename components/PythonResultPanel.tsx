@@ -67,24 +67,28 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
     }
   }, [result, hasError]);
 
-  const containerStyle = fullHeight ? { height: '100%', flex: 1 } : { height };
+  const containerStyle: React.CSSProperties = fullHeight 
+    ? { height: '100%', flex: 1, width: '100%' } 
+    : { height };
+
+  const borderClass = fullHeight ? '' : 'border-t border-gray-200';
 
   if (isLoading) return (
-    <div style={containerStyle} className="border-t border-gray-200 bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse">
+    <div style={containerStyle} className={`${borderClass} bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse`}>
       <Box size={24} className="animate-spin mb-3" />
       <p className="text-[10px] font-black uppercase tracking-[0.2em]">Executing Python Runtime...</p>
     </div>
   );
 
   if (!result) return (
-    <div style={containerStyle} className="border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-300">
+    <div style={containerStyle} className={`${borderClass} bg-gray-50 flex flex-col items-center justify-center text-gray-300`}>
       <TerminalIcon size={24} className="opacity-10 mb-2" />
       <p className="text-xs font-black uppercase tracking-widest">Ready for Scripting</p>
     </div>
   );
 
   return (
-    <div style={containerStyle} className="border-t border-gray-200 bg-white flex flex-col overflow-hidden relative group/resizer">
+    <div style={containerStyle} className={`${borderClass} bg-white flex flex-col overflow-hidden relative group/resizer`}>
       {!fullHeight && (
         <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-purple-500 z-50 flex items-center justify-center">
           <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-purple-400"></div>

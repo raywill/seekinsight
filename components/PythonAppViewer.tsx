@@ -143,7 +143,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onLoadToWorkspace }) =
           </div>
 
           {/* Main Visual Content (Full Height Result Panel) */}
-          <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
+          <div className="flex-1 bg-white flex flex-col relative overflow-hidden h-full">
              {/* Using fullHeight prop to occupy all available space */}
              <PythonResultPanel 
                 result={result} 
