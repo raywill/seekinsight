@@ -114,7 +114,6 @@ const SqlWorkspace: React.FC<Props> = ({
     
     // Adjust for the specific padding of the editor (matches CSS in index.html)
     // padding: 20px 20px 20px 65px !important;
-    // We need relative position inside the textarea container
     const relativeLeft = span.offsetLeft; 
     const relativeTop = span.offsetTop;
     
@@ -130,27 +129,20 @@ const SqlWorkspace: React.FC<Props> = ({
     };
   };
 
-  const handleCodeChange = (newCode: string) => {
-    onCodeChange(newCode);
-    
+  const updateSuggestions = (currentCode: string, cursorIndex: number) => {
     if (process.env.SQL_AUTO_COMPLETE === 'false') return;
 
-    const textarea = editorRef.current?.textarea;
-    if (!textarea) return;
-
-    const cursorIndex = textarea.selectionStart;
-    
     // Look backwards from cursor to find current word
     let start = cursorIndex;
-    while (start > 0 && /[\w\d_]/.test(newCode[start - 1])) {
+    while (start > 0 && /[\w\d_]/.test(currentCode[start - 1])) {
       start--;
     }
-    const currentWord = newCode.substring(start, cursorIndex);
+    const currentWord = currentCode.substring(start, cursorIndex);
 
     if (currentWord.length >= 1) {
       const matches = allKeywords.filter(item => 
         item.label.toLowerCase().startsWith(currentWord.toLowerCase()) && 
-        item.label !== currentWord // Don't suggest if fully typed (optional preference)
+        item.label !== currentWord 
       ).slice(0, 8); // Limit to 8 suggestions
 
       if (matches.length > 0) {
@@ -162,8 +154,19 @@ const SqlWorkspace: React.FC<Props> = ({
         return;
       }
     }
-    
     setShowSuggestions(false);
+  };
+
+  const handleCodeChange = (newCode: string) => {
+    onCodeChange(newCode);
+    
+    // Defer suggestion update slightly to allow state/dom update
+    setTimeout(() => {
+        const textarea = editorRef.current?.textarea;
+        if (textarea) {
+            updateSuggestions(newCode, textarea.selectionStart);
+        }
+    }, 0);
   };
 
   const insertSuggestion = (suggestion: SuggestionItem) => {
@@ -190,19 +193,32 @@ const SqlWorkspace: React.FC<Props> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!showSuggestions) return;
+    if (showSuggestions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex(prev => (prev + 1) % suggestions.length);
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
+        return;
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertSuggestion(suggestions[highlightedIndex]);
+        return;
+      } else if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        return;
+      }
+    }
 
-    if (e.key === 'ArrowDown') {
+    // Ctrl+Space trigger
+    if (e.ctrlKey && e.key === ' ') {
       e.preventDefault();
-      setHighlightedIndex(prev => (prev + 1) % suggestions.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlightedIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault();
-      insertSuggestion(suggestions[highlightedIndex]);
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
+      const textarea = editorRef.current?.textarea;
+      if (textarea) {
+         updateSuggestions(code, textarea.selectionStart);
+      }
     }
   };
 
@@ -236,7 +252,7 @@ const SqlWorkspace: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col relative overflow-hidden">
+      <div className="flex-1 flex flex-col relative">
         {isUndoVisible && (
           <div className="absolute top-4 right-6 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
             <button 
@@ -261,33 +277,36 @@ const SqlWorkspace: React.FC<Props> = ({
         {/* Autocomplete Dropdown */}
         {showSuggestions && (
           <div 
-            className="absolute z-50 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden min-w-[180px] max-w-[300px] animate-in fade-in zoom-in-95 duration-75"
+            className="absolute z-[100] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden min-w-[200px] max-w-[300px] animate-in fade-in zoom-in-95 duration-75"
             style={{ 
               top: cursorPosition.top, 
               left: cursorPosition.left 
             }}
           >
-            <div className="text-[9px] font-black uppercase tracking-widest bg-gray-50 px-2 py-1 text-gray-400 border-b border-gray-100">
-              Suggestions
+            <div className="text-[9px] font-black uppercase tracking-widest bg-gray-50 px-3 py-1.5 text-gray-400 border-b border-gray-100 flex justify-between">
+              <span>Suggestions</span>
+              <span className="text-[8px] bg-gray-200 px-1 rounded text-gray-500">TAB</span>
             </div>
-            {suggestions.map((item, idx) => (
-              <div
-                key={`${item.value}-${idx}`}
-                className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-xs font-mono border-l-2 transition-colors ${
-                  idx === highlightedIndex 
-                    ? 'bg-blue-50 border-blue-500 text-blue-700' 
-                    : 'bg-white border-transparent text-gray-600 hover:bg-gray-50'
-                }`}
-                onClick={() => insertSuggestion(item)}
-                onMouseEnter={() => setHighlightedIndex(idx)}
-              >
-                {renderIcon(item.type)}
-                <div className="flex flex-col truncate">
-                  <span className="font-bold truncate">{item.label}</span>
-                  {item.detail && <span className="text-[9px] text-gray-400 font-sans">{item.detail}</span>}
+            <div className="max-h-[200px] overflow-y-auto">
+              {suggestions.map((item, idx) => (
+                <div
+                  key={`${item.value}-${idx}`}
+                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-xs font-mono border-l-2 transition-colors ${
+                    idx === highlightedIndex 
+                      ? 'bg-blue-50 border-blue-500 text-blue-700' 
+                      : 'bg-white border-transparent text-gray-600 hover:bg-gray-50'
+                  }`}
+                  onClick={() => insertSuggestion(item)}
+                  onMouseEnter={() => setHighlightedIndex(idx)}
+                >
+                  {renderIcon(item.type)}
+                  <div className="flex flex-col truncate">
+                    <span className="font-bold truncate">{item.label}</span>
+                    {item.detail && <span className="text-[9px] text-gray-400 font-sans truncate">{item.detail}</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
         

@@ -607,13 +607,26 @@ const App: React.FC = () => {
           tables={project.tables}
           onUploadFile={handleUpload}
           onRefreshTableStats={async t => {
-            const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook.db_name);
-            setProject(prev => ({
-              ...prev,
-              tables: prev.tables.map(table =>
-                table.tableName === t ? { ...table, rowCount: count } : table
-              )
-            }));
+            try {
+              const count = await getDatabaseEngine().refreshTableStats(t, currentNotebook.db_name);
+              setProject(prev => ({
+                ...prev,
+                tables: prev.tables.map(table =>
+                  table.tableName === t ? { ...table, rowCount: count } : table
+                )
+              }));
+            } catch (e: any) {
+               // Handle deletion: if error indicates table is missing, remove it from UI
+               const msg = e.message || "";
+               if (msg.includes("doesn't exist") || msg.includes("no such table")) {
+                  setProject(prev => ({
+                    ...prev,
+                    tables: prev.tables.filter(table => table.tableName !== t)
+                  }));
+               } else {
+                 console.error("Refresh failed", e);
+               }
+            }
           }}
           isUploading={isUploading}
           uploadProgress={uploadProgress}
