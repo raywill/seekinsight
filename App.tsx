@@ -113,7 +113,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
            {notebooks.length === 0 && !creating && (
              <div className="col-span-full py-32 text-center space-y-4 border-2 border-dashed border-gray-200 rounded-[3rem]">
                 <div className="w-20 h-20 bg-blue-50 text-blue-300 rounded-3xl flex items-center justify-center mx-auto"><Sparkles size={40} /></div>
-                <h3 className="text-xl font-bold text-gray-400">Empty Vault. Start your first research project.</h3>
+                <h3 className="text-xl font-bold text-gray-400">Empty Vault. Start your first insightful project.</h3>
              </div>
            )}
            {notebooks.map(nb => (
@@ -138,9 +138,6 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void }> = ({ onOpen }) => {
                   <h3 className="text-lg font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1 leading-tight">
                     {nb.topic}
                   </h3>
-                  <p className="text-xs text-gray-400 font-medium line-clamp-2">
-                    Analysis project on {nb.db_name}
-                  </p>
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between">
