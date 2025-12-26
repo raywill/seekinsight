@@ -395,63 +395,80 @@ const App: React.FC = () => {
     if (!dbReady || !currentNotebook || isUploading) return;
     setIsUploading(true);
     setUploadProgress(null);
+
+    const isTxt = file.name.toLowerCase().endsWith('.txt');
     const reader = new FileReader();
 
     reader.onload = async (e) => {
       try {
-        const rawFileData = e.target?.result;
-        const workbook = XLSX.read(rawFileData, { 
-          type: 'binary', 
-          cellDates: true,
-          dateNF: 'yyyy-mm-dd'
-        });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawArrayData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-        if (rawArrayData.length === 0) throw new Error("File is empty");
-
-        const sampleRows = rawArrayData.slice(0, 5);
         let finalHeaders: string[] = [];
         let finalObjects: any[] = [];
-        let suspiciousNoHeader = true;
+        const tableName = file.name.split('.')[0].trim().replace(/[^a-zA-Z0-9]/g, '_');
 
-        if (rawArrayData.length > 1) {
-          for (let col = 0; col < rawArrayData[0].length; col++) {
-            const type0 = typeof rawArrayData[0][col];
-            const type1 = typeof rawArrayData[1][col];
-            if (type0 !== type1 && type0 !== 'undefined' && type1 !== 'undefined') {
-              suspiciousNoHeader = false;
-              break;
+        if (isTxt) {
+          // 1. Parse TXT as paragraphs
+          const textContent = e.target?.result as string;
+          const paragraphs = textContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
+          
+          finalHeaders = ["paragraph_id", "content"];
+          finalObjects = paragraphs.map((text, index) => ({
+            "paragraph_id": index + 1,
+            "content": text
+          }));
+        } else {
+          // 2. Parse Excel/CSV
+          const rawFileData = e.target?.result;
+          const workbook = XLSX.read(rawFileData, { 
+            type: 'binary', 
+            cellDates: true,
+            dateNF: 'yyyy-mm-dd'
+          });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rawArrayData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+          if (rawArrayData.length === 0) throw new Error("File is empty");
+
+          const sampleRows = rawArrayData.slice(0, 5);
+          let suspiciousNoHeader = true;
+
+          if (rawArrayData.length > 1) {
+            for (let col = 0; col < rawArrayData[0].length; col++) {
+              const type0 = typeof rawArrayData[0][col];
+              const type1 = typeof rawArrayData[1][col];
+              if (type0 !== type1 && type0 !== 'undefined' && type1 !== 'undefined') {
+                suspiciousNoHeader = false;
+                break;
+              }
             }
           }
-        }
 
-        if (suspiciousNoHeader && rawArrayData.length > 0) {
-          const aiResult = await ai.analyzeHeaders(sampleRows);
-          if (aiResult.hasHeader) {
+          if (suspiciousNoHeader && rawArrayData.length > 0) {
+            const aiResult = await ai.analyzeHeaders(sampleRows);
+            if (aiResult.hasHeader) {
+              finalHeaders = rawArrayData[0].map(h => String(h || `col_${Math.random().toString(36).substr(2, 4)}`));
+              finalObjects = rawArrayData.slice(1).map(row => {
+                const obj: any = {};
+                finalHeaders.forEach((h, i) => obj[h] = row[i]);
+                return obj;
+              });
+            } else {
+              finalHeaders = aiResult.headers;
+              finalObjects = rawArrayData.map(row => {
+                const obj: any = {};
+                finalHeaders.forEach((h, i) => obj[h] = row[i]);
+                return obj;
+              });
+            }
+          } else {
             finalHeaders = rawArrayData[0].map(h => String(h || `col_${Math.random().toString(36).substr(2, 4)}`));
             finalObjects = rawArrayData.slice(1).map(row => {
               const obj: any = {};
               finalHeaders.forEach((h, i) => obj[h] = row[i]);
               return obj;
             });
-          } else {
-            finalHeaders = aiResult.headers;
-            finalObjects = rawArrayData.map(row => {
-              const obj: any = {};
-              finalHeaders.forEach((h, i) => obj[h] = row[i]);
-              return obj;
-            });
           }
-        } else {
-          finalHeaders = rawArrayData[0].map(h => String(h || `col_${Math.random().toString(36).substr(2, 4)}`));
-          finalObjects = rawArrayData.slice(1).map(row => {
-            const obj: any = {};
-            finalHeaders.forEach((h, i) => obj[h] = row[i]);
-            return obj;
-          });
         }
 
-        const tableName = file.name.split('.')[0].trim();
+        // Common Logic: Infer Column Metadata
         let aiComments: Record<string, string> = {};
         try {
           aiComments = await ai.inferColumnMetadata(tableName, finalObjects);
@@ -473,6 +490,7 @@ const App: React.FC = () => {
         const updatedTables = [...project.tables.filter(t => t.tableName !== newTable.tableName), newTable];
         setProject(prev => ({ ...prev, tables: updatedTables }));
 
+        // Topic Refresh
         try {
           const newTopic = await ai.generateTopic(project.topicName, updatedTables);
           if (newTopic && newTopic !== project.topicName) {
@@ -489,7 +507,12 @@ const App: React.FC = () => {
         setUploadProgress(null);
       }
     };
-    reader.readAsBinaryString(file);
+
+    if (isTxt) {
+      reader.readAsText(file); // Text files need encoding-aware reading
+    } else {
+      reader.readAsBinaryString(file);
+    }
   };
 
   const handleFetchSuggestions = async () => {

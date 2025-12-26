@@ -58,7 +58,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
           )}
           <label className={`cursor-pointer p-1.5 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`} title="Import data into Database">
             <Upload size={16} className="text-gray-500" />
-            {!isUploading && <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />}
+            {!isUploading && <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls,.txt" />}
           </label>
         </div>
       </div>
@@ -97,8 +97,8 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
               </div>
 
               <label className="w-full py-3.5 bg-white border-2 border-[#d1e6ff] text-[#0066ff] rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-50 hover:shadow-xl hover:shadow-blue-500/10 transition-all flex items-center justify-center active:scale-95 shadow-md">
-                Upload Excel / CSV
-                <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls" />
+                Upload Data File
+                <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls,.txt" />
               </label>
             </div>
           </div>
