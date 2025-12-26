@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, TableMetadata, PublishedApp } from './types';
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
@@ -216,46 +216,8 @@ const App: React.FC = () => {
     visualConfig: { chartType: 'bar' }
   } as ProjectState);
 
-  useEffect(() => {
-    const engine = new MySQLEngine();
-    setDatabaseEngine(engine);
-
-    // Initial URL Routing Logic
-    const params = new URLSearchParams(window.location.search);
-    const nbId = params.get('nb');
-    const appId = params.get('id'); // for ?id={uuid}
-    const view = params.get('view'); // for ?view=market
-
-    if (appId) {
-        // Direct link to App
-        fetchApp(appId).then(app => {
-            if (app) setViewingApp(app);
-        });
-    } else if (view === 'market') {
-        setIsMarketOpen(true);
-    } else if (nbId) {
-      fetch(`${gatewayUrl}/notebooks`)
-        .then(res => res.json())
-        .then(notebooks => {
-          if (Array.isArray(notebooks)) {
-            const found = notebooks.find((n: Notebook) => n.id === nbId);
-            if (found) handleOpenNotebook(found);
-          }
-        })
-        .catch(err => console.error("Auto-open failed:", err));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (dbReady && project.tables.length > 0 && project.suggestions.length === 0 && !isSuggesting) {
-      handleFetchSuggestions();
-    }
-  }, [dbReady, project.tables.length, project.suggestions.length]);
-
-  const handleOpenNotebook = async (nb: Notebook) => {
-    setCurrentNotebook(nb);
-    window.history.pushState({}, '', `?nb=${nb.id}`);
-
+  // Core Logic to load a notebook's data into the workspace
+  const loadNotebookSession = async (nb: Notebook) => {
     const db = getDatabaseEngine();
     const tables = await db.getTables(nb.db_name);
 
@@ -276,7 +238,97 @@ const App: React.FC = () => {
       tables,
       suggestions: initialSuggestions
     }));
+    setCurrentNotebook(nb);
     setDbReady(true);
+  };
+
+  // Central Routing Logic to Sync State with URL
+  const syncRoute = useCallback(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const nbId = params.get('nb');
+    const appId = params.get('id');
+    const view = params.get('view');
+
+    // 1. App View
+    if (appId) {
+       // Only fetch if strictly needed to avoid flicker
+       if (!viewingApp || viewingApp.id !== appId) {
+           const app = await fetchApp(appId);
+           if (app) setViewingApp(app);
+       }
+       setIsMarketOpen(false);
+       // We don't necessarily close the notebook if one was open, 
+       // but strictly speaking "App View" is usually standalone.
+       return;
+    } else {
+       if (viewingApp) setViewingApp(null);
+    }
+
+    // 2. Market View
+    if (view === 'market') {
+       setIsMarketOpen(true);
+       return;
+    } else {
+       setIsMarketOpen(false);
+    }
+
+    // 3. Notebook View
+    if (nbId) {
+       // If already loaded, do nothing
+       if (currentNotebook?.id === nbId) return;
+
+       // Need to fetch notebook metadata first (since we might be landing here directly)
+       try {
+           const res = await fetch(`${gatewayUrl}/notebooks`);
+           const notebooks = await res.json();
+           if (Array.isArray(notebooks)) {
+               const found = notebooks.find((n: Notebook) => n.id === nbId);
+               if (found) {
+                   await loadNotebookSession(found);
+               } else {
+                   // Notebook not found, redirect to lobby
+                   window.history.replaceState({}, '', '/');
+                   setCurrentNotebook(null);
+                   setDbReady(false);
+               }
+           }
+       } catch (e) {
+           console.error("Failed to sync notebook route", e);
+       }
+    } else {
+       // 4. Lobby (Root)
+       setCurrentNotebook(null);
+       setDbReady(false);
+       setViewingApp(null);
+       setIsMarketOpen(false);
+       setHasNewSuggestions(false);
+    }
+  }, [currentNotebook, viewingApp, gatewayUrl]);
+
+  // Initial Setup & Popstate Listener
+  useEffect(() => {
+    const engine = new MySQLEngine();
+    setDatabaseEngine(engine);
+
+    // Initial sync
+    syncRoute();
+
+    // Listen for Back/Forward buttons
+    window.addEventListener('popstate', syncRoute);
+    return () => window.removeEventListener('popstate', syncRoute);
+  }, [syncRoute]);
+
+  useEffect(() => {
+    if (dbReady && project.tables.length > 0 && project.suggestions.length === 0 && !isSuggesting) {
+      handleFetchSuggestions();
+    }
+  }, [dbReady, project.tables.length, project.suggestions.length]);
+
+  const handleOpenNotebook = async (nb: Notebook) => {
+    // Optimistically set state
+    await loadNotebookSession(nb);
+    // Push history
+    window.history.pushState({}, '', `?nb=${nb.id}`);
   };
 
   // Helper to extract state from app snapshot
@@ -365,9 +417,11 @@ const App: React.FC = () => {
   }
 
   const handleExit = () => {
+    // Reset State
     setCurrentNotebook(null);
     setDbReady(false);
     setHasNewSuggestions(false);
+    // Push history
     window.history.pushState({}, '', '/');
   };
   
@@ -378,7 +432,12 @@ const App: React.FC = () => {
 
   const handleCloseMarket = () => {
       setIsMarketOpen(false);
-      window.history.pushState({}, '', '/');
+      // Determine where to go back to based on current state
+      if (currentNotebook) {
+          window.history.pushState({}, '', `?nb=${currentNotebook.id}`);
+      } else {
+          window.history.pushState({}, '', '/');
+      }
   }
   
   const handleOpenAppById = async (appId: string) => {
@@ -391,6 +450,7 @@ const App: React.FC = () => {
   
   const handleCloseAppViewer = () => {
       setViewingApp(null);
+      // Usually apps are viewed from Market, so return to market
       setIsMarketOpen(true);
       window.history.pushState({}, '', '?view=market');
   }
