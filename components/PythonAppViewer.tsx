@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PublishedApp, ExecutionResult } from '../types';
 import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
@@ -68,9 +68,13 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
   const [isRunning, setIsRunning] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const userInteracted = useRef(false);
 
   // Initialize Schema and Default Values
   useEffect(() => {
+    userInteracted.current = false; // Reset interaction flag on app load
+    
     if (app.params_schema) {
       try {
         const parsedSchema = JSON.parse(app.params_schema);
@@ -100,6 +104,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
   }, [app]);
 
   const handleParamChange = (key: string, value: any) => {
+    userInteracted.current = true;
     setParamValues(prev => ({ ...prev, [key]: value }));
   };
 
@@ -153,12 +158,15 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
     // Safety check: Don't run if we expect params but don't have them yet.
     if (hasSchema && !hasValues) return;
 
+    // Skip auto-run if we have a cached snapshot and the user hasn't changed any parameters yet.
+    if (app.snapshot_json && !userInteracted.current) return;
+
     const timer = setTimeout(() => {
       handleRun();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [paramValues, handleRun, schema]);
+  }, [paramValues, handleRun, schema, app.snapshot_json]);
 
   const handleCloneClick = async () => {
     if (!onClone) return;
