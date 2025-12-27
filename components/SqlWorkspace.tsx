@@ -270,17 +270,24 @@ const SqlWorkspace: React.FC<Props> = ({
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
         
-        {/* Inline CoT Panel (Collapsible) */}
+        {/* Full-height CoT Panel Overlay */}
         <div 
-            className={`overflow-hidden transition-all duration-300 ease-in-out border-b border-yellow-100/50 bg-yellow-50/50 ${showThought ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'}`}
+            className={`absolute inset-0 z-30 bg-[#fffdf5] flex flex-col transition-all duration-300 ease-out ${showThought ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}
         >
-            <div className="px-8 py-4 overflow-y-auto max-h-[300px]">
-                <div className="flex items-center gap-2 mb-2">
-                    <Sparkles size={12} className="text-yellow-600" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-yellow-600">AI Reasoning Chain</span>
-                </div>
-                <div className="text-xs text-yellow-900/80 font-medium leading-relaxed whitespace-pre-wrap font-mono">
-                    {aiThought}
+            <div className="flex-1 overflow-y-auto px-10 py-8 custom-scrollbar">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="flex items-center gap-3 pb-4 border-b border-yellow-100">
+                        <div className="p-2 bg-yellow-100 rounded-lg text-yellow-700">
+                            <Sparkles size={18} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-yellow-800 uppercase tracking-widest">AI Reasoning Chain</h3>
+                            <p className="text-[10px] text-yellow-600 font-bold">Step-by-step logic behind the generated code</p>
+                        </div>
+                    </div>
+                    <div className="text-xs text-yellow-900/80 font-medium leading-relaxed whitespace-pre-wrap font-mono">
+                        {aiThought}
+                    </div>
                 </div>
             </div>
         </div>
