@@ -407,7 +407,9 @@ const App: React.FC = () => {
           lastPythonResult: app.type === DevMode.PYTHON ? loadedResult : prev.lastPythonResult,
           analysisReport: loadedAnalysis || prev.analysisReport,
           isAnalyzing: false, // Reset loading states
-          isRecommendingCharts: false
+          isRecommendingCharts: false,
+          sqlAiThought: null, // Clear thought when restoring
+          pythonAiThought: null
       };
   }
 
@@ -541,7 +543,7 @@ const App: React.FC = () => {
   const handleSqlAiGenerate = async (promptOverride?: string) => {
     const promptToUse = promptOverride || project.sqlAiPrompt;
     if (!promptToUse) return;
-    setProject(prev => ({ ...prev, isSqlAiGenerating: true, lastSqlCodeBeforeAi: prev.sqlCode }));
+    setProject(prev => ({ ...prev, isSqlAiGenerating: true, lastSqlCodeBeforeAi: prev.sqlCode, sqlAiThought: null }));
     try {
       const { code, thought } = await ai.generateCode(promptToUse, DevMode.SQL, project.tables);
       setProject(prev => ({ 
@@ -558,7 +560,7 @@ const App: React.FC = () => {
   const handlePythonAiGenerate = async (promptOverride?: string) => {
     const promptToUse = promptOverride || project.pythonAiPrompt;
     if (!promptToUse) return;
-    setProject(prev => ({ ...prev, isPythonAiGenerating: true, lastPythonCodeBeforeAi: prev.pythonCode }));
+    setProject(prev => ({ ...prev, isPythonAiGenerating: true, lastPythonCodeBeforeAi: prev.pythonCode, pythonAiThought: null }));
     try {
       const { code, thought } = await ai.generateCode(promptToUse, DevMode.PYTHON, project.tables);
       setProject(prev => ({ 
@@ -574,7 +576,7 @@ const App: React.FC = () => {
 
   const handleDebugSql = async () => {
     if (!project.lastSqlResult?.isError || !project.sqlCode) return;
-    setProject(prev => ({ ...prev, isSqlAiFixing: true }));
+    setProject(prev => ({ ...prev, isSqlAiFixing: true, sqlAiThought: null }));
     try {
       const logs = project.lastSqlResult.logs?.join('\n') || '';
       const { code, thought } = await ai.debugCode(project.sqlAiPrompt, DevMode.SQL, project.tables, project.sqlCode, logs);
@@ -582,7 +584,6 @@ const App: React.FC = () => {
           ...prev, 
           sqlCode: code, 
           sqlAiThought: thought, // Store fix thought
-          isAiFixing: false, 
           isSqlAiFixing: false 
       }));
       handleRun(code);
@@ -593,7 +594,7 @@ const App: React.FC = () => {
 
   const handleDebugPython = async () => {
     if (!project.lastPythonResult?.isError || !project.pythonCode) return;
-    setProject(prev => ({ ...prev, isPythonAiFixing: true }));
+    setProject(prev => ({ ...prev, isPythonAiFixing: true, pythonAiThought: null }));
     try {
       const logs = project.lastPythonResult.logs?.join('\n') || '';
       const { code, thought } = await ai.debugCode(project.pythonAiPrompt, DevMode.PYTHON, project.tables, project.pythonCode, logs);
@@ -601,7 +602,6 @@ const App: React.FC = () => {
           ...prev, 
           pythonCode: code, 
           pythonAiThought: thought, // Store fix thought
-          isAiFixing: false, 
           isPythonAiFixing: false 
       }));
       handleRun(code);
