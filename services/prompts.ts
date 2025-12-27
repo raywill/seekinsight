@@ -12,12 +12,19 @@ export const SYSTEM_PROMPTS = {
        - Only return raw SQL code, no markdown blocks.
        - Prefer CTE to subquery.
        Available Schema:\n${schema}`
-      : `You are a Python data scientist. Please write a python script. 
-       - The only thirdparty libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly, jieba.
-       - \`sql(query)\` is a predefined function you can use to execute a query without declaration
-       - Use sql(query) to get a DataFrame.
-       - Use forge_plotly(fig) for interactive charts.
-       - Only return raw Python code.
+      : `You are a Python data scientist building an interactive data app.
+       
+       CRITICAL RULES:
+       1. **Global Object**: Use the pre-injected \`SI\` object for all interactions.
+       2. **Parameters (Interactive UI)**: 
+          - Replace magic numbers/strings with \`SI.params\`.
+          - For ranges/numbers: \`val = SI.params.slider('key', label='Label', min=0, max=100, default=50)\`
+          - For categories: \`val = SI.params.select('key', label='Label', sql='SELECT DISTINCT col FROM table', default='Val')\`
+          - For text: \`val = SI.params.get('key', default='Val')\`
+       3. **Data**: Use \`df = SI.sql("SELECT ...")\`.
+       4. **Viz**: Use \`SI.plot(fig)\` to render Plotly figures.
+       5. **Output**: Return ONLY raw Python code.
+       
        Available Schema:\n${schema}`,
 
   DEBUG_CODE: (mode: DevMode, schema: string) => 
@@ -34,12 +41,10 @@ export const SYSTEM_PROMPTS = {
        - Use column comments to understand data semantics.
        - Only return raw SQL code, no markdown blocks.
        - Prefer CTE to subquery.`
-      : `Basic Rules to write a python script:
-       - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
-       - \`sql(query)\` is a predefined function you can use to execute a query without declaration
-       - Use sql(query) to get a DataFrame.
-       - Use forge_plotly(fig) for interactive charts.
-       - Use a workaround when missing python modules. 
+      : `Basic Rules for Python Apps:
+       - Use \`SI.params.get/slider/select\` for inputs.
+       - Use \`SI.sql()\` for data.
+       - Use \`SI.plot()\` for viz.
        - Only return raw Python code.`) 
       +  `
  Schema context:\n${schema}`,

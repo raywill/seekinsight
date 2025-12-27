@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { PublishedApp, DevMode, ExecutionResult } from '../types';
-import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical } from 'lucide-react';
+import { PublishedApp, ExecutionResult } from '../types';
+import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 
 interface Props {
@@ -11,47 +11,111 @@ interface Props {
   onClone?: (app: PublishedApp) => void;
 }
 
+// UI Components for Dynamic Form
+const RangeInput = ({ label, value, min, max, step, onChange }: any) => (
+  <div className="space-y-2 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+    <div className="flex justify-between items-center">
+      <label className="text-[11px] font-black text-gray-700 uppercase tracking-wide">{label}</label>
+      <span className="text-xs font-mono font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">{value}</span>
+    </div>
+    <input 
+      type="range" 
+      min={min} max={max} step={step} 
+      value={value} 
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+    />
+    <div className="flex justify-between text-[9px] text-gray-400 font-bold">
+      <span>{min}</span>
+      <span>{max}</span>
+    </div>
+  </div>
+);
+
+const SelectInput = ({ label, value, options, onChange }: any) => (
+  <div className="space-y-1.5 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+    <label className="text-[11px] font-black text-gray-700 uppercase tracking-wide">{label}</label>
+    <div className="relative">
+      <select 
+        value={value} 
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-800 appearance-none focus:ring-2 focus:ring-purple-500/20 outline-none"
+      >
+        {options.map((opt: string) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+    </div>
+  </div>
+);
+
+const TextInput = ({ label, value, onChange }: any) => (
+  <div className="space-y-1.5 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+    <label className="text-[11px] font-black text-gray-700 uppercase tracking-wide">{label}</label>
+    <input 
+      value={value} 
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-800 focus:ring-2 focus:ring-purple-500/20 outline-none"
+    />
+  </div>
+);
+
 const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
-  const [params, setParams] = useState(app.params_schema || '{}');
+  const [paramValues, setParamValues] = useState<Record<string, any>>({});
+  const [schema, setSchema] = useState<Record<string, any>>({});
   const [isRunning, setIsRunning] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Initialize Schema and Default Values
   useEffect(() => {
+    if (app.params_schema) {
+      try {
+        const parsedSchema = JSON.parse(app.params_schema);
+        setSchema(parsedSchema);
+        
+        // Initialize values based on schema defaults
+        const initialValues: Record<string, any> = {};
+        for (const [key, config] of Object.entries(parsedSchema)) {
+          initialValues[key] = (config as any).default;
+        }
+        setParamValues(initialValues);
+      } catch (e) {
+        console.error("Failed to parse params schema", e);
+      }
+    }
+
     if (app.snapshot_json) {
       try {
         const parsed = JSON.parse(app.snapshot_json);
-        // Legacy vs Composite snapshot handling
         if (parsed.result) {
             setResult(parsed.result);
         } else {
             setResult(parsed);
         }
-      } catch (e) {
-        console.error("Failed to parse snapshot", e);
-      }
+      } catch (e) {}
     }
   }, [app]);
+
+  const handleParamChange = (key: string, value: any) => {
+    setParamValues(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleRun = async () => {
     setIsRunning(true);
     const gatewayUrl = (typeof process as any !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
     
     try {
-      let codeToRun = app.code;
-      // Inject params
-      try {
-          JSON.parse(params); 
-          codeToRun = `SI_PARAMS = ${params}\n\n${app.code}`;
-      } catch(e) {
-          alert("Invalid JSON Params");
-          setIsRunning(false);
-          return;
-      }
-
       const endpoint = '/python';
-      const body = { dbName: app.source_db_name, code: codeToRun };
+      // Pass executionMode 'EXECUTION' (default) and the collected params
+      const body = { 
+        dbName: app.source_db_name, 
+        code: app.code,
+        executionMode: 'EXECUTION',
+        params: paramValues 
+      };
 
       const res = await fetch(`${gatewayUrl}${endpoint}`, {
         method: 'POST',
@@ -89,6 +153,8 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
         setIsMenuOpen(false);
     }
   }
+
+  const hasSchema = Object.keys(schema).length > 0;
 
   return (
     <div className="fixed inset-0 z-[150] bg-gray-100 flex items-center justify-center">
@@ -164,14 +230,28 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
              </div>
 
              <div className="mb-8 flex-1">
-                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                   <Settings2 size={14} /> Input Parameters
+                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                   <Settings2 size={14} /> Configuration
                  </h4>
-                 <textarea 
-                    value={params}
-                    onChange={(e) => setParams(e.target.value)}
-                    className="w-full h-48 bg-white border border-gray-200 rounded-xl p-3 font-mono text-xs text-gray-700 resize-none focus:ring-2 focus:ring-purple-500/20 outline-none"
-                 />
+                 
+                 {hasSchema ? (
+                   <div className="space-y-4">
+                     {Object.entries(schema).map(([key, config]: [string, any]) => {
+                       if (config.type === 'slider') {
+                         return <RangeInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
+                       }
+                       if (config.type === 'select') {
+                         return <SelectInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
+                       }
+                       return <TextInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
+                     })}
+                   </div>
+                 ) : (
+                    <div className="p-4 bg-white border border-dashed border-gray-200 rounded-xl text-center">
+                       <Sliders size={20} className="text-gray-300 mx-auto mb-2" />
+                       <p className="text-xs text-gray-400 font-medium">No interactive parameters defined.</p>
+                    </div>
+                 )}
              </div>
 
              <div className="mt-auto">
@@ -181,7 +261,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
                   className="w-full py-4 rounded-xl text-white font-black shadow-xl transition-all active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 shadow-purple-500/20"
                 >
                   {isRunning ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} />}
-                  Run App
+                  Run Analysis
                 </button>
                 <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
                   <Database size={12} /> Source: {app.source_db_name}
@@ -191,7 +271,6 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
 
           {/* Main Visual Content (Full Height Result Panel) */}
           <div className="flex-1 bg-white flex flex-col relative overflow-hidden h-full">
-             {/* Using fullHeight prop to occupy all available space */}
              <PythonResultPanel 
                 result={result} 
                 isLoading={isRunning} 

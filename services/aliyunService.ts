@@ -136,7 +136,7 @@ export const debugCode = async (prompt: string, mode: DevMode, tables: TableMeta
   ).join('\n\n');
 
   const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr);
-  const safeError = error.length > 10000 ? error.substring(0, 10000) + '\n...(truncated logs)' : error;
+  const safeError = error.length > 2000 ? error.substring(0, 2000) + '\n...(truncated logs)' : error;
   const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${safeError}`;
   const messages = [
     { role: "system", content: systemInstruction },
