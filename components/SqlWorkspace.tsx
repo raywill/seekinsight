@@ -1,8 +1,9 @@
+
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor, { BaseCodeEditorRef } from './BaseCodeEditor';
 import SqlResultPanel from './SqlResultPanel';
-import { Database, Play, Sparkles, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb, ChevronDown, ChevronRight } from 'lucide-react';
+import { Database, Play, Sparkles, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb, X } from 'lucide-react';
 
 interface Props {
   code: string;
@@ -19,7 +20,7 @@ interface Props {
   tables: TableMetadata[];
   onUndo?: () => void;
   showUndo?: boolean;
-  aiThought?: string | null; // New Prop
+  aiThought?: string | null;
 }
 
 const SQL_KEYWORDS = [
@@ -47,12 +48,15 @@ const SqlWorkspace: React.FC<Props> = ({
   
   // Thought State
   const [showThought, setShowThought] = useState(false);
+  const [hasUnreadThought, setHasUnreadThought] = useState(false);
   const prevThought = useRef(aiThought);
 
-  // Auto-expand thought when it changes
+  // Auto-trigger unread dot, but don't auto-open unless user wants (or we can just auto-open gently)
+  // Let's auto-open gently if it's new
   useEffect(() => {
     if (aiThought && aiThought !== prevThought.current) {
         setShowThought(true);
+        setHasUnreadThought(true);
         prevThought.current = aiThought;
     }
   }, [aiThought]);
@@ -224,8 +228,8 @@ const SqlWorkspace: React.FC<Props> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
-      <div className="px-8 py-4 bg-blue-50/30 border-b border-blue-100/50">
-        <div className="relative group w-full">
+      <div className="px-8 py-4 bg-blue-50/30 border-b border-blue-100/50 flex items-center gap-3">
+        <div className="relative group flex-1">
           <input
             value={prompt}
             onChange={(e) => onPromptChange(e.target.value)}
@@ -242,26 +246,36 @@ const SqlWorkspace: React.FC<Props> = ({
             Generate SQL
           </button>
         </div>
+        {aiThought && (
+            <button
+                onClick={() => { setShowThought(!showThought); setHasUnreadThought(false); }}
+                className={`p-2.5 rounded-xl border transition-all relative ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-blue-100 text-gray-400 hover:text-yellow-600'}`}
+                title="View AI Reasoning"
+            >
+                <Lightbulb size={18} fill={showThought ? "currentColor" : "none"} />
+                {!showThought && hasUnreadThought && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                )}
+            </button>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {/* CoT Panel */}
-        {aiThought && (
-            <div className={`transition-all duration-300 ease-in-out border-b border-yellow-100 bg-yellow-50 overflow-hidden flex flex-col ${showThought ? 'max-h-[300px]' : 'max-h-[40px] hover:bg-yellow-100/50 cursor-pointer'}`}>
-                <div 
-                    className="flex items-center justify-between px-6 py-2 shrink-0 cursor-pointer"
-                    onClick={() => setShowThought(!showThought)}
-                >
-                    <div className="flex items-center gap-2">
-                        <div className="p-1 bg-yellow-200 rounded text-yellow-700">
-                            <Lightbulb size={12} fill="currentColor" />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-yellow-700">AI Reasoning Chain</span>
+        
+        {/* Floating CoT Panel */}
+        {aiThought && showThought && (
+            <div className="absolute top-4 right-6 z-30 w-96 max-h-[400px] flex flex-col bg-white/95 backdrop-blur-md border border-yellow-200 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="px-4 py-3 border-b border-yellow-100 flex items-center justify-between bg-yellow-50/50 rounded-t-2xl">
+                    <div className="flex items-center gap-2 text-yellow-700">
+                        <Sparkles size={14} />
+                        <span className="text-xs font-black uppercase tracking-widest">AI Reasoning</span>
                     </div>
-                    {showThought ? <ChevronDown size={14} className="text-yellow-400"/> : <ChevronRight size={14} className="text-yellow-400"/>}
+                    <button onClick={() => setShowThought(false)} className="text-yellow-700/50 hover:text-yellow-700">
+                        <X size={14} />
+                    </button>
                 </div>
-                <div className={`px-8 pb-4 overflow-y-auto ${showThought ? 'opacity-100' : 'opacity-0'}`}>
-                    <div className="text-xs text-yellow-900/80 font-medium leading-relaxed whitespace-pre-wrap font-mono">
+                <div className="p-4 overflow-y-auto custom-scrollbar">
+                    <div className="text-xs text-slate-700 font-medium leading-relaxed whitespace-pre-wrap font-mono">
                         {aiThought}
                     </div>
                 </div>

@@ -1,0 +1,1 @@
+Language Requirement: All string fields and analysis descriptions should be in Chinese.

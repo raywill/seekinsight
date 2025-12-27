@@ -328,7 +328,8 @@ async function initSystem() {
 app.get('/apps', async (req, res) => {
   try {
     const pool = await getPool(SYSTEM_DB);
-    const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY views DESC, created_at DESC`);
+    // Updated: Order by created_at DESC strictly
+    const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
     res.json(rows);
   } catch (err) {
     console.error("[Apps GET Error]:", err);

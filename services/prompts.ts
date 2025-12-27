@@ -1,16 +1,18 @@
+
 import { DevMode, Suggestion, TableMetadata } from "../types";
 
 // Import Fragments
 import pythonBridgeApi from '../prompts/fragments/python_bridge_api.md?raw';
 import sqlDialectMysql from '../prompts/fragments/sql_dialect_mysql.md?raw';
 import cotProtocol from '../prompts/fragments/cot_protocol.md?raw';
+import languageReq from '../prompts/fragments/language_req.md?raw';
 
 // Import Templates
 import codeGenPython from '../prompts/templates/code_gen_python.md?raw';
 import codeGenSql from '../prompts/templates/code_gen_sql.md?raw';
 import debugPython from '../prompts/templates/debug_python.md?raw';
 import debugSql from '../prompts/templates/debug_sql.md?raw';
-import debugUserContext from '../prompts/templates/debug_user_context.md?raw'; // New Import
+import debugUserContext from '../prompts/templates/debug_user_context.md?raw';
 import suggestionsTmpl from '../prompts/templates/suggestions.md?raw';
 import topicGenTmpl from '../prompts/templates/topic_gen.md?raw';
 import headerAnalysisTmpl from '../prompts/templates/header_analysis.md?raw';
@@ -18,7 +20,7 @@ import metadataInferTmpl from '../prompts/templates/metadata_infer.md?raw';
 import analysisTmpl from '../prompts/templates/analysis.md?raw';
 import chartRecTmpl from '../prompts/templates/chart_rec.md?raw';
 
-export const LANGUAGE_REQ = "Language Requirement: All string fields should be in Chinese";
+// Removed hardcoded LANGUAGE_REQ
 
 const formatSchema = (tables: TableMetadata[]): string => {
   return tables.map(t => {
@@ -41,7 +43,7 @@ const fillTemplate = (template: string, replacements: Record<string, string>) =>
   result = result.replace('{{PYTHON_BRIDGE_API}}', pythonBridgeApi);
   result = result.replace('{{SQL_DIALECT_MYSQL}}', sqlDialectMysql);
   result = result.replace('{{COT_PROTOCOL}}', cotProtocol);
-  result = result.replace('{{LANGUAGE_REQ}}', LANGUAGE_REQ);
+  result = result.replace('{{LANGUAGE_REQ}}', languageReq);
   return result;
 };
 
@@ -86,7 +88,6 @@ export const SYSTEM_PROMPTS = {
 };
 
 export const USER_PROMPTS = {
-  // New structured user context for debugging
   DEBUG_CONTEXT: (userGoal: string, code: string, errorLog: string) => {
     return fillTemplate(debugUserContext, {
       USER_GOAL: userGoal,
