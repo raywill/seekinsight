@@ -378,11 +378,8 @@ const App: React.FC = () => {
 
   // Helper to extract state from app snapshot
   const restoreAppState = (app: PublishedApp, prev: ProjectState): ProjectState => {
-      let pythonCodeWithParams = app.code;
-      if (app.type === DevMode.PYTHON && app.params_schema) {
-        // Prepend params for editable context
-        pythonCodeWithParams = `SI_PARAMS = ${app.params_schema}\n\n` + app.code;
-      }
+      // Note: We DO NOT inject SI_PARAMS schema back into the code. 
+      // The source code should remain clean. The schema will be regenerated upon running the script.
 
       let loadedResult = null;
       let loadedAnalysis = '';
@@ -403,7 +400,7 @@ const App: React.FC = () => {
           ...prev,
           activeMode: app.type,
           sqlCode: app.type === DevMode.SQL ? app.code : prev.sqlCode,
-          pythonCode: app.type === DevMode.PYTHON ? pythonCodeWithParams : prev.pythonCode,
+          pythonCode: app.type === DevMode.PYTHON ? app.code : prev.pythonCode,
           sqlAiPrompt: app.type === DevMode.SQL ? app.title : prev.sqlAiPrompt,
           pythonAiPrompt: app.type === DevMode.PYTHON ? app.title : prev.pythonAiPrompt,
           lastSqlResult: app.type === DevMode.SQL ? loadedResult : prev.lastSqlResult,
