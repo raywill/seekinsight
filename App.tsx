@@ -15,7 +15,7 @@ import AppMarket from './components/AppMarket';
 import InsightHub from './components/InsightHub';
 import PublishDialog from './components/PublishDialog';
 import AppViewer from './components/AppViewer';
-import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, ArrowRight, Trash2, Calendar, LogOut, Plus, Database, Globe, Zap, Eye } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, Sparkles, PencilLine, ArrowRight, Trash2, Calendar, LogOut, Plus, Database, Globe, Zap, Eye, LayoutList } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -23,6 +23,7 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Added viewMode state
   const gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
   const fetchNotebooks = () => {
@@ -109,93 +110,210 @@ const Lobby: React.FC<{ onOpen: (nb: Notebook) => void; onOpenMarket: () => void
                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Personal Knowledge Graph</p>
              </div>
           </div>
+
+          <div className="flex items-center gap-6">
+              {/* View Toggle */}
+              <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+                  <button 
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-gray-100 text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                    title="Grid View"
+                  >
+                     <LayoutGrid size={18} />
+                  </button>
+                  <div className="w-px bg-gray-100 mx-1 my-1"></div>
+                  <button 
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-gray-100 text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                    title="List View"
+                  >
+                     <LayoutList size={18} />
+                  </button>
+              </div>
+
+              {/* Restore Create Button */}
+              <button 
+                onClick={handleCreate}
+                disabled={creating}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-70 disabled:pointer-events-none"
+              >
+                 {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={18} />}
+                 <span>CREATE NEW NOTEBOOK</span>
+              </button>
+          </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           
-           {/* Card 1: Marketplace Entry */}
-           <div 
-             onClick={onOpenMarket}
-             className="group relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 cursor-pointer hover:shadow-2xl hover:shadow-slate-500/30 transition-all text-white min-h-[180px] flex flex-col justify-between hover:-translate-y-1 duration-300"
-           >
-              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Globe size={100} />
-              </div>
-              <div className="flex justify-between items-start mb-5 relative z-10">
-                <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 group-hover:bg-white/20 transition-colors">
-                  <LayoutGrid size={20} className="text-blue-300" />
+        {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+            
+            {/* Card 1: Marketplace Entry */}
+            <div 
+                onClick={onOpenMarket}
+                className="group relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 cursor-pointer hover:shadow-2xl hover:shadow-slate-500/30 transition-all text-white min-h-[180px] flex flex-col justify-between hover:-translate-y-1 duration-300"
+            >
+                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Globe size={100} />
                 </div>
-              </div>
-              <div className="relative z-10">
-                <h3 className="text-lg font-black text-white mb-1 tracking-tight">App Marketplace</h3>
-                <p className="text-xs font-medium text-slate-400">Explore community templates & clone ready-made apps.</p>
-              </div>
-              <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between relative z-10">
-                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-300 uppercase tracking-widest">
-                    <Zap size={12} className="fill-blue-300" />
-                    Featured
-                 </div>
-                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-blue-500 transition-colors">
-                    <ArrowRight size={14} />
-                 </div>
-              </div>
-           </div>
-
-           {/* Card 2: Create New (Alternative Entry) */}
-           <div 
-             onClick={handleCreate}
-             className={`group bg-white border-2 border-dashed border-gray-200 rounded-3xl p-6 hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer flex flex-col justify-center items-center gap-4 min-h-[180px] ${creating ? 'opacity-50 pointer-events-none' : ''}`}
-           >
-              <div className="w-16 h-16 rounded-full bg-gray-50 group-hover:bg-white group-hover:shadow-md flex items-center justify-center transition-all text-gray-300 group-hover:text-blue-500">
-                {creating ? <Loader2 className="animate-spin" size={24} /> : <Plus size={32} />}
-              </div>
-              <h3 className="text-sm font-black text-gray-400 group-hover:text-blue-600 uppercase tracking-widest transition-colors">Create New Notebook</h3>
-           </div>
-
-           {/* Existing Notebooks */}
-           {notebooks.map(nb => (
-             <div
-               key={nb.id}
-               onClick={() => handleOpenNotebook(nb)}
-               className="group bg-white border border-gray-100 rounded-3xl p-6 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[180px]"
-             >
-                <div className="flex justify-between items-start mb-5">
-                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl transition-transform group-hover:scale-110">
-                    {renderIcon(nb.icon_name)}
-                  </div>
-                  <button
-                    onClick={(e) => handleDelete(e, nb.id)}
-                    className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1 leading-tight">
-                    {nb.topic}
-                  </h3>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      <Calendar size={12} />
-                      {new Date(nb.created_at).toLocaleDateString()}
+                <div className="flex justify-between items-start mb-5 relative z-10">
+                    <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 group-hover:bg-white/20 transition-colors">
+                    <LayoutGrid size={20} className="text-blue-300" />
                     </div>
-                    {nb.views !== undefined && nb.views > 0 && (
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-md">
-                           <Eye size={10} /> {nb.views}
+                </div>
+                <div className="relative z-10">
+                    <h3 className="text-lg font-black text-white mb-1 tracking-tight">App Marketplace</h3>
+                    <p className="text-xs font-medium text-slate-400">Explore community templates & clone ready-made apps.</p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-300 uppercase tracking-widest">
+                        <Zap size={12} className="fill-blue-300" />
+                        Featured
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-blue-500 transition-colors">
+                        <ArrowRight size={14} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Card 2: Create New (Alternative Entry - kept in Grid for convenience) */}
+            <div 
+                onClick={handleCreate}
+                className={`group bg-white border-2 border-dashed border-gray-200 rounded-3xl p-6 hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer flex flex-col justify-center items-center gap-4 min-h-[180px] ${creating ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+                <div className="w-16 h-16 rounded-full bg-gray-50 group-hover:bg-white group-hover:shadow-md flex items-center justify-center transition-all text-gray-300 group-hover:text-blue-500">
+                    {creating ? <Loader2 className="animate-spin" size={24} /> : <Plus size={32} />}
+                </div>
+                <h3 className="text-sm font-black text-gray-400 group-hover:text-blue-600 uppercase tracking-widest transition-colors">Create New Notebook</h3>
+            </div>
+
+            {/* Existing Notebooks */}
+            {notebooks.map(nb => (
+                <div
+                key={nb.id}
+                onClick={() => handleOpenNotebook(nb)}
+                className="group bg-white border border-gray-100 rounded-3xl p-6 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[180px]"
+                >
+                    <div className="flex justify-between items-start mb-5">
+                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl transition-transform group-hover:scale-110">
+                        {renderIcon(nb.icon_name)}
+                    </div>
+                    <button
+                        onClick={(e) => handleDelete(e, nb.id)}
+                        className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                    </div>
+                    
+                    <div>
+                    <h3 className="text-lg font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1 leading-tight">
+                        {nb.topic}
+                    </h3>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        <Calendar size={12} />
+                        {new Date(nb.created_at).toLocaleDateString()}
+                        </div>
+                        {nb.views !== undefined && nb.views > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-md">
+                            <Eye size={10} /> {nb.views}
+                            </div>
+                        )}
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                        <ArrowRight size={14} />
+                    </div>
+                    </div>
+                </div>
+            ))}
+            </div>
+        ) : (
+            <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+                {/* Marketplace Banner for List View */}
+                <div 
+                    onClick={onOpenMarket}
+                    className="flex items-center justify-between p-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl text-white cursor-pointer hover:shadow-xl transition-all group"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
+                            <Globe size={24} className="text-blue-300" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg leading-tight">App Marketplace</h3>
+                            <p className="text-xs text-slate-400 font-medium">Explore and clone community templates</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 pr-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-400/10 px-2 py-1 rounded-lg">Featured</span>
+                        <ArrowRight className="text-slate-500 group-hover:text-white transition-colors" />
+                    </div>
+                </div>
+
+                {/* List Container */}
+                <div className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-sm">
+                    {notebooks.length === 0 ? (
+                        <div className="p-12 text-center flex flex-col items-center gap-4">
+                             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
+                                <Database size={24} />
+                             </div>
+                             <div>
+                                <h3 className="text-gray-900 font-bold">No notebooks yet</h3>
+                                <p className="text-gray-400 text-sm">Create your first notebook to get started</p>
+                             </div>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-gray-50">
+                            {notebooks.map(nb => (
+                                <div 
+                                    key={nb.id} 
+                                    onClick={() => handleOpenNotebook(nb)}
+                                    className="group flex items-center justify-between p-4 hover:bg-blue-50/30 transition-colors cursor-pointer"
+                                >
+                                    <div className="flex items-center gap-5 flex-1 min-w-0">
+                                        <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-105 transition-transform shrink-0">
+                                            {renderIcon(nb.icon_name)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="font-black text-base text-gray-900 group-hover:text-blue-600 transition-colors truncate">{nb.topic}</h3>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                                                    <Calendar size={12} /> {new Date(nb.created_at).toLocaleDateString()}
+                                                </span>
+                                                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                <span className="text-xs text-gray-400 font-medium font-mono">ID: {nb.id.substring(0,6)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-6 pl-4">
+                                        {nb.views !== undefined && nb.views > 0 && (
+                                            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-50 px-2.5 py-1.5 rounded-lg">
+                                                <Eye size={12} /> {nb.views}
+                                            </div>
+                                        )}
+                                        
+                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={(e) => handleDelete(e, nb.id)}
+                                                className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                                title="Delete Notebook"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                            <div className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-300 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
+                                                <ArrowRight size={14} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                    <ArrowRight size={14} />
-                  </div>
                 </div>
-             </div>
-           ))}
-        </div>
+            </div>
+        )}
 
         <div className="flex-1 flex overflow-hidden"></div> {/* Placeholder for flex consistency if needed */}
 
