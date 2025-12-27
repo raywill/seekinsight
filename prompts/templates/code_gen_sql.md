@@ -1,0 +1,8 @@
+You are an expert SQL Analyst.
+
+{{SQL_DIALECT_MYSQL}}
+
+# DATABASE SCHEMA
+{{SCHEMA}}
+
+{{COT_PROTOCOL}}

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
@@ -30,6 +29,18 @@ const sanitizeSample = (data: any[], maxRows = 5, maxCharsPerField = 200): any[]
     }
     return row;
   });
+};
+
+// Helper to extract code from CoT responses
+const extractCode = (text: string): string => {
+  if (!text) return "";
+  // 1. Try extracting from <code> tags (CoT protocol)
+  const codeTagMatch = text.match(/<code>([\s\S]*?)<\/code>/);
+  if (codeTagMatch) {
+    return codeTagMatch[1].trim();
+  }
+  // 2. Fallback to standard markdown blocks
+  return text.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
 };
 
 async function logPrompt(type: string, content: string) {
@@ -84,13 +95,7 @@ export const generateCode = async (
   mode: DevMode, 
   tables: TableMetadata[]
 ): Promise<string> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}
-Columns:
-${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`).join('\n')}`
-  ).join('\n\n');
-
-  const systemInstruction = SYSTEM_PROMPTS.CODE_GEN(mode, schemaStr);
+  const systemInstruction = SYSTEM_PROMPTS.CODE_GEN(mode, tables);
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
 
   const response = await ai.models.generateContent({
@@ -102,8 +107,7 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
     },
   });
 
-  const text = response.text || "";
-  return text.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
+  return extractCode(response.text || "");
 };
 
 export const debugCode = async (
@@ -113,15 +117,12 @@ export const debugCode = async (
   code: string,
   error: string
 ): Promise<string> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}
-Columns:
-${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`).join('\n')}`
-  ).join('\n\n');
-
-  const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr);
+  const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, tables);
   const safeError = error.length > 2000 ? error.substring(0, 2000) + '\n...(truncated logs)' : error;
-  const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${safeError}`;
+  
+  // Use the new structured template
+  const userContent = USER_PROMPTS.DEBUG_CONTEXT(prompt, code, safeError);
+
   await logPrompt(`DEBUG_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const response = await ai.models.generateContent({
@@ -133,13 +134,9 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
     },
   });
 
-  const text = response.text || "";
-  return text.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
+  return extractCode(response.text || "");
 };
 
-/**
- * Infers semantic comments for columns based on headers and sample data.
- */
 export const inferColumnMetadata = async (tableName: string, data: any[]): Promise<Record<string, string>> => {
   if (!data || data.length === 0) return {};
 
@@ -175,9 +172,6 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
   }
 };
 
-/**
- * Uses Gemini 3 Flash for quick summarization and analysis.
- */
 export const generateAnalysis = async (query: string, result: any[], topic: string, prompt?: string): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
   
@@ -252,12 +246,10 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
 };
 
 export const generateSuggestions = async (tables: TableMetadata[], topic: string, existingSuggestions: Suggestion[] = []): Promise<Suggestion[]> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
-  ).join('\n\n');
-
-  const userContent = `Database Schema:\n${schemaStr}`;
-  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic, existingSuggestions);
+  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic, tables, existingSuggestions);
+  
+  const userContent = `Analyze the schema provided in the system instructions and generate 8 distinct ideas (4 SQL, 4 Python).`;
+  
   await logPrompt('SUGGESTIONS', `System: ${systemInstruction}\nUser: ${userContent}`);
 
   try {
@@ -293,7 +285,6 @@ export const generateSuggestions = async (tables: TableMetadata[], topic: string
     const data = JSON.parse(response.text || "{}");
     return (data.suggestions || []).map((s: any) => ({
       ...s,
-      // Robust unique ID generation: ai_timestamp_randomString
       id: `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: s.type?.toUpperCase() === 'SQL' ? DevMode.SQL : DevMode.PYTHON
     }));
@@ -304,12 +295,8 @@ export const generateSuggestions = async (tables: TableMetadata[], topic: string
 };
 
 export const generateTopic = async (currentTopic: string, tables: TableMetadata[]): Promise<string> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
-  ).join('\n\n');
-
-  const userContent = USER_PROMPTS.TOPIC_GEN(currentTopic, schemaStr);
-  const systemInstruction = SYSTEM_PROMPTS.TOPIC_GEN;
+  const systemInstruction = SYSTEM_PROMPTS.TOPIC_GEN(tables);
+  const userContent = USER_PROMPTS.TOPIC_GEN(currentTopic);
   
   await logPrompt('TOPIC_GEN', `System: ${systemInstruction}\nUser: ${userContent}`);
 

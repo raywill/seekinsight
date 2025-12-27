@@ -1,4 +1,3 @@
-
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 
@@ -9,14 +8,12 @@ const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3001';
 const sanitizeSample = (data: any[], maxRows = 5, maxCharsPerField = 200): any[] => {
   return data.slice(0, maxRows).map(row => {
     if (Array.isArray(row)) {
-      // For header analysis (array of arrays)
       return row.map(cell => 
         (typeof cell === 'string' && cell.length > maxCharsPerField) 
           ? cell.substring(0, maxCharsPerField) + '...(truncated)' 
           : cell
       );
     } else if (typeof row === 'object' && row !== null) {
-      // For metadata inference (array of objects)
       const safeRow: any = {};
       for (const [key, val] of Object.entries(row)) {
         if (typeof val === 'string' && val.length > maxCharsPerField) {
@@ -29,6 +26,18 @@ const sanitizeSample = (data: any[], maxRows = 5, maxCharsPerField = 200): any[]
     }
     return row;
   });
+};
+
+// Helper to extract code from CoT responses
+const extractCode = (text: string): string => {
+  if (!text) return "";
+  // 1. Try extracting from <code> tags (CoT protocol)
+  const codeTagMatch = text.match(/<code>([\s\S]*?)<\/code>/);
+  if (codeTagMatch) {
+    return codeTagMatch[1].trim();
+  }
+  // 2. Fallback to standard markdown blocks
+  return text.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
 };
 
 async function logPrompt(type: string, content: string) {
@@ -76,9 +85,7 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
 }
 
 export const analyzeHeaders = async (sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }> => {
-  // Truncate individual cells to avoid massive payloads (e.g. huge text files)
   const safeSample = sanitizeSample(sample, 5, 200);
-  
   const userContent = USER_PROMPTS.HEADER_ANALYSIS(safeSample);
   const messages = [
     { role: "system", content: SYSTEM_PROMPTS.HEADER_ANALYSIS },
@@ -97,28 +104,21 @@ export const analyzeHeaders = async (sample: any[][]): Promise<{ hasHeader: bool
 };
 
 export const generateTopic = async (currentTopic: string, tables: TableMetadata[]): Promise<string> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
-  ).join('\n\n');
-
-  const userContent = USER_PROMPTS.TOPIC_GEN(currentTopic, schemaStr);
+  const systemInstruction = SYSTEM_PROMPTS.TOPIC_GEN(tables);
+  const userContent = USER_PROMPTS.TOPIC_GEN(currentTopic);
   const messages = [
-    { role: "system", content: SYSTEM_PROMPTS.TOPIC_GEN },
+    { role: "system", content: systemInstruction },
     { role: "user", content: userContent }
   ];
 
-  await logPrompt('TOPIC_GEN', `System: ${SYSTEM_PROMPTS.TOPIC_GEN}\nUser: ${userContent}`);
+  await logPrompt('TOPIC_GEN', `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const responseText = await callAliyun(messages, 0.3);
   return responseText.replace(/['"“”]/g, '').trim().substring(0, 10);
 };
 
 export const generateCode = async (prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<string> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}\nColumns:\n${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment}`).join('\n')}`
-  ).join('\n\n');
-
-  const systemInstruction = SYSTEM_PROMPTS.CODE_GEN(mode, schemaStr);
+  const systemInstruction = SYSTEM_PROMPTS.CODE_GEN(mode, tables);
   const messages = [
     { role: "system", content: systemInstruction },
     { role: "user", content: prompt }
@@ -127,17 +127,16 @@ export const generateCode = async (prompt: string, mode: DevMode, tables: TableM
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
 
   const responseText = await callAliyun(messages, 0.1);
-  return responseText.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
+  return extractCode(responseText);
 };
 
 export const debugCode = async (prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string): Promise<string> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}\nColumns:\n${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment}`).join('\n')}`
-  ).join('\n\n');
-
-  const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr);
+  const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, tables);
   const safeError = error.length > 2000 ? error.substring(0, 2000) + '\n...(truncated logs)' : error;
-  const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${safeError}`;
+  
+  // Use the new structured template
+  const userContent = USER_PROMPTS.DEBUG_CONTEXT(prompt, code, safeError);
+
   const messages = [
     { role: "system", content: systemInstruction },
     { role: "user", content: userContent }
@@ -146,14 +145,12 @@ export const debugCode = async (prompt: string, mode: DevMode, tables: TableMeta
   await logPrompt(`DEBUG_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const responseText = await callAliyun(messages, 0.1);
-  return responseText.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
+  return extractCode(responseText);
 };
 
 export const inferColumnMetadata = async (tableName: string, data: any[]): Promise<Record<string, string>> => {
   if (!data || data.length === 0) return {};
   
-  // Truncate fields to prevent "whole book" uploads from exceeding context window
-  // Limit to 5 rows, max 200 chars per field
   const safeSample = sanitizeSample(data, 5, 200);
   const headers = Object.keys(data[0]);
 
@@ -176,7 +173,6 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
 export const generateAnalysis = async (query: string, result: any[], topic: string, prompt?: string): Promise<string> => {
   if (!result || result.length === 0) return "No data returned to analyze.";
   
-  // Also truncate analysis sample data just in case
   const safeResult = sanitizeSample(result, 5, 300);
 
   const userContent = `
@@ -199,8 +195,6 @@ Result Data (Sample): ${JSON.stringify(safeResult)}
 export const recommendCharts = async (query: string, result: any[]): Promise<AIChartConfig[]> => {
   if (!result || result.length === 0) return [];
   const columns = Object.keys(result[0]);
-  
-  // Truncate chart recommendation sample
   const safeSample = sanitizeSample(result, 10, 100);
 
   const userContent = USER_PROMPTS.CHART_REC(query, columns, safeSample);
@@ -222,12 +216,10 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
 };
 
 export const generateSuggestions = async (tables: TableMetadata[], topic: string, existingSuggestions: Suggestion[] = []): Promise<Suggestion[]> => {
-  const schemaStr = tables.map(t => 
-    `Table: ${t.tableName}\nColumns: ${t.columns.map(c => `${c.name} (${c.type})`).join(', ')}`
-  ).join('\n\n');
-
-  const userContent = `Database Schema:\n${schemaStr}`;
-  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic, existingSuggestions);
+  const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic, tables, existingSuggestions);
+  
+  const userContent = `Analyze the schema provided in the system instructions and generate 8 distinct ideas (4 SQL, 4 Python).`;
+  
   const messages = [
     { role: "system", content: systemInstruction },
     { role: "user", content: userContent }
@@ -239,7 +231,6 @@ export const generateSuggestions = async (tables: TableMetadata[], topic: string
     const responseText = await callAliyun(messages, 0.7, true);
     const data = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
     return (data.suggestions || []).map((s: any) => ({
-      // Robust unique ID generation: ai_timestamp_randomString
       id: `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       title: s.title || "New Insight",
       prompt: s.prompt || "Analyze the dataset for trends.",
