@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor from './BaseCodeEditor';
 import PythonResultPanel from './PythonResultPanel';
-import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw, Lightbulb, X } from 'lucide-react';
+import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw, Lightbulb } from 'lucide-react';
 
 interface Props {
   code: string;
@@ -37,11 +37,18 @@ const PythonWorkspace: React.FC<Props> = ({
 
   useEffect(() => {
     if (aiThought && aiThought !== prevThought.current) {
-        setShowThought(true);
         setHasUnreadThought(true);
+        // Do not auto-open
         prevThought.current = aiThought;
     }
   }, [aiThought]);
+
+  const handleToggleThought = () => {
+      setShowThought(!showThought);
+      if (!showThought) {
+          setHasUnreadThought(false);
+      }
+  };
 
   useEffect(() => {
     if (prevLoading.current && !(isAiGenerating || isAiFixing) && showUndo) {
@@ -75,15 +82,17 @@ const PythonWorkspace: React.FC<Props> = ({
             Script with AI
           </button>
         </div>
+
+        {/* Lightbulb Toggle Button */}
         {aiThought && (
             <button
-                onClick={() => { setShowThought(!showThought); setHasUnreadThought(false); }}
-                className={`p-2.5 rounded-xl border transition-all relative ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600'}`}
-                title="View AI Reasoning"
+                onClick={handleToggleThought}
+                className={`p-2.5 rounded-xl border transition-all relative ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                title="Toggle AI Reasoning"
             >
                 <Lightbulb size={18} fill={showThought ? "currentColor" : "none"} />
                 {!showThought && hasUnreadThought && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
                 )}
             </button>
         )}
@@ -91,25 +100,20 @@ const PythonWorkspace: React.FC<Props> = ({
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
         
-        {/* Floating CoT Panel */}
-        {aiThought && showThought && (
-            <div className="absolute top-4 right-6 z-30 w-96 max-h-[400px] flex flex-col bg-white/95 backdrop-blur-md border border-yellow-200 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300">
-                <div className="px-4 py-3 border-b border-yellow-100 flex items-center justify-between bg-yellow-50/50 rounded-t-2xl">
-                    <div className="flex items-center gap-2 text-yellow-700">
-                        <Sparkles size={14} />
-                        <span className="text-xs font-black uppercase tracking-widest">AI Reasoning</span>
-                    </div>
-                    <button onClick={() => setShowThought(false)} className="text-yellow-700/50 hover:text-yellow-700">
-                        <X size={14} />
-                    </button>
+        {/* Inline CoT Panel (Collapsible) */}
+        <div 
+            className={`overflow-hidden transition-all duration-300 ease-in-out border-b border-yellow-100/50 bg-yellow-50/50 ${showThought ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'}`}
+        >
+            <div className="px-8 py-4 overflow-y-auto max-h-[300px]">
+                <div className="flex items-center gap-2 mb-2">
+                    <Sparkles size={12} className="text-yellow-600" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-yellow-600">AI Reasoning Chain</span>
                 </div>
-                <div className="p-4 overflow-y-auto custom-scrollbar">
-                    <div className="text-xs text-slate-700 font-medium leading-relaxed whitespace-pre-wrap font-mono">
-                        {aiThought}
-                    </div>
+                <div className="text-xs text-yellow-900/80 font-medium leading-relaxed whitespace-pre-wrap font-mono">
+                    {aiThought}
                 </div>
             </div>
-        )}
+        </div>
 
         {isUndoVisible && (
           <div className="absolute top-4 right-6 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
