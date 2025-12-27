@@ -98,7 +98,10 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
 
   const borderClass = (fullHeight || isFullscreen) ? '' : 'border-t border-gray-200';
 
-  if (isLoading) return (
+  // Logic: Only show full blocking loader if there is no previous result
+  const showFullLoader = isLoading && !result;
+
+  if (showFullLoader) return (
     <div style={fullHeight ? { height: '100%', flex: 1 } : { height }} className={`${borderClass} bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse`}>
       <Box size={24} className="animate-spin mb-3" />
       <p className="text-[10px] font-black uppercase tracking-[0.2em]">Executing Python Runtime...</p>
@@ -116,6 +119,16 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
     <div style={containerStyle} className={containerClasses}>
       {/* Overlay Backdrop when fullscreen to focus attention (optional visual tweak) */}
       {isFullscreen && <div className="absolute inset-0 bg-white z-0" />}
+
+      {/* Loading Overlay for Refresh (keeps content visible underneath) */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 bg-white/40 backdrop-blur-[2px] transition-all duration-300 flex items-center justify-center">
+            <div className="bg-white/90 shadow-xl border border-purple-100 rounded-full px-5 py-2.5 flex items-center gap-3 animate-in zoom-in-95 fade-in duration-200">
+                 <RefreshCw size={14} className="animate-spin text-purple-600" />
+                 <span className="text-[10px] font-black uppercase tracking-widest text-purple-900">Refreshing Analysis...</span>
+            </div>
+        </div>
+      )}
 
       {!fullHeight && !isFullscreen && (
         <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-purple-500 z-50 flex items-center justify-center">
