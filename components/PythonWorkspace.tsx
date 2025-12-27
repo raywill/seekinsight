@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor from './BaseCodeEditor';
 import PythonResultPanel from './PythonResultPanel';
-import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw } from 'lucide-react';
+import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw, Lightbulb, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface Props {
   code: string;
@@ -20,14 +19,27 @@ interface Props {
   tables: TableMetadata[];
   onUndo?: () => void;
   showUndo?: boolean;
+  aiThought?: string | null; // New Prop
 }
 
 const PythonWorkspace: React.FC<Props> = ({ 
   code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, 
-  isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo 
+  isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo, aiThought
 }) => {
   const [isUndoVisible, setIsUndoVisible] = useState(false);
   const prevLoading = useRef(isAiGenerating || isAiFixing);
+
+  // Thought State
+  const [showThought, setShowThought] = useState(false);
+  const prevThought = useRef(aiThought);
+
+  // Auto-expand thought when it changes
+  useEffect(() => {
+    if (aiThought && aiThought !== prevThought.current) {
+        setShowThought(true);
+        prevThought.current = aiThought;
+    }
+  }, [aiThought]);
 
   useEffect(() => {
     if (prevLoading.current && !(isAiGenerating || isAiFixing) && showUndo) {
@@ -64,6 +76,29 @@ const PythonWorkspace: React.FC<Props> = ({
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
+        {/* CoT Panel */}
+        {aiThought && (
+            <div className={`transition-all duration-300 ease-in-out border-b border-yellow-100 bg-yellow-50 overflow-hidden flex flex-col ${showThought ? 'max-h-[300px]' : 'max-h-[40px] hover:bg-yellow-100/50 cursor-pointer'}`}>
+                <div 
+                    className="flex items-center justify-between px-6 py-2 shrink-0 cursor-pointer"
+                    onClick={() => setShowThought(!showThought)}
+                >
+                    <div className="flex items-center gap-2">
+                        <div className="p-1 bg-yellow-200 rounded text-yellow-700">
+                            <Lightbulb size={12} fill="currentColor" />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-yellow-700">AI Reasoning Chain</span>
+                    </div>
+                    {showThought ? <ChevronDown size={14} className="text-yellow-400"/> : <ChevronRight size={14} className="text-yellow-400"/>}
+                </div>
+                <div className={`px-8 pb-4 overflow-y-auto ${showThought ? 'opacity-100' : 'opacity-0'}`}>
+                    <div className="text-xs text-yellow-900/80 font-medium leading-relaxed whitespace-pre-wrap font-mono">
+                        {aiThought}
+                    </div>
+                </div>
+            </div>
+        )}
+
         {isUndoVisible && (
           <div className="absolute top-4 right-6 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
             <button 

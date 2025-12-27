@@ -91,6 +91,11 @@ export interface ProjectState {
   lastPythonCodeBeforeAi: string | null;
   sqlAiPrompt: string;
   pythonAiPrompt: string;
+  
+  // New: Store CoT
+  sqlAiThought: string | null;
+  pythonAiThought: string | null;
+
   suggestions: Suggestion[];
   lastSqlResult: ExecutionResult | null;
   lastPythonResult: ExecutionResult | null;

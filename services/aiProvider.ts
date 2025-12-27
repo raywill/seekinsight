@@ -1,11 +1,10 @@
-
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import * as gemini from "./geminiService";
 import * as aliyun from "./aliyunService";
 
 export interface AiService {
-  generateCode(prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<string>;
-  debugCode(prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string): Promise<string>;
+  generateCode(prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<{ code: string; thought: string }>;
+  debugCode(prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string): Promise<{ code: string; thought: string }>;
   inferColumnMetadata(tableName: string, data: any[]): Promise<Record<string, string>>;
   analyzeHeaders(sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }>;
   generateAnalysis(query: string, result: any[], topic: string, prompt?: string): Promise<string>;

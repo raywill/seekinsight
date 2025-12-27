@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
@@ -32,16 +31,33 @@ const sanitizeSample = (data: any[], maxRows = 5, maxCharsPerField = 200): any[]
   });
 };
 
-// Helper to extract code from CoT responses
-const extractCode = (text: string): string => {
-  if (!text) return "";
-  // 1. Try extracting from <code> tags (CoT protocol)
+// New Helper to parse CoT Response
+const parseCoTResponse = (text: string): { code: string; thought: string } => {
+  if (!text) return { code: "", thought: "" };
+
+  let thought = "";
+  let code = text;
+
+  // Extract Thought
+  const thoughtMatch = text.match(/<thought>([\s\S]*?)<\/thought>/);
+  if (thoughtMatch) {
+    thought = thoughtMatch[1].trim();
+  }
+
+  // Extract Code
   const codeTagMatch = text.match(/<code>([\s\S]*?)<\/code>/);
   if (codeTagMatch) {
-    return codeTagMatch[1].trim();
+    code = codeTagMatch[1].trim();
+  } else {
+    // Fallback cleanup if no tags found (legacy behavior)
+    code = text
+      .replace(/<thought>[\s\S]*?<\/thought>/, '') // Remove thought block if it exists but code block is missing
+      .replace(/```(sql|python)?/g, '')
+      .replace(/```/g, '')
+      .trim();
   }
-  // 2. Fallback to standard markdown blocks
-  return text.replace(/```(sql|python)?/g, '').replace(/```/g, '').trim();
+
+  return { code, thought };
 };
 
 async function logPrompt(type: string, content: string) {
@@ -100,7 +116,7 @@ export const generateCode = async (
   prompt: string, 
   mode: DevMode, 
   tables: TableMetadata[]
-): Promise<string> => {
+): Promise<{ code: string; thought: string }> => {
   const systemInstruction = SYSTEM_PROMPTS.CODE_GEN(mode, tables);
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
 
@@ -113,7 +129,7 @@ export const generateCode = async (
     },
   });
 
-  return extractCode(response.text || "");
+  return parseCoTResponse(response.text || "");
 };
 
 export const debugCode = async (
@@ -122,7 +138,7 @@ export const debugCode = async (
   tables: TableMetadata[],
   code: string,
   error: string
-): Promise<string> => {
+): Promise<{ code: string; thought: string }> => {
   const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, tables);
   const safeError = error.length > 2000 ? error.substring(0, 2000) + '\n...(truncated logs)' : error;
   
@@ -140,7 +156,7 @@ export const debugCode = async (
     },
   });
 
-  return extractCode(response.text || "");
+  return parseCoTResponse(response.text || "");
 };
 
 export const inferColumnMetadata = async (tableName: string, data: any[]): Promise<Record<string, string>> => {

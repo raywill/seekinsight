@@ -633,17 +633,33 @@ class SI_Params:
              return default
         return self.injected.get(key, default)
 
-    def slider(self, key, label=None, min=0, max=100, step=1, default=None):
+    def slider(self, key, label=None, min=0, max=100, step=1, default=None, dtype=None):
         if default is None: default = min
         if self.mode == 'SCHEMA':
             self.schema[key] = {
                 'type': 'slider', 'label': label or key,
-                'min': min, 'max': max, 'step': step, 'default': default
+                'min': min, 'max': max, 'step': step, 'default': default,
+                'dtype': dtype
             }
             return default
+        
         val = self.injected.get(key, default)
-        try: return float(val)
-        except: return default
+        try:
+            # 1. Explicit request
+            if dtype == 'int':
+                return int(float(val))
+            elif dtype == 'float':
+                return float(val)
+
+            # 2. Implicit inference (Streamlit style)
+            # If everything provided is integer-like, return int
+            is_int_env = isinstance(min, int) and isinstance(max, int) and isinstance(step, int) and isinstance(default, int)
+            if is_int_env:
+                return int(float(val))
+            
+            return float(val)
+        except: 
+            return default
 
     def select(self, key, label=None, options=[], sql=None, default=None):
         if self.mode == 'SCHEMA':

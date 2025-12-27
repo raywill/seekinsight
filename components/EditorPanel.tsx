@@ -39,7 +39,7 @@ const EditorPanel: React.FC<Props> = ({
     setError(null);
     try {
       const generated = await ai.generateCode(aiPrompt, mode, tables);
-      onCodeChange(generated);
+      onCodeChange(generated.code);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "AI failed to generate code.");

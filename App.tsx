@@ -242,6 +242,10 @@ const App: React.FC = () => {
     lastPythonCodeBeforeAi: null,
     sqlAiPrompt: '',
     pythonAiPrompt: '',
+    
+    sqlAiThought: null, // Initialize
+    pythonAiThought: null, // Initialize
+
     suggestions: [],
     lastSqlResult: null,
     lastPythonResult: null,
@@ -542,8 +546,13 @@ const App: React.FC = () => {
     if (!promptToUse) return;
     setProject(prev => ({ ...prev, isSqlAiGenerating: true, lastSqlCodeBeforeAi: prev.sqlCode }));
     try {
-      const code = await ai.generateCode(promptToUse, DevMode.SQL, project.tables);
-      setProject(prev => ({ ...prev, sqlCode: code, isSqlAiGenerating: false }));
+      const { code, thought } = await ai.generateCode(promptToUse, DevMode.SQL, project.tables);
+      setProject(prev => ({ 
+          ...prev, 
+          sqlCode: code, 
+          sqlAiThought: thought, // Store thought
+          isSqlAiGenerating: false 
+      }));
     } catch (err) {
       setProject(prev => ({ ...prev, isSqlAiGenerating: false }));
     }
@@ -554,8 +563,13 @@ const App: React.FC = () => {
     if (!promptToUse) return;
     setProject(prev => ({ ...prev, isPythonAiGenerating: true, lastPythonCodeBeforeAi: prev.pythonCode }));
     try {
-      const code = await ai.generateCode(promptToUse, DevMode.PYTHON, project.tables);
-      setProject(prev => ({ ...prev, pythonCode: code, isPythonAiGenerating: false }));
+      const { code, thought } = await ai.generateCode(promptToUse, DevMode.PYTHON, project.tables);
+      setProject(prev => ({ 
+          ...prev, 
+          pythonCode: code, 
+          pythonAiThought: thought, // Store thought
+          isPythonAiGenerating: false 
+      }));
     } catch (err) {
       setProject(prev => ({ ...prev, isPythonAiGenerating: false }));
     }
@@ -566,9 +580,15 @@ const App: React.FC = () => {
     setProject(prev => ({ ...prev, isSqlAiFixing: true }));
     try {
       const logs = project.lastSqlResult.logs?.join('\n') || '';
-      const fixed = await ai.debugCode(project.sqlAiPrompt, DevMode.SQL, project.tables, project.sqlCode, logs);
-      setProject(prev => ({ ...prev, sqlCode: fixed, isAiFixing: false, isSqlAiFixing: false }));
-      handleRun(fixed);
+      const { code, thought } = await ai.debugCode(project.sqlAiPrompt, DevMode.SQL, project.tables, project.sqlCode, logs);
+      setProject(prev => ({ 
+          ...prev, 
+          sqlCode: code, 
+          sqlAiThought: thought, // Store fix thought
+          isAiFixing: false, 
+          isSqlAiFixing: false 
+      }));
+      handleRun(code);
     } catch (err) {
       setProject(prev => ({ ...prev, isSqlAiFixing: false }));
     }
@@ -579,9 +599,15 @@ const App: React.FC = () => {
     setProject(prev => ({ ...prev, isPythonAiFixing: true }));
     try {
       const logs = project.lastPythonResult.logs?.join('\n') || '';
-      const fixed = await ai.debugCode(project.pythonAiPrompt, DevMode.PYTHON, project.tables, project.pythonCode, logs);
-      setProject(prev => ({ ...prev, pythonCode: fixed, isAiFixing: false, isPythonAiFixing: false }));
-      handleRun(fixed);
+      const { code, thought } = await ai.debugCode(project.pythonAiPrompt, DevMode.PYTHON, project.tables, project.pythonCode, logs);
+      setProject(prev => ({ 
+          ...prev, 
+          pythonCode: code, 
+          pythonAiThought: thought, // Store fix thought
+          isAiFixing: false, 
+          isPythonAiFixing: false 
+      }));
+      handleRun(code);
     } catch (err) {
       setProject(prev => ({ ...prev, isPythonAiFixing: false }));
     }
@@ -965,6 +991,7 @@ const App: React.FC = () => {
                 tables={project.tables}
                 onUndo={() => setProject(p => ({ ...p, sqlCode: p.lastSqlCodeBeforeAi || INITIAL_SQL }))}
                 showUndo={!!project.lastSqlCodeBeforeAi}
+                aiThought={project.sqlAiThought} // Pass Thought
               />
              )}
              {project.activeMode === DevMode.PYTHON && (
@@ -983,6 +1010,7 @@ const App: React.FC = () => {
                 tables={project.tables}
                 onUndo={() => setProject(p => ({ ...p, pythonCode: p.lastPythonCodeBeforeAi || INITIAL_PYTHON }))}
                 showUndo={!!project.lastPythonCodeBeforeAi}
+                aiThought={project.pythonAiThought} // Pass Thought
               />
              )}
           </div>

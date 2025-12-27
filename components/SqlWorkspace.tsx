@@ -1,9 +1,8 @@
-
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor, { BaseCodeEditorRef } from './BaseCodeEditor';
 import SqlResultPanel from './SqlResultPanel';
-import { Database, Play, Sparkles, RefreshCcw, Code2, RotateCcw, Box, Table, Type } from 'lucide-react';
+import { Database, Play, Sparkles, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface Props {
   code: string;
@@ -20,6 +19,7 @@ interface Props {
   tables: TableMetadata[];
   onUndo?: () => void;
   showUndo?: boolean;
+  aiThought?: string | null; // New Prop
 }
 
 const SQL_KEYWORDS = [
@@ -39,11 +39,23 @@ interface SuggestionItem {
 
 const SqlWorkspace: React.FC<Props> = ({ 
   code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, 
-  isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo 
+  isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo, aiThought 
 }) => {
   const editorRef = useRef<BaseCodeEditorRef>(null);
   const [isUndoVisible, setIsUndoVisible] = useState(false);
   const prevLoading = useRef(isAiGenerating || isAiFixing);
+  
+  // Thought State
+  const [showThought, setShowThought] = useState(false);
+  const prevThought = useRef(aiThought);
+
+  // Auto-expand thought when it changes
+  useEffect(() => {
+    if (aiThought && aiThought !== prevThought.current) {
+        setShowThought(true);
+        prevThought.current = aiThought;
+    }
+  }, [aiThought]);
 
   // Autocomplete State
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
@@ -55,21 +67,15 @@ const SqlWorkspace: React.FC<Props> = ({
   // Combine keywords with schema
   const allKeywords = useMemo(() => {
     const items: SuggestionItem[] = [];
-    
-    // 1. Tables
     tables.forEach(t => {
       items.push({ type: 'table', value: t.tableName, label: t.tableName, detail: 'Table' });
-      // 2. Columns
       t.columns.forEach(c => {
         items.push({ type: 'column', value: c.name, label: c.name, detail: `${t.tableName} (${c.type})` });
       });
     });
-
-    // 3. SQL Keywords
     SQL_KEYWORDS.forEach(k => {
       items.push({ type: 'keyword', value: k, label: k });
     });
-
     return items;
   }, [tables]);
 
@@ -90,12 +96,9 @@ const SqlWorkspace: React.FC<Props> = ({
     if (!textarea) return { top: 0, left: 0 };
 
     const { selectionStart } = textarea;
-    
-    // Create a mirror div to calculate position
     const div = document.createElement('div');
     const style = window.getComputedStyle(textarea);
     
-    // Copy essential styles
     ['fontFamily', 'fontSize', 'fontWeight', 'wordWrap', 'whiteSpace', 'border', 'padding', 'width', 'lineHeight'].forEach(prop => {
       (div.style as any)[prop] = (style as any)[prop];
     });
@@ -111,20 +114,15 @@ const SqlWorkspace: React.FC<Props> = ({
     div.appendChild(span);
     
     document.body.appendChild(div);
-    
-    // Adjust for the specific padding of the editor (matches CSS in index.html)
-    // padding: 20px 20px 20px 65px !important;
     const relativeLeft = span.offsetLeft; 
     const relativeTop = span.offsetTop;
-    
-    // Adjust for scroll
     const scrollTop = textarea.scrollTop;
     const scrollLeft = textarea.scrollLeft;
 
     document.body.removeChild(div);
 
     return {
-      top: relativeTop - scrollTop + 24, // + Line Height roughly
+      top: relativeTop - scrollTop + 24, 
       left: relativeLeft - scrollLeft
     };
   };
@@ -132,10 +130,7 @@ const SqlWorkspace: React.FC<Props> = ({
   const updateSuggestions = (currentCode: string, cursorIndex: number) => {
     if (process.env.SQL_AUTO_COMPLETE === 'false') return;
 
-    // Look backwards from cursor to find current word
     let start = cursorIndex;
-    // Modified regex to include English letters, numbers, underscores AND Unicode chars (Chinese, etc.)
-    // Matches any char that is NOT a separator (whitespace, punctuation, brackets, quotes)
     while (start > 0 && /[a-zA-Z0-9_\u0080-\uFFFF]/.test(currentCode[start - 1])) {
       start--;
     }
@@ -145,7 +140,7 @@ const SqlWorkspace: React.FC<Props> = ({
       const matches = allKeywords.filter(item => 
         item.label.toLowerCase().startsWith(currentWord.toLowerCase()) && 
         item.label !== currentWord 
-      ).slice(0, 8); // Limit to 8 suggestions
+      ).slice(0, 8);
 
       if (matches.length > 0) {
         setMatchTerm(currentWord);
@@ -161,8 +156,6 @@ const SqlWorkspace: React.FC<Props> = ({
 
   const handleCodeChange = (newCode: string) => {
     onCodeChange(newCode);
-    
-    // Defer suggestion update slightly to allow state/dom update
     setTimeout(() => {
         const textarea = editorRef.current?.textarea;
         if (textarea) {
@@ -186,7 +179,6 @@ const SqlWorkspace: React.FC<Props> = ({
     onCodeChange(newCode);
     setShowSuggestions(false);
 
-    // Restore focus and cursor
     setTimeout(() => {
       textarea.focus();
       const newCursorPos = start + toInsert.length;
@@ -213,8 +205,6 @@ const SqlWorkspace: React.FC<Props> = ({
         return;
       }
     }
-
-    // Ctrl+Space trigger
     if (e.ctrlKey && e.key === ' ') {
       e.preventDefault();
       const textarea = editorRef.current?.textarea;
@@ -254,7 +244,30 @@ const SqlWorkspace: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        {/* CoT Panel */}
+        {aiThought && (
+            <div className={`transition-all duration-300 ease-in-out border-b border-yellow-100 bg-yellow-50 overflow-hidden flex flex-col ${showThought ? 'max-h-[300px]' : 'max-h-[40px] hover:bg-yellow-100/50 cursor-pointer'}`}>
+                <div 
+                    className="flex items-center justify-between px-6 py-2 shrink-0 cursor-pointer"
+                    onClick={() => setShowThought(!showThought)}
+                >
+                    <div className="flex items-center gap-2">
+                        <div className="p-1 bg-yellow-200 rounded text-yellow-700">
+                            <Lightbulb size={12} fill="currentColor" />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-yellow-700">AI Reasoning Chain</span>
+                    </div>
+                    {showThought ? <ChevronDown size={14} className="text-yellow-400"/> : <ChevronRight size={14} className="text-yellow-400"/>}
+                </div>
+                <div className={`px-8 pb-4 overflow-y-auto ${showThought ? 'opacity-100' : 'opacity-0'}`}>
+                    <div className="text-xs text-yellow-900/80 font-medium leading-relaxed whitespace-pre-wrap font-mono">
+                        {aiThought}
+                    </div>
+                </div>
+            </div>
+        )}
+
         {isUndoVisible && (
           <div className="absolute top-4 right-6 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
             <button 
@@ -276,7 +289,6 @@ const SqlWorkspace: React.FC<Props> = ({
           readOnly={isAiGenerating || isAiFixing} 
         />
 
-        {/* Autocomplete Dropdown */}
         {showSuggestions && (
           <div 
             className="absolute z-[100] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden min-w-[200px] max-w-[300px] animate-in fade-in zoom-in-95 duration-75"

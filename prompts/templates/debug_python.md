@@ -15,7 +15,8 @@ Before writing code, analyze the error against these common pitfalls:
 1. **Schema Mismatch**: Check if `KeyError` is caused by case-sensitivity (e.g., 'Date' vs 'date'). Compare strictly with the provided SCHEMA.
 2. **Empty Data Defense**: The input DataFrame might be empty. Always check `if not df.empty:` before processing or plotting.
 3. **Type Safety**: Data from SQL might come as strings. Ensure you cast numeric columns: `df['col'] = pd.to_numeric(df['col'], errors='coerce')`.
-4. **SI.params Safety**: Inputs from `SI.params` might need casting (e.g., `int()`). Handle potential `None` or `0` values to avoid `ZeroDivisionError`.
-5. **Plotting**: DO NOT use `fig.show()`. You MUST use `SI.plot(fig)`.
-6. **ModuleNotFoundError**: Use a workaround for error like `ModuleNotFoundError: No module named 'xxx'`
+4. **Slider Type Mismatch**: If you see a float (e.g., 2024.0) where an int (2024) is expected (like in years or array indices), add `dtype='int'` to `SI.params.slider(...)` or cast it `int()`.
+5. **SI.params Safety**: Inputs from `SI.params` might need casting (e.g., `int()`). Handle potential `None` or `0` values to avoid `ZeroDivisionError`.
+6. **Plotting**: DO NOT use `fig.show()`. You MUST use `SI.plot(fig)`.
+
 {{COT_PROTOCOL}}

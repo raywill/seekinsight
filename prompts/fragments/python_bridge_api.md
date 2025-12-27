@@ -3,7 +3,8 @@ The global `SI` object is a **strict bridge interface**. It is NOT a general uti
 You must ONLY use `SI` for the following 3 specific capabilities. For everything else, use standard Python.
 
 ## 1. INPUTS (Interactive UI)
-- `val = SI.params.slider('key', min=0, max=100, default=50)`
+- `val = SI.params.slider('key', min=0, max=100, default=50, dtype='int')` 
+  - *Tip*: Set `dtype='int'` to force integer return, otherwise it infers from min/max/default.
 - `val = SI.params.select('key', options=['A', 'B'], default='A')`
 - `val = SI.params.get('key', default='some_val')`
 
