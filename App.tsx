@@ -401,8 +401,9 @@ const App: React.FC = () => {
           activeMode: app.type,
           sqlCode: app.type === DevMode.SQL ? app.code : prev.sqlCode,
           pythonCode: app.type === DevMode.PYTHON ? app.code : prev.pythonCode,
-          sqlAiPrompt: app.type === DevMode.SQL ? app.title : prev.sqlAiPrompt,
-          pythonAiPrompt: app.type === DevMode.PYTHON ? app.title : prev.pythonAiPrompt,
+          // Use description as the prompt because that's what we default it to during publish
+          sqlAiPrompt: app.type === DevMode.SQL ? (app.description || app.title) : prev.sqlAiPrompt,
+          pythonAiPrompt: app.type === DevMode.PYTHON ? (app.description || app.title) : prev.pythonAiPrompt,
           lastSqlResult: app.type === DevMode.SQL ? loadedResult : prev.lastSqlResult,
           lastPythonResult: app.type === DevMode.PYTHON ? loadedResult : prev.lastPythonResult,
           analysisReport: loadedAnalysis || prev.analysisReport,
