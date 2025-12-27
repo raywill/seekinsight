@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
@@ -44,6 +45,11 @@ const extractCode = (text: string): string => {
 };
 
 async function logPrompt(type: string, content: string) {
+  // Browser Console Log
+  console.groupCollapsed(`%c[AI Prompt] ${type}`, 'color: #2563eb; font-weight: bold;');
+  console.log(content);
+  console.groupEnd();
+
   if (!IS_DEBUG) return;
   try {
     await fetch(`${GATEWAY_URL}/log-prompt`, {
