@@ -122,7 +122,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
 
       {/* Loading Overlay for Refresh (keeps content visible underneath) */}
       {isLoading && (
-        <div className="absolute inset-0 z-50 bg-white/40 backdrop-blur-[2px] transition-all duration-300 flex items-center justify-center">
+        <div className="absolute inset-0 z-50 bg-white/10 transition-all duration-300 flex items-center justify-center">
             <div className="bg-white/90 shadow-xl border border-purple-100 rounded-full px-5 py-2.5 flex items-center gap-3 animate-in zoom-in-95 fade-in duration-200">
                  <RefreshCw size={14} className="animate-spin text-purple-600" />
                  <span className="text-[10px] font-black uppercase tracking-widest text-purple-900">Refreshing Analysis...</span>
