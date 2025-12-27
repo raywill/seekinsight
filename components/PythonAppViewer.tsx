@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PublishedApp, ExecutionResult } from '../types';
 import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
@@ -103,7 +103,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
     setParamValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleRun = async () => {
+  const handleRun = useCallback(async () => {
     setIsRunning(true);
     const gatewayUrl = (typeof process as any !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
     
@@ -137,11 +137,28 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
       setResult(execResult);
     } catch (e) {
       console.error(e);
-      alert("Execution failed. The source database might be offline.");
+      // alert("Execution failed. The source database might be offline.");
     } finally {
       setIsRunning(false);
     }
-  };
+  }, [app.source_db_name, app.code, paramValues]);
+
+  // Debounced Auto-Run Effect
+  useEffect(() => {
+    // Determine if we have values to run. 
+    // If schema exists but paramValues is empty (initial load before state update), wait.
+    const hasSchema = Object.keys(schema).length > 0;
+    const hasValues = Object.keys(paramValues).length > 0;
+    
+    // Safety check: Don't run if we expect params but don't have them yet.
+    if (hasSchema && !hasValues) return;
+
+    const timer = setTimeout(() => {
+      handleRun();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [paramValues, handleRun, schema]);
 
   const handleCloneClick = async () => {
     if (!onClone) return;
