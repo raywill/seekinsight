@@ -13,11 +13,10 @@ export const SYSTEM_PROMPTS = {
        - Prefer CTE to subquery.
        Available Schema:\n${schema}`
       : `You are a Python data scientist. Please write a python script. 
-       - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, matplotlib, seaborn, plotly.
+       - The only thirdparty libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly, jieba.
        - \`sql(query)\` is a predefined function you can use to execute a query without declaration
        - Use sql(query) to get a DataFrame.
        - Use forge_plotly(fig) for interactive charts.
-       - NEVER use matplotlib.
        - Only return raw Python code.
        Available Schema:\n${schema}`,
 
@@ -37,10 +36,10 @@ export const SYSTEM_PROMPTS = {
        - Prefer CTE to subquery.`
       : `Basic Rules to write a python script:
        - The core libraries can be used: pandas, sqlalchemy, mysql-connector-python, numpy, scipy, scikit-learn, seaborn, plotly.
-       - NEVER use matplotlib library.
        - \`sql(query)\` is a predefined function you can use to execute a query without declaration
        - Use sql(query) to get a DataFrame.
        - Use forge_plotly(fig) for interactive charts.
+       - Use a workaround when missing python modules. 
        - Only return raw Python code.`) 
       +  `
  Schema context:\n${schema}`,

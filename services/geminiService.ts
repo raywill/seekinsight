@@ -120,7 +120,8 @@ ${t.columns.map(c => `- ${c.name} (${c.type}): ${c.comment || 'No description'}`
   ).join('\n\n');
 
   const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, schemaStr);
-  const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${error}`;
+  const safeError = error.length > 2000 ? error.substring(0, 2000) + '\n...(truncated logs)' : error;
+  const userContent = `Original Prompt: ${prompt}\n\nFaulty Code:\n${code}\n\nExecution Error:\n${safeError}`;
   await logPrompt(`DEBUG_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const response = await ai.models.generateContent({
