@@ -166,6 +166,8 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
                 data={result.plotlyData?.data || []}
                 layout={{
                   ...result.plotlyData?.layout,
+                  width: undefined, // Force autosize by removing python defaults
+                  height: undefined, // Force autosize by removing python defaults
                   autosize: true,
                   margin: isFullscreen ? { t: 50, r: 50, b: 50, l: 50 } : { t: 30, r: 30, b: 30, l: 30 },
                   font: { family: 'Inter', size: isFullscreen ? 12 : 10 }
