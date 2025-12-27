@@ -17,5 +17,5 @@ Before writing code, analyze the error against these common pitfalls:
 3. **Type Safety**: Data from SQL might come as strings. Ensure you cast numeric columns: `df['col'] = pd.to_numeric(df['col'], errors='coerce')`.
 4. **SI.params Safety**: Inputs from `SI.params` might need casting (e.g., `int()`). Handle potential `None` or `0` values to avoid `ZeroDivisionError`.
 5. **Plotting**: DO NOT use `fig.show()`. You MUST use `SI.plot(fig)`.
-
+6. **ModuleNotFoundError**: Use a workaround for error like `ModuleNotFoundError: No module named 'xxx'`
 {{COT_PROTOCOL}}
