@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Table as TableIcon, Clock, Hash, Play, Download, Terminal as TerminalIcon, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
+import { Table as TableIcon, Clock, Hash, Play, Download, Terminal as TerminalIcon, Sparkles, RefreshCw, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
 
 interface Props {
   result: ExecutionResult | null;
@@ -16,6 +16,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
   const [activeTab, setActiveTab] = useState<'table' | 'logs'>('table');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set());
   
   const startY = useRef<number>(0);
@@ -24,11 +25,12 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error')));
 
   const startResize = useCallback((e: React.MouseEvent) => {
+    if (isFullscreen) return;
     setIsResizing(true);
     startY.current = e.pageY;
     startHeight.current = height;
     document.body.style.cursor = 'ns-resize';
-  }, [height]);
+  }, [height, isFullscreen]);
 
   const stopResize = useCallback(() => {
     setIsResizing(false);
@@ -69,17 +71,21 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
     }
   }, [result, hasError]);
 
-  // Handle Escape key to collapse all expanded cells
+  // Handle Escape key to collapse all expanded cells OR exit fullscreen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setExpandedCells(new Set());
+        if (isFullscreen) {
+          setIsFullscreen(false);
+        } else {
+          setExpandedCells(new Set());
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isFullscreen]);
 
   const handleCellClick = (rowIndex: number, colKey: string) => {
     // Smart Click: Check if user is selecting text. If so, ignore the click to allow copying.
@@ -129,13 +135,25 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
     </div>
   );
 
-  return (
-    <div style={{ height }} className="border-t border-gray-200 bg-white flex flex-col overflow-hidden relative group/resizer">
-      <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500 z-50 flex items-center justify-center">
-        <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-blue-400"></div>
-      </div>
+  const containerStyle: React.CSSProperties = isFullscreen 
+    ? { position: 'fixed', inset: 0, zIndex: 200, width: '100vw', height: '100vh' }
+    : { height };
 
-      <div className={`px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50'}`}>
+  const containerClasses = isFullscreen
+    ? "bg-white flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+    : "border-t border-gray-200 bg-white flex flex-col overflow-hidden relative group/resizer";
+
+  return (
+    <div style={containerStyle} className={containerClasses}>
+      {isFullscreen && <div className="absolute inset-0 bg-white z-0" />}
+      
+      {!isFullscreen && (
+        <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500 z-50 flex items-center justify-center">
+          <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-blue-400"></div>
+        </div>
+      )}
+
+      <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50'}`}>
         <div className="flex gap-1">
           <button onClick={() => setActiveTab('table')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
             <TableIcon size={12} className="inline mr-1" /> Data Table
@@ -144,17 +162,25 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
             <TerminalIcon size={12} className="inline mr-1" /> {hasError ? 'Error Console' : 'SQL Logs'}
           </button>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {activeTab === 'table' && result.data.length > 0 && (
-            <button onClick={exportToTSV} className="text-[10px] font-black text-blue-600 hover:underline flex items-center gap-1">
+            <button onClick={exportToTSV} className="text-[10px] font-black text-blue-600 hover:underline flex items-center gap-1 mr-2">
               <Download size={10} /> EXPORT TSV
             </button>
           )}
-          <span className="text-[10px] font-mono text-gray-400 font-bold">{result.timestamp}</span>
+          <span className="text-[10px] font-mono text-gray-400 font-bold hidden sm:block">{result.timestamp}</span>
+          
+          <button 
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+            title={isFullscreen ? "Exit Fullscreen (Esc)" : "Maximize Panel"}
+          >
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden bg-white">
+      <div className="relative z-10 flex-1 relative overflow-hidden bg-white">
         <div className="absolute inset-0 overflow-auto">
           {activeTab === 'table' ? (
             <table className="min-w-full text-left text-[11px] border-collapse font-mono">
