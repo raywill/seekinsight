@@ -81,7 +81,13 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const toggleCellExpansion = (rowIndex: number, colKey: string) => {
+  const handleCellClick = (rowIndex: number, colKey: string) => {
+    // Smart Click: Check if user is selecting text. If so, ignore the click to allow copying.
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      return;
+    }
+
     const key = `${rowIndex}-${colKey}`;
     setExpandedCells(prev => {
       const next = new Set(prev);
@@ -170,12 +176,12 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
                       return (
                         <td 
                           key={col} 
-                          onDoubleClick={() => toggleCellExpansion(i, col)}
+                          onClick={() => handleCellClick(i, col)}
                           title={!isExpanded ? cellValue : undefined}
                           className={`px-3 py-1.5 text-gray-600 max-w-xs border-r border-transparent transition-all align-top ${
                             isExpanded 
-                              ? 'whitespace-pre-wrap break-words bg-blue-50/30 cursor-zoom-out' 
-                              : 'truncate cursor-zoom-in'
+                              ? 'whitespace-pre-wrap break-words bg-blue-50/30 cursor-text' 
+                              : 'truncate hover:bg-blue-50/30'
                           }`}
                         >
                           {cellValue}
