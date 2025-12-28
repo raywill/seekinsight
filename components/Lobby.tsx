@@ -135,26 +135,26 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
         {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
             
-            {/* Card 1: Marketplace Entry */}
+            {/* Card 1: Marketplace Entry - Option A (Deep Royal Blue) */}
             <div 
                 onClick={onOpenMarket}
-                className="group relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 cursor-pointer hover:shadow-2xl hover:shadow-slate-500/30 transition-all text-white min-h-[180px] flex flex-col justify-between hover:-translate-y-1 duration-300"
+                className="group relative overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] rounded-3xl p-6 cursor-pointer hover:shadow-2xl hover:shadow-blue-900/30 transition-all text-white min-h-[180px] flex flex-col justify-between hover:-translate-y-1 duration-300"
             >
                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
                     <Globe size={100} />
                 </div>
                 <div className="flex justify-between items-start mb-5 relative z-10">
                     <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 group-hover:bg-white/20 transition-colors">
-                    <LayoutGrid size={20} className="text-blue-300" />
+                    <LayoutGrid size={20} className="text-sky-300" />
                     </div>
                 </div>
                 <div className="relative z-10">
                     <h3 className="text-lg font-black text-white mb-1 tracking-tight">App Marketplace</h3>
-                    <p className="text-xs font-medium text-slate-400">Explore community templates & clone ready-made apps.</p>
+                    <p className="text-xs font-medium text-blue-200/80">Explore community templates & clone ready-made apps.</p>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-300 uppercase tracking-widest">
-                        <Zap size={12} className="fill-blue-300" />
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-300 uppercase tracking-widest">
+                        <Zap size={12} className="fill-sky-300" />
                         Featured
                     </div>
                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-blue-500 transition-colors">
@@ -220,22 +220,22 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
             </div>
         ) : (
             <div className="flex flex-col gap-6 animate-in fade-in duration-500">
-                {/* Marketplace Banner for List View */}
+                {/* Marketplace Banner for List View - Option A (Deep Royal Blue) */}
                 <div 
                     onClick={onOpenMarket}
-                    className="flex items-center justify-between p-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl text-white cursor-pointer hover:shadow-xl transition-all group"
+                    className="flex items-center justify-between p-6 bg-gradient-to-r from-[#0f172a] to-[#1e3a8a] rounded-2xl text-white cursor-pointer hover:shadow-xl hover:shadow-blue-900/20 transition-all group"
                 >
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-white/10 rounded-xl backdrop-blur-md border border-white/10">
-                            <Globe size={24} className="text-blue-300" />
+                            <Globe size={24} className="text-sky-300" />
                         </div>
                         <div>
                             <h3 className="font-bold text-lg leading-tight">App Marketplace</h3>
-                            <p className="text-xs text-slate-400 font-medium">Explore and clone community templates</p>
+                            <p className="text-xs text-blue-200/80 font-medium">Explore and clone community templates</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3 pr-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-400/10 px-2 py-1 rounded-lg">Featured</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-sky-300 bg-sky-400/10 px-2 py-1 rounded-lg">Featured</span>
                         <ArrowRight className="text-slate-500 group-hover:text-white transition-colors" />
                     </div>
                 </div>
