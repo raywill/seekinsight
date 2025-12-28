@@ -16,6 +16,7 @@ export interface TableMetadata {
   tableName: string;
   columns: Column[];
   rowCount: number;
+  sampleData?: any[];
 }
 
 export interface AIChartConfig {

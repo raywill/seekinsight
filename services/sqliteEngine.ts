@@ -102,7 +102,8 @@ export class SQLiteEngine implements DatabaseEngine {
       id: Math.random().toString(36).substr(2, 9),
       tableName: sanitizedName,
       columns,
-      rowCount: data.length
+      rowCount: data.length,
+      sampleData: data.slice(0, 2)
     };
     this.tables.push(newTable);
     return newTable;

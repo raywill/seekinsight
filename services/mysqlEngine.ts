@@ -60,12 +60,25 @@ export class MySQLEngine implements DatabaseEngine {
         });
       });
 
-      return tablesInfoRes.data.map(row => ({
+      const tables: TableMetadata[] = tablesInfoRes.data.map(row => ({
         id: Math.random().toString(36).substr(2, 9),
         tableName: row.TABLE_NAME,
         columns: columnsByTable[row.TABLE_NAME] || [],
-        rowCount: -1 
+        rowCount: -1,
+        sampleData: []
       }));
+
+      // Parallel fetch samples (limit 2 rows)
+      await Promise.all(tables.map(async (table) => {
+         try {
+             const res = await this.executeQuery(`SELECT * FROM \`${table.tableName}\` LIMIT 2`, dbName);
+             table.sampleData = res.data;
+         } catch(e) {
+             console.warn(`Failed to fetch sample for ${table.tableName}`, e);
+         }
+      }));
+
+      return tables;
     } catch (err) {
       console.warn("Failed to load tables:", err);
       return [];
@@ -225,7 +238,8 @@ export class MySQLEngine implements DatabaseEngine {
       id: Math.random().toString(36).substr(2, 9),
       tableName: trimmedName,
       columns,
-      rowCount: data.length
+      rowCount: data.length,
+      sampleData: data.slice(0, 2)
     };
   }
 }
