@@ -526,6 +526,7 @@ const App: React.FC = () => {
           <AppViewer 
              app={viewingApp}
              onClose={handleCloseAppViewer}
+             onHome={handleExit}
              onEdit={handleEditApp}
              onClone={handleCloneApp}
           />

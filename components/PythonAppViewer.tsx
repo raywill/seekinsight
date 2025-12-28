@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PublishedApp, ExecutionResult } from '../types';
-import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown } from 'lucide-react';
+import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 
 interface Props {
   app: PublishedApp;
   onClose: () => void;
+  onHome?: () => void;
   onEdit?: (app: PublishedApp) => void;
   onClone?: (app: PublishedApp) => void;
 }
@@ -61,7 +62,7 @@ const TextInput = ({ label, value, onChange }: any) => (
   </div>
 );
 
-const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
+const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [paramValues, setParamValues] = useState<Record<string, any>>({});
   const [schema, setSchema] = useState<Record<string, any>>({});
@@ -236,10 +237,19 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => 
 
                     <button 
                        onClick={onClose} 
-                       className="w-full text-left px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 hover:text-red-600 transition-colors"
+                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
                     >
                       <LayoutGrid size={16} className="text-gray-400" /> Marketplace
                     </button>
+
+                    {onHome && (
+                        <button 
+                            onClick={onHome} 
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                            <Home size={16} className="text-gray-400" /> Home
+                        </button>
+                    )}
                  </div>
                </>
              )}

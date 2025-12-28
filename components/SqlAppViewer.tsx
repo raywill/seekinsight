@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { PublishedApp, DevMode, ExecutionResult, AIChartConfig } from '../types';
-import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid, MoreVertical } from 'lucide-react';
+import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid, MoreVertical, Home } from 'lucide-react';
 import SqlResultPanel from './SqlResultPanel';
 import * as ai from '../services/aiProvider';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 interface Props {
   app: PublishedApp;
   onClose: () => void;
+  onHome?: () => void;
   onEdit?: (app: PublishedApp) => void;
   onClone?: (app: PublishedApp) => void;
 }
@@ -164,7 +165,7 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
   );
 };
 
-const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
+const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [analysisReport, setAnalysisReport] = useState<string>('');
   const [isRunning, setIsRunning] = useState(false);
@@ -313,10 +314,19 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onEdit, onClone }) => {
 
                     <button 
                        onClick={onClose} 
-                       className="w-full text-left px-4 py-3 hover:bg-red-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 hover:text-red-600 transition-colors"
+                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
                     >
                       <LayoutGrid size={16} className="text-gray-400" /> Marketplace
                     </button>
+
+                    {onHome && (
+                        <button 
+                            onClick={onHome} 
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                            <Home size={16} className="text-gray-400" /> Home
+                        </button>
+                    )}
                  </div>
                </>
              )}
