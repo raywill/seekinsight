@@ -567,11 +567,23 @@ const App: React.FC = () => {
           onRefreshTableStats={async t => {
             try {
               if (project.dbName) {
-                const count = await getDatabaseEngine().refreshTableStats(t, project.dbName);
+                const engine = getDatabaseEngine();
+                // 1. Refresh Row Count
+                const count = await engine.refreshTableStats(t, project.dbName);
+                
+                // 2. Refresh Schema (Columns) to check for DD changes
+                const latestTables = await engine.getTables(project.dbName);
+                const freshMetadata = latestTables.find(tbl => tbl.tableName === t);
+
                 setProject(prev => ({
                     ...prev,
                     tables: prev.tables.map(table =>
-                    table.tableName === t ? { ...table, rowCount: count } : table
+                    table.tableName === t ? { 
+                        ...table, 
+                        rowCount: count,
+                        // Update columns from fresh metadata
+                        columns: freshMetadata ? freshMetadata.columns : table.columns
+                    } : table
                     )
                 }));
               }

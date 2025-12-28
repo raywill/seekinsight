@@ -16,6 +16,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
   const [activeTab, setActiveTab] = useState<'table' | 'logs'>('table');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
+  const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set());
   
   const startY = useRef<number>(0);
   const startHeight = useRef<number>(0);
@@ -63,8 +64,35 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
         // Fallback to logs if no data but no explicit error (e.g. empty result)
         setActiveTab('table');
       }
+      // Reset expanded cells on new result
+      setExpandedCells(new Set());
     }
   }, [result, hasError]);
+
+  // Handle Escape key to collapse all expanded cells
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedCells(new Set());
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const toggleCellExpansion = (rowIndex: number, colKey: string) => {
+    const key = `${rowIndex}-${colKey}`;
+    setExpandedCells(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const exportToTSV = () => {
     if (!result || result.data.length === 0) return;
@@ -136,9 +164,24 @@ const SqlResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoadi
               <tbody>
                 {result.data.length > 0 ? result.data.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
-                    {result.columns.map(col => (
-                      <td key={col} className="px-3 py-1.5 text-gray-600 truncate max-w-xs">{String(row[col] ?? 'NULL')}</td>
-                    ))}
+                    {result.columns.map(col => {
+                      const isExpanded = expandedCells.has(`${i}-${col}`);
+                      const cellValue = String(row[col] ?? 'NULL');
+                      return (
+                        <td 
+                          key={col} 
+                          onDoubleClick={() => toggleCellExpansion(i, col)}
+                          title={!isExpanded ? cellValue : undefined}
+                          className={`px-3 py-1.5 text-gray-600 max-w-xs border-r border-transparent transition-all align-top ${
+                            isExpanded 
+                              ? 'whitespace-pre-wrap break-words bg-blue-50/30 cursor-zoom-out' 
+                              : 'truncate cursor-zoom-in'
+                          }`}
+                        >
+                          {cellValue}
+                        </td>
+                      );
+                    })}
                   </tr>
                 )) : (
                   <tr>
