@@ -49,12 +49,12 @@ const PythonWorkspace: React.FC<Props> = ({
         
         if (isPromptFocused) {
             const scrollHeight = textarea.scrollHeight;
-            // Min height 42px (1 line), Max height 160px
-            const newHeight = Math.min(Math.max(scrollHeight, 42), 160);
+            // Min height 46px (match py-3 + line-height), Max height 160px
+            const newHeight = Math.min(Math.max(scrollHeight, 46), 160);
             textarea.style.height = `${newHeight}px`;
         } else {
             // Collapsed state
-            textarea.style.height = '42px';
+            textarea.style.height = '46px';
             textarea.scrollTop = 0;
         }
     }
@@ -107,16 +107,16 @@ const PythonWorkspace: React.FC<Props> = ({
             onKeyDown={handlePromptKeyDown}
             placeholder="Ask AI for a Python script... e.g. Analyze correlation between age and price"
             rows={1}
-            className={`w-full pl-10 pr-40 py-2.5 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
-            style={{ minHeight: '42px' }}
+            className={`w-full pl-10 pr-40 py-3 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
+            style={{ minHeight: '46px' }}
           />
-          <Terminal size={16} className="absolute left-3.5 top-3.5 text-purple-400" />
+          <Terminal size={16} className="absolute left-3.5 top-4 text-purple-400" />
           <button 
             onClick={onTriggerAi} 
             // Prevent default on mousedown to avoid blurring the textarea instantly when clicking
             onMouseDown={(e) => e.preventDefault()}
             disabled={isAiGenerating || isAiFixing || !prompt} 
-            className="absolute right-2 bottom-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors disabled:opacity-50"
+            className="absolute right-2 top-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
             {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} 
             Script with AI
@@ -127,7 +127,7 @@ const PythonWorkspace: React.FC<Props> = ({
         {aiThought && (
             <button
                 onClick={handleToggleThought}
-                className={`p-2.5 rounded-xl border transition-all relative mt-px ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                className={`p-2.5 rounded-xl border transition-all relative top-0.5 ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
                 title="Toggle AI Reasoning"
             >
                 <Lightbulb size={18} fill={showThought ? "currentColor" : "none"} />
