@@ -39,9 +39,9 @@ const AppHeader: React.FC<Props> = ({
   ];
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-40 shadow-sm shrink-0 relative">
-      {/* Left: Logo & Title */}
-      <div className="flex items-center gap-4 min-w-[200px]">
+    <header className="h-14 bg-white border-b border-gray-200 flex items-center px-6 z-40 shadow-sm shrink-0 relative">
+      {/* Left: Logo & Title - Fixed width to match Sidebar (w-72 = 288px) minus Header Padding (px-6 = 24px) -> 264px */}
+      <div className="flex items-center gap-4 w-[264px] shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors" onClick={onExit}>
             <Boxes className="text-white" size={18} />
@@ -50,7 +50,7 @@ const AppHeader: React.FC<Props> = ({
         
         <div className="h-5 w-px bg-gray-200"></div>
 
-        <div className="group relative">
+        <div className="group relative min-w-0">
           {isEditing ? (
             <input
                 autoFocus
@@ -61,14 +61,14 @@ const AppHeader: React.FC<Props> = ({
                     if (e.key === 'Escape') onEditCancel();
                 }}
                 onBlur={onEditSubmit}
-                className="bg-gray-50 border border-blue-200 rounded px-2 py-0.5 text-sm font-bold text-gray-800 w-48 outline-none"
+                className="bg-gray-50 border border-blue-200 rounded px-2 py-0.5 text-sm font-bold text-gray-800 w-full outline-none"
             />
           ) : (
             <div
               className="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"
               onClick={onEditStart}
             >
-              <span className="text-sm font-black text-gray-700 tracking-tight group-hover:text-blue-600 truncate max-w-[200px]">{topicName}</span>
+              <span className="text-sm font-black text-gray-700 tracking-tight group-hover:text-blue-600 truncate block">{topicName}</span>
               {!isNotebookSession && (
                  <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase whitespace-nowrap">App Mode</span>
               )}
@@ -77,8 +77,8 @@ const AppHeader: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Center: Tabs */}
-      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 flex items-center gap-1 md:gap-6 h-full">
+      {/* Center: Tabs - Aligned to start of Editor area with padding */}
+      <div className="flex items-center gap-1 md:gap-6 h-full pl-6">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -101,7 +101,7 @@ const AppHeader: React.FC<Props> = ({
       </div>
 
       {/* Right: Exit */}
-      <div className="flex items-center justify-end min-w-[200px]">
+      <div className="flex items-center justify-end min-w-[200px] ml-auto">
         <button 
             onClick={onExit} 
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
