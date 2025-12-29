@@ -84,6 +84,7 @@ export interface ProjectState {
   dbName: string | null;
   name: string;
   topicName: string;
+  derivedAppTitle?: string | null; // Cache original app title for publishing priority
   owner: string;
   tables: TableMetadata[];
   activeMode: DevMode;

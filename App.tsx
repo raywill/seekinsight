@@ -41,6 +41,7 @@ const App: React.FC = () => {
     dbName: null,
     name: "Enterprise Data Hub",
     topicName: "未命名主题",
+    derivedAppTitle: null, // Initialize
     owner: "Lead Analyst",
     tables: [],
     activeMode: DevMode.SQL,
@@ -88,6 +89,7 @@ const App: React.FC = () => {
       id: nb.id,
       dbName: nb.db_name,
       topicName: nb.topic,
+      derivedAppTitle: null, // Reset derived title when switching notebooks
       tables,
       suggestions: initialSuggestions
     }));
@@ -242,6 +244,8 @@ const App: React.FC = () => {
           sqlAiPrompt: app.type === DevMode.SQL ? (app.prompt || app.description || app.title) : prev.sqlAiPrompt,
           pythonAiPrompt: app.type === DevMode.PYTHON ? (app.prompt || app.description || app.title) : prev.pythonAiPrompt,
           
+          derivedAppTitle: app.title, // Priority: Store original app title
+
           lastSqlResult: app.type === DevMode.SQL ? loadedResult : prev.lastSqlResult,
           lastPythonResult: app.type === DevMode.PYTHON ? loadedResult : prev.lastPythonResult,
           analysisReport: loadedAnalysis || prev.analysisReport,
@@ -752,7 +756,8 @@ const App: React.FC = () => {
          dbName={project.dbName}
          sourceNotebookId={project.id}
          resultSnapshot={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult}
-         defaultTitle={project.topicName}
+         // Updated Logic: Use derivedAppTitle if available (from Edit/Fork flow), otherwise fallback to topicName
+         defaultTitle={project.derivedAppTitle || project.topicName}
          defaultDescription={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
          sourcePrompt={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt} // Pass original prompt
          analysisReport={project.analysisReport}
