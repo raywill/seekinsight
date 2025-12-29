@@ -27,15 +27,15 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
 
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error') || l.toLowerCase().includes('traceback')));
 
-  // Auto-expand only on loading or explicit run result, NOT on background preview fetch
+  // Auto-expand on loading, explicit run result, or preview result
   useEffect(() => {
     if (fullHeight) return;
     if (isLoading) {
         setIsCollapsed(false);
-    } else if (result) {
+    } else if (result || previewResult) {
         setIsCollapsed(false);
     }
-  }, [isLoading, result, fullHeight]);
+  }, [isLoading, result, previewResult, fullHeight]);
 
   const startResize = useCallback((e: React.MouseEvent) => {
     if (fullHeight || isFullscreen) return;

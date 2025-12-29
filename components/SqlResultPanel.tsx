@@ -27,14 +27,14 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
 
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error')));
 
-  // Auto-expand only on loading or explicit run result, NOT on background preview fetch
+  // Auto-expand on loading, explicit run result, or preview result
   useEffect(() => {
     if (isLoading) {
         setIsCollapsed(false);
-    } else if (result) {
+    } else if (result || previewResult) {
         setIsCollapsed(false);
     }
-  }, [isLoading, result]);
+  }, [isLoading, result, previewResult]);
 
   // Handle Resize Events
   const startResize = useCallback((e: React.MouseEvent) => {
