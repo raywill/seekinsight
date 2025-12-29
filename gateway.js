@@ -218,12 +218,15 @@ ORDER BY avg_daily_steps DESC;`;
     analysis: "### Health Analysis Summary\n\n**David (Athlete)** shows superior metrics across the board with >12k steps and ~8h sleep, supporting high caloric intake.\n\n**Charlie & Bob** show concerning indicators: low activity (<4k steps) and insufficient sleep (<6.5h), which correlates with higher BMI metrics in the raw data."
   };
 
+  const demoPrompt = "Compare daily activity, sleep and calorie intake across all users.";
+
   await sysPool.query(
-    `INSERT IGNORE INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, source_notebook_id, snapshot_json, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 350)`,
+    `INSERT IGNORE INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, prompt, author, type, code, source_db_name, source_notebook_id, snapshot_json, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 350)`,
     [
       DEMO_APP_ID, 
       'Yearly Health Habits Review', 
       'Comparative analysis of activity, sleep, and caloric intake across 4 different personas.', 
+      demoPrompt,
       'SeekInsight Demo', 
       'SQL', 
       sqlCode, 
@@ -284,6 +287,7 @@ async function initSystem() {
       id VARCHAR(50) PRIMARY KEY,
       title VARCHAR(200) NOT NULL,
       description TEXT,
+      prompt TEXT,
       author VARCHAR(100) DEFAULT 'Anonymous',
       type VARCHAR(20) NOT NULL, 
       code MEDIUMTEXT,
@@ -308,6 +312,14 @@ async function initSystem() {
     const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${PUBLISHED_APPS_TABLE}\` LIKE 'source_notebook_id'`);
     if (columns.length === 0) {
         await sysPool.query(`ALTER TABLE \`${PUBLISHED_APPS_TABLE}\` ADD COLUMN source_notebook_id VARCHAR(50)`);
+    }
+  } catch (e) {}
+
+  // Migration: Add prompt column to Apps if missing
+  try {
+    const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${PUBLISHED_APPS_TABLE}\` LIKE 'prompt'`);
+    if (columns.length === 0) {
+        await sysPool.query(`ALTER TABLE \`${PUBLISHED_APPS_TABLE}\` ADD COLUMN prompt TEXT`);
     }
   } catch (e) {}
 
@@ -366,13 +378,13 @@ app.post('/apps/:id/view', async (req, res) => {
 
 app.post('/apps', async (req, res) => {
   try {
-    const { title, description, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
+    const { title, description, prompt, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
     const id = crypto.randomBytes(4).toString('hex');
     const pool = await getPool(SYSTEM_DB);
     
     await pool.query(
-      `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-      [id, title, description, author || 'User', type, code, source_db_name, source_notebook_id, params_schema, snapshot_json]
+      `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, prompt, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [id, title, description, prompt, author || 'User', type, code, source_db_name, source_notebook_id, params_schema, snapshot_json]
     );
     
     res.json({ success: true, id });

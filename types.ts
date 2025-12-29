@@ -49,6 +49,7 @@ export interface PublishedApp {
   id: string;
   title: string;
   description: string;
+  prompt?: string; // New: Store original prompt separately
   author: string;
   type: DevMode.SQL | DevMode.PYTHON;
   code: string;

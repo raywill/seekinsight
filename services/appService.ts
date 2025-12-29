@@ -60,7 +60,8 @@ export const publishApp = async (
   source_notebook_id: string | undefined,
   params_schema?: any,
   resultSnapshot?: ExecutionResult,
-  analysisReport?: string
+  analysisReport?: string,
+  prompt?: string
 ): Promise<string> => {
   
   // Create a composite snapshot containing both result and report
@@ -75,6 +76,7 @@ export const publishApp = async (
     body: JSON.stringify({
       title,
       description,
+      prompt, // Pass prompt to backend
       author,
       type,
       code,

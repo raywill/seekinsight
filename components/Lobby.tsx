@@ -13,8 +13,19 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // Initialize from localStorage, default to 'list'
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    const saved = localStorage.getItem('si_lobby_view_mode');
+    return (saved === 'grid' || saved === 'list') ? saved : 'list';
+  });
+
   const gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
+
+  // Persist view mode preference
+  useEffect(() => {
+    localStorage.setItem('si_lobby_view_mode', viewMode);
+  }, [viewMode]);
 
   const fetchNotebooks = () => {
     fetch(`${gatewayUrl}/notebooks`)

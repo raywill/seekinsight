@@ -16,6 +16,7 @@ interface Props {
   defaultTitle?: string;
   defaultDescription?: string;
   analysisReport?: string;
+  sourcePrompt?: string; // New: Original AI prompt
 }
 
 const PublishDialog: React.FC<Props> = ({ 
@@ -29,7 +30,8 @@ const PublishDialog: React.FC<Props> = ({
   resultSnapshot,
   defaultTitle,
   defaultDescription,
-  analysisReport
+  analysisReport,
+  sourcePrompt
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -111,7 +113,8 @@ const PublishDialog: React.FC<Props> = ({
         sourceNotebookId || undefined, 
         params, 
         resultSnapshot || undefined, 
-        analysisReport
+        analysisReport,
+        sourcePrompt // Pass prompt separately
       );
       
       setNewAppId(id);

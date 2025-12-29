@@ -203,14 +203,29 @@ const App: React.FC = () => {
           } catch(e) {}
       }
 
+      // Format Comments for Code Editor
+      const description = app.description || '';
+      const prompt = app.prompt || '';
+      let codeWithComments = app.code;
+
+      if (app.type === DevMode.SQL) {
+          const commentBlock = `-- Description: ${description.replace(/\n/g, ' ')}\n-- Prompt: ${prompt.replace(/\n/g, ' ')}\n\n`;
+          codeWithComments = commentBlock + app.code;
+      } else {
+          const commentBlock = `# Description: ${description.replace(/\n/g, ' ')}\n# Prompt: ${prompt.replace(/\n/g, ' ')}\n\n`;
+          codeWithComments = commentBlock + app.code;
+      }
+
       return {
           ...prev,
           activeMode: app.type,
-          sqlCode: app.type === DevMode.SQL ? app.code : prev.sqlCode,
-          pythonCode: app.type === DevMode.PYTHON ? app.code : prev.pythonCode,
-          // Use description as the prompt because that's what we default it to during publish
-          sqlAiPrompt: app.type === DevMode.SQL ? (app.description || app.title) : prev.sqlAiPrompt,
-          pythonAiPrompt: app.type === DevMode.PYTHON ? (app.description || app.title) : prev.pythonAiPrompt,
+          // Inject comments into code
+          sqlCode: app.type === DevMode.SQL ? codeWithComments : prev.sqlCode,
+          pythonCode: app.type === DevMode.PYTHON ? codeWithComments : prev.pythonCode,
+          // Use stored prompt if available, fallback to description/title
+          sqlAiPrompt: app.type === DevMode.SQL ? (app.prompt || app.description || app.title) : prev.sqlAiPrompt,
+          pythonAiPrompt: app.type === DevMode.PYTHON ? (app.prompt || app.description || app.title) : prev.pythonAiPrompt,
+          
           lastSqlResult: app.type === DevMode.SQL ? loadedResult : prev.lastSqlResult,
           lastPythonResult: app.type === DevMode.PYTHON ? loadedResult : prev.lastPythonResult,
           analysisReport: loadedAnalysis || prev.analysisReport,
@@ -711,6 +726,7 @@ const App: React.FC = () => {
          resultSnapshot={project.activeMode === DevMode.SQL ? project.lastSqlResult : project.lastPythonResult}
          defaultTitle={project.topicName}
          defaultDescription={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
+         sourcePrompt={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt} // Pass original prompt
          analysisReport={project.analysisReport}
       />
     </div>
