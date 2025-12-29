@@ -36,6 +36,37 @@ const PythonWorkspace: React.FC<Props> = ({
   const [hasUnreadThought, setHasUnreadThought] = useState(false);
   const prevThought = useRef(aiThought);
 
+  // Prompt Input State
+  const [isPromptFocused, setIsPromptFocused] = useState(false);
+  const promptInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize Logic for Prompt Input
+  useEffect(() => {
+    const textarea = promptInputRef.current;
+    if (textarea) {
+        // Reset to auto to correctly calculate scrollHeight for shrinking
+        textarea.style.height = 'auto';
+        
+        if (isPromptFocused) {
+            const scrollHeight = textarea.scrollHeight;
+            // Min height 42px (1 line), Max height 160px
+            const newHeight = Math.min(Math.max(scrollHeight, 42), 160);
+            textarea.style.height = `${newHeight}px`;
+        } else {
+            // Collapsed state
+            textarea.style.height = '42px';
+            textarea.scrollTop = 0;
+        }
+    }
+  }, [prompt, isPromptFocused]);
+
+  const handlePromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        onTriggerAi();
+    }
+  };
+
   useEffect(() => {
     if (aiThought && aiThought !== prevThought.current) {
         setHasUnreadThought(true);
@@ -65,19 +96,27 @@ const PythonWorkspace: React.FC<Props> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      <div className="px-8 py-4 bg-purple-50/30 border-b border-purple-100/50 flex items-center gap-3">
+      <div className="px-8 py-4 bg-purple-50/30 border-b border-purple-100/50 flex items-start gap-3">
         <div className="relative group flex-1">
-          <input
+          <textarea
+            ref={promptInputRef}
             value={prompt}
+            onFocus={() => setIsPromptFocused(true)}
+            onBlur={() => setIsPromptFocused(false)}
             onChange={(e) => onPromptChange(e.target.value)}
+            onKeyDown={handlePromptKeyDown}
             placeholder="Ask AI for a Python script... e.g. Analyze correlation between age and price"
-            className="w-full pl-10 pr-40 py-2.5 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all"
+            rows={1}
+            className={`w-full pl-10 pr-40 py-2.5 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
+            style={{ minHeight: '42px' }}
           />
           <Terminal size={16} className="absolute left-3.5 top-3.5 text-purple-400" />
           <button 
             onClick={onTriggerAi} 
+            // Prevent default on mousedown to avoid blurring the textarea instantly when clicking
+            onMouseDown={(e) => e.preventDefault()}
             disabled={isAiGenerating || isAiFixing || !prompt} 
-            className="absolute right-2 top-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors disabled:opacity-50"
+            className="absolute right-2 bottom-2 px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
             {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} 
             Script with AI
@@ -88,7 +127,7 @@ const PythonWorkspace: React.FC<Props> = ({
         {aiThought && (
             <button
                 onClick={handleToggleThought}
-                className={`p-2.5 rounded-xl border transition-all relative ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                className={`p-2.5 rounded-xl border transition-all relative mt-px ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
                 title="Toggle AI Reasoning"
             >
                 <Lightbulb size={18} fill={showThought ? "currentColor" : "none"} />
