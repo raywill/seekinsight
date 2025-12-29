@@ -52,15 +52,14 @@ export const useFileUpload = (
             .replace(/\u00A0|\u3000/g, ' ')
             .trim();
 
-          let paragraphs: string[] = [];
-          if (/\n\s*\n/.test(text)) {
-             paragraphs = text.split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
-          } else {
-             paragraphs = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
-          }
+          // 2. Strict Line-by-Line Splitting (List Mode)
+          // As requested: Split by newline, trim whitespace, and ignore empty lines.
+          const lines = text.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
           
-          finalHeaders = ["paragraph_id", "content"];
-          finalObjects = paragraphs.map((text, index) => ({ "paragraph_id": index + 1, "content": text }));
+          finalHeaders = ["line_id", "content"];
+          finalObjects = lines.map((text, index) => ({ "line_id": index + 1, "content": text }));
         } else {
           const rawFileData = e.target?.result as string;
           const workbook = XLSX.read(rawFileData, { type: 'binary', cellDates: true, dateNF: 'yyyy-mm-dd' });
