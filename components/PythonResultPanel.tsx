@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash } from 'lucide-react';
+import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
@@ -20,11 +20,22 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(!fullHeight); // Default collapsed unless full height mode
   
   const startY = useRef<number>(0);
   const startHeight = useRef<number>(0);
 
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error') || l.toLowerCase().includes('traceback')));
+
+  // Auto-expand on new data or loading
+  useEffect(() => {
+    if (fullHeight) return;
+    if (isLoading) {
+        setIsCollapsed(false);
+    } else if (result || previewResult) {
+        setIsCollapsed(false);
+    }
+  }, [isLoading, result, previewResult, fullHeight]);
 
   const startResize = useCallback((e: React.MouseEvent) => {
     if (fullHeight || isFullscreen) return;
@@ -58,13 +69,10 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
 
   // Handle automatic tab switching
   useEffect(() => {
-    // 1. Priority: Preview Data (User clicked sidebar refresh)
     if (previewResult) {
         setActiveTab('preview');
         return;
     }
-
-    // 2. Execution Result (User ran code)
     if (result) {
       if (hasError) {
         setActiveTab('console');
@@ -95,6 +103,27 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     }, 100);
   };
 
+  if (isCollapsed && !fullHeight) {
+    return (
+        <div className="h-9 border-t border-gray-200 bg-white flex items-center justify-between px-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsCollapsed(false)}>
+            <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 text-xs font-bold ${hasError ? 'text-red-600' : 'text-purple-600'}`}>
+                    {isLoading ? <RefreshCw size={14} className="animate-spin" /> : (hasError ? <Info size={14} /> : <TerminalIcon size={14} />)}
+                    {isLoading ? 'Running Script...' : (
+                        hasError ? 'Execution Failed' : (
+                            result ? 'Script Completed' : (previewResult ? 'Preview Mode Active' : 'Ready to Execute')
+                        )
+                    )}
+                </div>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400">
+               <span className="text-[10px] font-mono">{result?.timestamp || previewResult?.timestamp || ''}</span>
+               <ChevronUp size={14} />
+            </div>
+        </div>
+    )
+  }
+
   // Dynamic Styles based on State
   const containerStyle: React.CSSProperties = isFullscreen 
     ? { position: 'fixed', inset: 0, zIndex: 200, width: '100vw', height: '100vh' }
@@ -104,38 +133,16 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     ? "bg-white flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
     : `${fullHeight ? '' : 'border-t border-gray-200'} bg-white flex flex-col overflow-hidden relative group/resizer`;
 
-  const borderClass = (fullHeight || isFullscreen) ? '' : 'border-t border-gray-200';
-
-  // Logic: Only show full blocking loader if there is no previous result AND no preview
-  const showFullLoader = isLoading && !result && !previewResult;
-
-  if (showFullLoader) return (
-    <div style={fullHeight ? { height: '100%', flex: 1 } : { height }} className={`${borderClass} bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse`}>
-      <Box size={24} className="animate-spin mb-3" />
-      <p className="text-[10px] font-black uppercase tracking-[0.2em]">Executing Python Runtime...</p>
-    </div>
-  );
-
-  // If no result and no preview, show empty state
-  if (!result && !previewResult) return (
-    <div style={fullHeight ? { height: '100%', flex: 1 } : { height }} className={`${borderClass} bg-gray-50 flex flex-col items-center justify-center text-gray-300`}>
-      <TerminalIcon size={24} className="opacity-10 mb-2" />
-      <p className="text-xs font-black uppercase tracking-widest">Ready for Scripting</p>
-    </div>
-  );
-
   return (
     <div style={containerStyle} className={containerClasses}>
       {/* Overlay Backdrop when fullscreen to focus attention (optional visual tweak) */}
       {isFullscreen && <div className="absolute inset-0 bg-white z-0" />}
 
-      {/* Loading Overlay for Refresh (keeps content visible underneath) */}
+      {/* Loading Overlay */}
       {isLoading && (
-        <div className="absolute inset-0 z-50 bg-white/10 transition-all duration-300 flex items-center justify-center">
-            <div className="bg-white/90 shadow-xl border border-purple-100 rounded-full px-5 py-2.5 flex items-center gap-3 animate-in zoom-in-95 fade-in duration-200">
-                 <RefreshCw size={14} className="animate-spin text-purple-600" />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-purple-900">Refreshing Analysis...</span>
-            </div>
+        <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-[1px] flex flex-col items-center justify-center transition-opacity duration-300">
+             <RefreshCw size={24} className="animate-spin text-purple-600 mb-3" />
+             <p className="text-[10px] font-black uppercase tracking-widest text-purple-900">Executing Python Runtime...</p>
         </div>
       )}
 
@@ -145,6 +152,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
         </div>
       )}
 
+      {/* Header */}
       <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError && !previewResult ? 'bg-red-50/50' : 'bg-gray-50'}`}>
         <div className="flex gap-1">
           <button onClick={() => setActiveTab('console')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
@@ -174,11 +182,28 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
           >
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
+          {!fullHeight && (
+              <button 
+                onClick={() => setIsCollapsed(true)}
+                className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                title="Collapse"
+              >
+                <ChevronDown size={14} />
+              </button>
+          )}
         </div>
       </div>
 
       <div className="relative z-10 flex-1 relative overflow-hidden bg-white">
         
+        {/* Empty State */}
+         {!result && !previewResult && !isLoading && (
+            <div className="h-full flex flex-col items-center justify-center text-gray-300">
+                <TerminalIcon size={24} className="opacity-10 mb-2" />
+                <p className="text-xs font-black uppercase tracking-widest">Ready for Scripting</p>
+            </div>
+         )}
+
         {/* PREVIEW TAB CONTENT */}
         {activeTab === 'preview' && previewResult && (
             <div className="flex flex-col h-full bg-amber-50/10">
@@ -214,7 +239,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
         )}
 
         {/* CONSOLE TAB CONTENT */}
-        {activeTab === 'console' && (
+        {activeTab === 'console' && result && (
             <div className={`h-full overflow-auto p-4 font-mono text-[13px] leading-relaxed ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
               {result?.logs?.map((log, idx) => (
                 <div key={idx} className="flex gap-3 py-0.5">

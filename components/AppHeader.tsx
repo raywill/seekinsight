@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Boxes, LogOut, PencilLine } from 'lucide-react';
+import { DevMode } from '../types';
 
 interface Props {
   topicName: string;
@@ -12,6 +13,9 @@ interface Props {
   onEditCancel: () => void;
   onExit: () => void;
   isNotebookSession: boolean;
+  activeMode: DevMode;
+  onModeChange: (mode: DevMode) => void;
+  hasNewSuggestions?: boolean;
 }
 
 const AppHeader: React.FC<Props> = ({
@@ -23,23 +27,32 @@ const AppHeader: React.FC<Props> = ({
   onEditSubmit,
   onEditCancel,
   onExit,
-  isNotebookSession
+  isNotebookSession,
+  activeMode,
+  onModeChange,
+  hasNewSuggestions
 }) => {
-  return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 z-20 shadow-sm shrink-0">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center cursor-pointer hover:scale-105 transition-transform" onClick={onExit}>
-            <Boxes className="text-white" size={20} />
-          </div>
-          <div><h1 className="font-black text-gray-900 text-lg uppercase tracking-tighter leading-none">SeekInsight</h1></div>
-        </div>
-        <div className="h-6 w-px bg-gray-100"></div>
+  const tabs = [
+    { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' },
+    { id: DevMode.SQL, label: 'SQL Editor' },
+    { id: DevMode.PYTHON, label: 'Python Scripting' }
+  ];
 
-        <div className="flex items-center gap-2 group">
+  return (
+    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-40 shadow-sm shrink-0 relative">
+      {/* Left: Logo & Title */}
+      <div className="flex items-center gap-4 min-w-[200px]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors" onClick={onExit}>
+            <Boxes className="text-white" size={18} />
+          </div>
+        </div>
+        
+        <div className="h-5 w-px bg-gray-200"></div>
+
+        <div className="group relative">
           {isEditing ? (
-            <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-blue-200">
-              <input
+            <input
                 autoFocus
                 value={tempTopic}
                 onChange={e => onTempTopicChange(e.target.value)}
@@ -48,25 +61,51 @@ const AppHeader: React.FC<Props> = ({
                     if (e.key === 'Escape') onEditCancel();
                 }}
                 onBlur={onEditSubmit}
-                className="bg-transparent border-none outline-none text-sm font-bold text-gray-800 px-2 w-48"
-              />
-            </div>
+                className="bg-gray-50 border border-blue-200 rounded px-2 py-0.5 text-sm font-bold text-gray-800 w-48 outline-none"
+            />
           ) : (
             <div
-              className="flex items-center gap-2 px-4 py-2 bg-gray-50/50 hover:bg-gray-100/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-200"
+              className="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"
               onClick={onEditStart}
             >
-              <span className="text-sm font-black text-gray-700 tracking-tight">{topicName}</span>
+              <span className="text-sm font-black text-gray-700 tracking-tight group-hover:text-blue-600 truncate max-w-[200px]">{topicName}</span>
               {!isNotebookSession && (
-                 <span className="ml-2 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase">App Session</span>
+                 <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase whitespace-nowrap">App Mode</span>
               )}
-              <PencilLine size={14} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
             </div>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-4">
-        <button onClick={onExit} className="w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"><LogOut size={18} /></button>
+
+      {/* Center: Tabs */}
+      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 flex items-center gap-1 md:gap-6 h-full">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => onModeChange(tab.id)}
+            className={`h-full flex items-center relative px-3 text-xs font-black uppercase tracking-wide transition-all border-b-[3px] ${
+              activeMode === tab.id 
+                ? 'border-blue-600 text-blue-600' 
+                : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {tab.label}
+            {tab.id === DevMode.INSIGHT_HUB && hasNewSuggestions && (
+              <div className="absolute top-3 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-sm" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Right: Exit */}
+      <div className="flex items-center justify-end min-w-[200px]">
+        <button 
+            onClick={onExit} 
+            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
+        >
+            <LogOut size={16} />
+            <span className="hidden sm:inline">Exit</span>
+        </button>
       </div>
     </header>
   );

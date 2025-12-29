@@ -678,6 +678,12 @@ const App: React.FC = () => {
         onEditCancel={() => setIsEditingTopic(false)}
         onExit={handleExit}
         isNotebookSession={!!currentNotebook}
+        activeMode={project.activeMode}
+        onModeChange={(mode) => {
+            setProject(p => ({ ...p, activeMode: mode }));
+            if (mode === DevMode.INSIGHT_HUB) setHasNewSuggestions(false); 
+        }}
+        hasNewSuggestions={hasNewSuggestions}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -728,28 +734,7 @@ const App: React.FC = () => {
           uploadProgress={uploadProgress}
         />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
-          <div className="px-8 pt-4 flex items-center gap-10 border-b border-gray-50">
-            {[ 
-              { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' }, 
-              { id: DevMode.SQL, label: 'SQL Editor' }, 
-              { id: DevMode.PYTHON, label: 'Python Scripting' } 
-            ].map(tab => (
-              <button 
-                key={tab.id} 
-                onClick={() => {
-                  setProject(p => ({ ...p, activeMode: tab.id as DevMode }));
-                  if (tab.id === DevMode.INSIGHT_HUB) setHasNewSuggestions(false); 
-                }} 
-                className={`pb-4 text-sm font-black relative ${project.activeMode === tab.id ? 'text-blue-600' : 'text-gray-400'}`}
-              >
-                {tab.label}
-                {tab.id === DevMode.INSIGHT_HUB && hasNewSuggestions && (
-                  <div className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-                )}
-                {project.activeMode === tab.id && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full"></div>}
-              </button>
-            ))}
-          </div>
+          {/* Tabs removed, now in Header */}
           <div className="flex-1 flex flex-col overflow-hidden">
              {project.activeMode === DevMode.INSIGHT_HUB && (
               <InsightHub

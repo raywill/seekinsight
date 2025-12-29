@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Table as TableIcon, Clock, Hash, Play, Download, Terminal as TerminalIcon, Sparkles, RefreshCw, AlertCircle, Maximize2, Minimize2, Eye, Info } from 'lucide-react';
+import { Table as TableIcon, List, Clock, Hash, Play, Download, AlertCircle, BarChart, Terminal as TerminalIcon, GripHorizontal, Maximize2, Minimize2, Eye, Info, ChevronUp, ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
 
 interface Props {
   result: ExecutionResult | null;
@@ -18,30 +18,45 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set());
   
+  const panelRef = useRef<HTMLDivElement>(null);
   const startY = useRef<number>(0);
   const startHeight = useRef<number>(0);
 
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error')));
 
+  // Auto-expand on new data or loading
+  useEffect(() => {
+    if (isLoading) {
+        setIsCollapsed(false);
+    } else if (result || previewResult) {
+        setIsCollapsed(false);
+    }
+  }, [isLoading, result, previewResult]);
+
+  // Handle Resize Events
   const startResize = useCallback((e: React.MouseEvent) => {
     if (isFullscreen) return;
     setIsResizing(true);
     startY.current = e.pageY;
     startHeight.current = height;
     document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
   }, [height, isFullscreen]);
 
   const stopResize = useCallback(() => {
     setIsResizing(false);
     document.body.style.cursor = 'default';
+    document.body.style.userSelect = 'auto';
   }, []);
 
   const onResize = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
     const delta = startY.current - e.pageY;
-    setHeight(Math.max(MIN_HEIGHT, startHeight.current + delta));
+    const newHeight = Math.max(MIN_HEIGHT, startHeight.current + delta);
+    setHeight(newHeight);
   }, [isResizing]);
 
   useEffect(() => {
@@ -55,31 +70,23 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
     };
   }, [isResizing, onResize, stopResize]);
 
-  // Handle automatic tab switching based on result state
   useEffect(() => {
-    // 1. Priority: Preview Data (User clicked sidebar refresh)
     if (previewResult) {
         setActiveTab('preview');
         return;
     }
-
-    // 2. Execution Result
     if (result) {
       if (hasError) {
         setActiveTab('logs');
       } else if (result.data && result.data.length > 0) {
-        // Automatically switch back to data table on successful execution
         setActiveTab('table');
       } else {
-        // Fallback to logs if no data but no explicit error (e.g. empty result)
         setActiveTab('table');
       }
-      // Reset expanded cells on new result
       setExpandedCells(new Set());
     }
   }, [result, previewResult, hasError]);
 
-  // Handle Escape key to collapse all expanded cells OR exit fullscreen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -90,18 +97,15 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
 
   const handleCellClick = (rowIndex: number, colKey: string) => {
-    // Smart Click: Check if user is selecting text. If so, ignore the click to allow copying.
     const selection = window.getSelection();
     if (selection && selection.toString().length > 0) {
       return;
     }
-
     const key = `${rowIndex}-${colKey}`;
     setExpandedCells(prev => {
       const next = new Set(prev);
@@ -129,22 +133,26 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
     link.click();
   };
 
-  // Logic: Only show full blocking loader if there is no previous result AND no preview
-  const showFullLoader = isLoading && !result && !previewResult;
-
-  if (showFullLoader) return (
-    <div style={{ height }} className="border-t border-gray-200 bg-white flex flex-col items-center justify-center animate-pulse">
-      <Clock size={20} className="text-gray-300 mb-2" />
-      <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Executing Query...</p>
-    </div>
-  );
-
-  if (!result && !previewResult) return (
-    <div style={{ height }} className="border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-300">
-      <Play size={24} className="opacity-10 mb-2" />
-      <p className="text-xs font-black uppercase tracking-widest">Awaiting SQL Execution</p>
-    </div>
-  );
+  if (isCollapsed) {
+    return (
+        <div className="h-9 border-t border-gray-200 bg-white flex items-center justify-between px-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsCollapsed(false)}>
+            <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 text-xs font-bold ${hasError ? 'text-red-600' : 'text-gray-500'}`}>
+                    {isLoading ? <RefreshCw size={14} className="animate-spin text-blue-500" /> : (hasError ? <AlertCircle size={14} /> : <TerminalIcon size={14} />)}
+                    {isLoading ? 'Executing SQL...' : (
+                        hasError ? 'Execution Failed' : (
+                            result ? `Success: ${result.data.length} rows returned` : (previewResult ? 'Preview Mode Active' : 'Ready to Execute')
+                        )
+                    )}
+                </div>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400">
+               <span className="text-[10px] font-mono">{result?.timestamp || previewResult?.timestamp || ''}</span>
+               <ChevronUp size={14} />
+            </div>
+        </div>
+    )
+  }
 
   const containerStyle: React.CSSProperties = isFullscreen 
     ? { position: 'fixed', inset: 0, zIndex: 200, width: '100vw', height: '100vh' }
@@ -155,15 +163,16 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
     : "border-t border-gray-200 bg-white flex flex-col overflow-hidden relative group/resizer";
 
   return (
-    <div style={containerStyle} className={containerClasses}>
+    <div ref={panelRef} style={containerStyle} className={containerClasses}>
       {isFullscreen && <div className="absolute inset-0 bg-white z-0" />}
       
       {!isFullscreen && (
-        <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500 z-50 flex items-center justify-center">
-          <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-blue-400"></div>
+        <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500/30 transition-colors z-50 flex items-center justify-center">
+          <div className="w-8 h-1 bg-gray-200 rounded-full group-hover/resizer:bg-blue-400 transition-colors"></div>
         </div>
       )}
 
+      {/* Header */}
       <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError && !previewResult ? 'bg-red-50/50' : 'bg-gray-50'}`}>
         <div className="flex gap-1">
           <button onClick={() => setActiveTab('table')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
@@ -193,10 +202,33 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
           >
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
+          <button 
+            onClick={() => setIsCollapsed(true)}
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+            title="Collapse"
+          >
+            <ChevronDown size={14} />
+          </button>
         </div>
       </div>
 
       <div className="relative z-10 flex-1 relative overflow-hidden bg-white">
+         {/* Full blocking loader if loading and expanded */}
+         {isLoading && (
+            <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-[1px] flex flex-col items-center justify-center transition-opacity duration-300">
+                <Clock size={24} className="text-blue-500 animate-spin mb-3" />
+                <p className="text-xs text-blue-600 font-bold uppercase tracking-widest">Executing Query...</p>
+            </div>
+         )}
+         
+         {/* Empty State */}
+         {!result && !previewResult && !isLoading && (
+            <div className="h-full flex flex-col items-center justify-center text-gray-300">
+                <Play size={24} className="opacity-10 mb-2" />
+                <p className="text-xs font-black uppercase tracking-widest">Awaiting SQL Execution</p>
+            </div>
+         )}
+
         <div className="absolute inset-0 overflow-auto flex flex-col">
           
           {/* PREVIEW TAB CONTENT */}
