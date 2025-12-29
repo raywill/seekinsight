@@ -60,6 +60,7 @@ const App: React.FC = () => {
     suggestions: [],
     lastSqlResult: null,
     lastPythonResult: null,
+    previewResult: null, // Initialize
     isExecuting: false,
     isAnalyzing: false,
     isRecommendingCharts: false,
@@ -293,7 +294,8 @@ const App: React.FC = () => {
           isAnalyzing: false, // Reset loading states
           isRecommendingCharts: false,
           sqlAiThought: null, // Clear thought when restoring
-          pythonAiThought: null
+          pythonAiThought: null,
+          previewResult: null
       };
   }
 
@@ -524,9 +526,11 @@ const App: React.FC = () => {
   const handleRun = async (codeOverride?: string) => {
     if (!dbReady || !project.dbName) return; 
     
+    // Clear preview when running manual code to show actual results
+    setProject(prev => ({ ...prev, isExecuting: true, previewResult: null }));
+    
     const currentMode = project.activeMode;
     const currentCode = codeOverride || (currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode);
-    setProject(prev => ({ ...prev, isExecuting: true }));
     
     try {
       let result: ExecutionResult;
@@ -687,17 +691,22 @@ const App: React.FC = () => {
                 // 1. Refresh Row Count
                 const count = await engine.refreshTableStats(t, project.dbName);
                 
-                // 2. Refresh Schema (Columns) to check for DD changes
+                // 2. Fetch Preview Data (System Preview)
+                // This non-invasively loads sample data into the project state
+                // without executing Python or SQL explicitly in the editor
+                const previewRes = await engine.executeQuery(`SELECT * FROM \`${t}\` LIMIT 10`, project.dbName);
+                
+                // 3. Refresh Schema (Columns)
                 const latestTables = await engine.getTables(project.dbName);
                 const freshMetadata = latestTables.find(tbl => tbl.tableName === t);
 
                 setProject(prev => ({
                     ...prev,
+                    previewResult: previewRes, // Set Preview Data
                     tables: prev.tables.map(table =>
                     table.tableName === t ? { 
                         ...table, 
                         rowCount: count,
-                        // Update columns from fresh metadata
                         columns: freshMetadata ? freshMetadata.columns : table.columns
                     } : table
                     )
@@ -782,6 +791,7 @@ const App: React.FC = () => {
                 prompt={project.pythonAiPrompt}
                 onPromptChange={v => setProject(p => ({ ...p, pythonAiPrompt: v }))}
                 result={project.lastPythonResult}
+                previewResult={project.previewResult} // Pass temporary preview
                 onRun={() => handleRun()}
                 isExecuting={project.isExecuting}
                 isAiGenerating={project.isPythonAiGenerating}

@@ -102,6 +102,7 @@ export interface ProjectState {
   suggestions: Suggestion[];
   lastSqlResult: ExecutionResult | null;
   lastPythonResult: ExecutionResult | null;
+  previewResult: ExecutionResult | null; // New: Temporary preview data from sidebar
   isExecuting: boolean;
   isAnalyzing: boolean;
   isRecommendingCharts: boolean;

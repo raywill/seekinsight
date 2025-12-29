@@ -11,6 +11,7 @@ interface Props {
   prompt: string;
   onPromptChange: (val: string) => void;
   result: ExecutionResult | null;
+  previewResult?: ExecutionResult | null; // Receive preview result
   onRun: () => void;
   isExecuting: boolean;
   isAiGenerating: boolean;
@@ -24,7 +25,7 @@ interface Props {
 }
 
 const PythonWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, 
+  code, onCodeChange, prompt, onPromptChange, result, previewResult, onRun, isExecuting, 
   isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo, aiThought
 }) => {
   const [isUndoVisible, setIsUndoVisible] = useState(false);
@@ -145,7 +146,13 @@ const PythonWorkspace: React.FC<Props> = ({
         </div>
       </div>
 
-      <PythonResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiFixing} />
+      <PythonResultPanel 
+        result={result} 
+        previewResult={previewResult} 
+        isLoading={isExecuting} 
+        onDebug={onDebug} 
+        isAiLoading={isAiFixing} 
+      />
     </div>
   );
 };

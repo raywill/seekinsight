@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
+import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
   result: ExecutionResult | null;
+  previewResult?: ExecutionResult | null; // New prop for preview
   isLoading: boolean;
   onDebug?: () => void;
   isAiLoading?: boolean;
@@ -14,8 +15,8 @@ interface Props {
 
 const MIN_HEIGHT = 240;
 
-const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLoading, fullHeight = false }) => {
-  const [activeTab, setActiveTab] = useState<'console' | 'plot'>('console');
+const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onDebug, isAiLoading, fullHeight = false }) => {
+  const [activeTab, setActiveTab] = useState<'console' | 'plot' | 'preview'>('console');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -55,18 +56,25 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
     };
   }, [isResizing, onResize, stopResize]);
 
-  // Handle automatic tab switching for Python results
+  // Handle automatic tab switching
   useEffect(() => {
+    // 1. Priority: Preview Data (User clicked sidebar refresh)
+    if (previewResult) {
+        setActiveTab('preview');
+        return;
+    }
+
+    // 2. Execution Result (User ran code)
     if (result) {
       if (hasError) {
-        setActiveTab('console'); // Error is shown in console
+        setActiveTab('console');
       } else if (result.plotlyData) {
-        setActiveTab('plot'); // Success with visual -> show visual
+        setActiveTab('plot');
       } else {
-        setActiveTab('console'); // Success without visual -> show console
+        setActiveTab('console');
       }
     }
-  }, [result, hasError]);
+  }, [result, previewResult, hasError]);
 
   // Handle ESC key to exit fullscreen
   useEffect(() => {
@@ -98,8 +106,8 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
 
   const borderClass = (fullHeight || isFullscreen) ? '' : 'border-t border-gray-200';
 
-  // Logic: Only show full blocking loader if there is no previous result
-  const showFullLoader = isLoading && !result;
+  // Logic: Only show full blocking loader if there is no previous result AND no preview
+  const showFullLoader = isLoading && !result && !previewResult;
 
   if (showFullLoader) return (
     <div style={fullHeight ? { height: '100%', flex: 1 } : { height }} className={`${borderClass} bg-white flex flex-col items-center justify-center text-purple-600 animate-pulse`}>
@@ -108,7 +116,8 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
     </div>
   );
 
-  if (!result) return (
+  // If no result and no preview, show empty state
+  if (!result && !previewResult) return (
     <div style={fullHeight ? { height: '100%', flex: 1 } : { height }} className={`${borderClass} bg-gray-50 flex flex-col items-center justify-center text-gray-300`}>
       <TerminalIcon size={24} className="opacity-10 mb-2" />
       <p className="text-xs font-black uppercase tracking-widest">Ready for Scripting</p>
@@ -136,20 +145,27 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
         </div>
       )}
 
-      <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError ? 'bg-red-50/50' : 'bg-gray-50'}`}>
+      <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError && !previewResult ? 'bg-red-50/50' : 'bg-gray-50'}`}>
         <div className="flex gap-1">
           <button onClick={() => setActiveTab('console')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
             <TerminalIcon size={12} className="inline mr-1.5" /> {hasError ? 'Error Console' : 'Stdout/Stderr'}
           </button>
-          {result.plotlyData && (
+          
+          {result?.plotlyData && (
             <button onClick={() => setActiveTab('plot')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
               <BarChart size={12} className="inline mr-1.5" /> Interactive Plot
+            </button>
+          )}
+
+          {previewResult && (
+            <button onClick={() => setActiveTab('preview')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200' : 'text-gray-400 hover:text-gray-600'}`}>
+              <Eye size={12} /> Data Preview
             </button>
           )}
         </div>
         <div className="flex items-center gap-3">
           <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider hidden sm:block">
-            PY3.10 • {result.timestamp}
+            PY3.10 • {result?.timestamp || previewResult?.timestamp}
           </div>
           <button 
             onClick={toggleFullscreen}
@@ -162,25 +178,63 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
       </div>
 
       <div className="relative z-10 flex-1 relative overflow-hidden bg-white">
-        <div className="absolute inset-0 overflow-auto">
-          {activeTab === 'console' || !result.plotlyData ? (
+        
+        {/* PREVIEW TAB CONTENT */}
+        {activeTab === 'preview' && previewResult && (
+            <div className="flex flex-col h-full bg-amber-50/10">
+                <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-[10px] text-amber-700 font-medium shrink-0">
+                    <Info size={12} />
+                    <span>System Preview: Showing top 10 sample rows. This data was not generated by your script.</span>
+                </div>
+                <div className="flex-1 overflow-auto">
+                    <table className="min-w-full text-left text-[11px] border-collapse font-mono">
+                        <thead className="sticky top-0 bg-white shadow-sm z-10">
+                            <tr className="border-b border-gray-200">
+                            {previewResult.columns.map(col => (
+                                <th key={col} className="px-3 py-2 font-black text-gray-500 uppercase tracking-tighter bg-gray-50/80">
+                                <div className="flex items-center gap-1"><Hash size={10} />{col}</div>
+                                </th>
+                            ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {previewResult.data.map((row, i) => (
+                            <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
+                                {previewResult.columns.map(col => (
+                                <td key={col} className="px-3 py-1.5 text-gray-600 max-w-xs truncate hover:whitespace-normal hover:break-all align-top">
+                                    {String(row[col] ?? 'NULL')}
+                                </td>
+                                ))}
+                            </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {/* CONSOLE TAB CONTENT */}
+        {activeTab === 'console' && (
             <div className={`p-4 font-mono text-[13px] leading-relaxed min-h-full ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
-              {result.logs?.map((log, idx) => (
+              {result?.logs?.map((log, idx) => (
                 <div key={idx} className="flex gap-3 py-0.5">
                   <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
                   <span className={log.toLowerCase().includes('error') || log.toLowerCase().includes('traceback') ? 'text-red-500 font-bold' : ''}>{log}</span>
                 </div>
               ))}
-              {result.logs?.length === 0 && <span className="text-gray-400 italic font-medium">Script completed with no stdout output.</span>}
+              {result?.logs?.length === 0 && <span className="text-gray-400 italic font-medium">Script completed with no stdout output.</span>}
             </div>
-          ) : (
+        )}
+
+        {/* PLOT TAB CONTENT */}
+        {activeTab === 'plot' && result?.plotlyData && (
             <div className="h-full bg-white p-4">
               <Plot
                 data={result.plotlyData?.data || []}
                 layout={{
                   ...result.plotlyData?.layout,
-                  width: undefined, // Force autosize by removing python defaults
-                  height: undefined, // Force autosize by removing python defaults
+                  width: undefined, // Force autosize
+                  height: undefined, // Force autosize
                   autosize: true,
                   margin: isFullscreen ? { t: 50, r: 50, b: 50, l: 50 } : { t: 30, r: 30, b: 30, l: 30 },
                   font: { family: 'Inter', size: isFullscreen ? 12 : 10 }
@@ -190,10 +244,9 @@ const PythonResultPanel: React.FC<Props> = ({ result, isLoading, onDebug, isAiLo
                 config={{ responsive: true, displaylogo: false }}
               />
             </div>
-          )}
-        </div>
+        )}
 
-        {hasError && onDebug && (
+        {hasError && onDebug && activeTab === 'console' && (
           <div className="absolute bottom-6 right-6 animate-in fade-in slide-in-from-bottom-4 duration-500 z-[60]">
             <button 
               onClick={onDebug}
