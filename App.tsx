@@ -218,9 +218,40 @@ const App: React.FC = () => {
       // Format Comments for Code Editor
       const description = (app.description || '').trim();
       const prompt = (app.prompt || '').trim();
-      let codeWithComments = app.code;
       
+      // --- CLEAN UP OLD SYSTEM COMMENTS (Idempotency Fix) ---
+      let cleanCode = app.code;
       const prefix = app.type === DevMode.SQL ? '--' : '#';
+      
+      const lines = cleanCode.split('\n');
+      const filteredLines = [];
+      let isHeader = true;
+      
+      for (const line of lines) {
+          const t = line.trim();
+          // Identify system-generated metadata lines (Robust check)
+          const isDesc = t.startsWith(`${prefix} Description:`);
+          const isPrompt = t.startsWith(`${prefix} Prompt:`);
+          
+          if (isHeader) {
+              if (isDesc || isPrompt) {
+                  // Skip system comment
+                  continue;
+              }
+              // Skip leading empty lines
+              if (t === '') {
+                  continue;
+              }
+              // Found user code or user comments, header processing ends
+              isHeader = false;
+              filteredLines.push(line);
+          } else {
+              filteredLines.push(line);
+          }
+      }
+      cleanCode = filteredLines.join('\n');
+      // -----------------------------------------------------
+
       let commentBlock = '';
 
       // Avoid duplication if description is identical to prompt (default state)
@@ -232,7 +263,7 @@ const App: React.FC = () => {
           if (commentBlock) commentBlock += '\n';
       }
       
-      codeWithComments = commentBlock + app.code;
+      const codeWithComments = commentBlock + cleanCode;
 
       return {
           ...prev,
