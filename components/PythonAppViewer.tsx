@@ -230,7 +230,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
                            onClick={() => { onFork(app); setIsMenuOpen(false); }}
                            className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
                         >
-                          <GitFork size={16} className="text-purple-500" /> Clone App
+                          <GitFork size={16} className="text-purple-500" /> Fork as New App
                         </button>
                     )}
                     
@@ -239,8 +239,8 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
                        disabled={isCloning}
                        className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
                     >
-                      {isCloning ? <RefreshCw size={16} className="animate-spin text-gray-400" /> : <Database size={16} className="text-gray-400" />} 
-                      Clone to New Notebook
+                      {isCloning ? <RefreshCw size={16} className="animate-spin text-gray-400" /> : <Terminal size={16} className="text-gray-400" />} 
+                      Remix in Notebook
                     </button>
 
                     <div className="h-px bg-gray-100 my-1"></div>
