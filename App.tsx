@@ -204,17 +204,23 @@ const App: React.FC = () => {
       }
 
       // Format Comments for Code Editor
-      const description = app.description || '';
-      const prompt = app.prompt || '';
+      const description = (app.description || '').trim();
+      const prompt = (app.prompt || '').trim();
       let codeWithComments = app.code;
+      
+      const prefix = app.type === DevMode.SQL ? '--' : '#';
+      let commentBlock = '';
 
-      if (app.type === DevMode.SQL) {
-          const commentBlock = `-- Description: ${description.replace(/\n/g, ' ')}\n-- Prompt: ${prompt.replace(/\n/g, ' ')}\n\n`;
-          codeWithComments = commentBlock + app.code;
+      // Avoid duplication if description is identical to prompt (default state)
+      if (description && prompt && description === prompt) {
+          commentBlock = `${prefix} Prompt: ${prompt.replace(/\n/g, ' ')}\n\n`;
       } else {
-          const commentBlock = `# Description: ${description.replace(/\n/g, ' ')}\n# Prompt: ${prompt.replace(/\n/g, ' ')}\n\n`;
-          codeWithComments = commentBlock + app.code;
+          if (description) commentBlock += `${prefix} Description: ${description.replace(/\n/g, ' ')}\n`;
+          if (prompt) commentBlock += `${prefix} Prompt: ${prompt.replace(/\n/g, ' ')}\n`;
+          if (commentBlock) commentBlock += '\n';
       }
+      
+      codeWithComments = commentBlock + app.code;
 
       return {
           ...prev,
