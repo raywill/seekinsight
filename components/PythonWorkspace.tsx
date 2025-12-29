@@ -49,7 +49,7 @@ const PythonWorkspace: React.FC<Props> = ({
         
         if (isPromptFocused) {
             const scrollHeight = textarea.scrollHeight;
-            // Min height 44px (match py-3 + line-height), Max height 160px
+            // Min height 44px (match py-2 + leading-7), Max height 160px
             const newHeight = Math.min(Math.max(scrollHeight, 44), 160);
             textarea.style.height = `${newHeight}px`;
         } else {
@@ -107,7 +107,7 @@ const PythonWorkspace: React.FC<Props> = ({
             onKeyDown={handlePromptKeyDown}
             placeholder="Ask AI for a Python script... e.g. Analyze correlation between age and price"
             rows={1}
-            className={`w-full pl-10 pr-40 py-3 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden leading-5 text-gray-900 ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
+            className={`w-full pl-10 pr-40 py-2 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900 ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
             style={{ 
                 minHeight: '44px',
             }}
