@@ -11,6 +11,7 @@ interface Props {
   prompt: string;
   onPromptChange: (val: string) => void;
   result: ExecutionResult | null;
+  previewResult?: ExecutionResult | null; // Receive preview result
   onRun: () => void;
   isExecuting: boolean;
   isAiGenerating: boolean;
@@ -39,7 +40,7 @@ interface SuggestionItem {
 }
 
 const SqlWorkspace: React.FC<Props> = ({ 
-  code, onCodeChange, prompt, onPromptChange, result, onRun, isExecuting, 
+  code, onCodeChange, prompt, onPromptChange, result, previewResult, onRun, isExecuting, 
   isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo, aiThought 
 }) => {
   const editorRef = useRef<BaseCodeEditorRef>(null);
@@ -358,7 +359,13 @@ const SqlWorkspace: React.FC<Props> = ({
         </div>
       </div>
 
-      <SqlResultPanel result={result} isLoading={isExecuting} onDebug={onDebug} isAiLoading={isAiFixing} />
+      <SqlResultPanel 
+        result={result} 
+        previewResult={previewResult} 
+        isLoading={isExecuting} 
+        onDebug={onDebug} 
+        isAiLoading={isAiFixing} 
+      />
     </div>
   );
 };

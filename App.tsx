@@ -772,6 +772,7 @@ const App: React.FC = () => {
                 prompt={project.sqlAiPrompt}
                 onPromptChange={v => setProject(p => ({ ...p, sqlAiPrompt: v }))}
                 result={project.lastSqlResult}
+                previewResult={project.previewResult} // Pass Preview Result
                 onRun={() => handleRun()}
                 isExecuting={project.isExecuting}
                 isAiGenerating={project.isSqlAiGenerating}
