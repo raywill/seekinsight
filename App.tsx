@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, PublishedApp } from './types';
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
@@ -72,6 +72,12 @@ const App: React.FC = () => {
     analysisReport: '',
     visualConfig: { chartType: 'bar' }
   } as ProjectState);
+
+  // Track activeMode in ref to avoid stale closures in async callbacks
+  const activeModeRef = useRef(project.activeMode);
+  useEffect(() => {
+    activeModeRef.current = project.activeMode;
+  }, [project.activeMode]);
 
   // Core Logic to load a notebook's data into the workspace
   const loadNotebookSession = async (nb: Notebook) => {
@@ -598,7 +604,8 @@ const App: React.FC = () => {
       const updatedSuggestions = [...project.suggestions, ...newSuggestions];
       setProject(prev => ({ ...prev, suggestions: updatedSuggestions }));
       
-      if (project.activeMode !== DevMode.INSIGHT_HUB) {
+      // Use Ref to check CURRENT active mode, not the one when function started
+      if (activeModeRef.current !== DevMode.INSIGHT_HUB) {
         setHasNewSuggestions(true);
       }
 

@@ -91,9 +91,9 @@ const AppHeader: React.FC<Props> = ({
           >
             {tab.label}
             {tab.id === DevMode.INSIGHT_HUB && hasNewSuggestions && (
-              <span className="absolute top-4 right-1 flex h-2 w-2">
+              <span className="absolute top-3 right-0 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-white"></span>
               </span>
             )}
           </button>
