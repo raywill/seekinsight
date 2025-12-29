@@ -68,10 +68,13 @@ const SqlWorkspace: React.FC<Props> = ({
             // Min height 44px (match py-2 + leading-7), Max height 160px
             const newHeight = Math.min(Math.max(scrollHeight, 44), 160);
             textarea.style.height = `${newHeight}px`;
+            // Enable scrollbar only if content exceeds max height
+            textarea.style.overflowY = scrollHeight > 160 ? 'auto' : 'hidden';
         } else {
             // Collapsed state
             textarea.style.height = '44px';
             textarea.scrollTop = 0;
+            textarea.style.overflowY = 'hidden';
         }
     }
   }, [prompt, isPromptFocused]);
