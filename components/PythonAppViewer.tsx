@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PublishedApp, ExecutionResult } from '../types';
-import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home } from 'lucide-react';
+import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home, Share2, Copy, Check, Link as LinkIcon, X } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 
 interface Props {
@@ -63,6 +63,58 @@ const TextInput = ({ label, value, onChange }: any) => (
   </div>
 );
 
+const ShareDialog = ({ isOpen, onClose, url }: { isOpen: boolean; onClose: () => void; url: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setCopied(false);
+  }, [isOpen]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100">
+        <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide flex items-center gap-2">
+            <Share2 size={16} className="text-purple-600" />
+            Share Configuration
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-4">
+          <p className="text-xs text-gray-500 font-medium leading-relaxed">
+            Share this exact state with others. Anyone with this link will see the app with your current parameters.
+          </p>
+          
+          <div className="flex items-center gap-2 p-1.5 bg-gray-50 border border-gray-200 rounded-xl">
+            <div className="flex-1 px-3 py-1.5 overflow-hidden">
+               <div className="text-xs font-mono text-gray-600 truncate select-all">{url}</div>
+            </div>
+            <button 
+              onClick={handleCopy}
+              className={`px-4 py-2.5 rounded-lg text-xs font-bold text-white transition-all flex items-center gap-2 shadow-sm ${copied ? 'bg-green-500' : 'bg-purple-600 hover:bg-purple-700'}`}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, onFork }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [paramValues, setParamValues] = useState<Record<string, any>>({});
@@ -71,9 +123,13 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
   const [isCloning, setIsCloning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
+  // Share State
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  
   const userInteracted = useRef(false);
 
-  // Initialize Schema and Default Values
+  // Initialize Schema, Default Values, and Hydrate from URL
   useEffect(() => {
     userInteracted.current = false; // Reset interaction flag on app load
     
@@ -82,12 +138,40 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
         const parsedSchema = JSON.parse(app.params_schema);
         setSchema(parsedSchema);
         
-        // Initialize values based on schema defaults
+        // 1. Initialize values based on schema defaults
         const initialValues: Record<string, any> = {};
         for (const [key, config] of Object.entries(parsedSchema)) {
           initialValues[key] = (config as any).default;
         }
-        setParamValues(initialValues);
+
+        // 2. Hydrate from URL (p_state) if present
+        const searchParams = new URLSearchParams(window.location.search);
+        const pState = searchParams.get('p_state');
+        
+        let mergedValues = initialValues;
+        
+        if (pState) {
+          try {
+             const urlValues = JSON.parse(pState);
+             // Verify keys exist in schema to prevent pollution
+             const validUrlValues: Record<string, any> = {};
+             Object.keys(urlValues).forEach(k => {
+                if (parsedSchema[k]) {
+                   validUrlValues[k] = urlValues[k];
+                }
+             });
+             
+             if (Object.keys(validUrlValues).length > 0) {
+                 mergedValues = { ...initialValues, ...validUrlValues };
+                 // Mark as interacted so it triggers a run even if it matches snapshot defaults
+                 userInteracted.current = true; 
+             }
+          } catch (e) {
+             console.warn("Failed to parse p_state from URL", e);
+          }
+        }
+
+        setParamValues(mergedValues);
       } catch (e) {
         console.error("Failed to parse params schema", e);
       }
@@ -108,6 +192,20 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
   const handleParamChange = (key: string, value: any) => {
     userInteracted.current = true;
     setParamValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleShareClick = () => {
+     // Construct URL
+     const url = new URL(window.location.href);
+     // Ensure we are linking to this app
+     url.searchParams.set('app', app.id);
+     // Encode current parameters
+     // using 'p_state' (Parameter State) to avoid conflicts
+     url.searchParams.set('p_state', JSON.stringify(paramValues));
+     
+     setShareUrl(url.toString());
+     setIsShareOpen(true);
+     setIsMenuOpen(false);
   };
 
   const handleRun = useCallback(async () => {
@@ -160,7 +258,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
     // Safety check: Don't run if we expect params but don't have them yet.
     if (hasSchema && !hasValues) return;
 
-    // Skip auto-run if we have a cached snapshot and the user hasn't changed any parameters yet.
+    // Skip auto-run if we have a cached snapshot and the user hasn't changed any parameters yet (or loaded from URL).
     if (app.snapshot_json && !userInteracted.current) return;
 
     const timer = setTimeout(() => {
@@ -202,7 +300,15 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
               </div>
             </div>
           </div>
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
+             <button
+                onClick={handleShareClick}
+                className="p-2 rounded-full hover:bg-purple-50 hover:text-purple-600 transition-colors text-gray-400"
+                title="Share App State"
+             >
+                <Share2 size={20} />
+             </button>
+
              <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-900 outline-none"
@@ -214,6 +320,13 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
                <>
                  <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                    <button 
+                       onClick={handleShareClick}
+                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors sm:hidden"
+                    >
+                      <LinkIcon size={16} className="text-purple-500" /> Share Link
+                    </button>
+
                     {app.source_notebook_id && onEdit && (
                         <>
                             <button 
@@ -323,8 +436,10 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
              />
           </div>
         </div>
-
       </div>
+      
+      {/* Share Dialog */}
+      <ShareDialog isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} url={shareUrl} />
     </div>
   );
 };
