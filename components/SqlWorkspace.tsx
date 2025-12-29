@@ -72,7 +72,6 @@ const SqlWorkspace: React.FC<Props> = ({
             // Collapsed state
             textarea.style.height = '44px';
             textarea.scrollTop = 0;
-            textarea.scrollLeft = 0; // Force horizontal reset
         }
     }
   }, [prompt, isPromptFocused]);
@@ -276,20 +275,30 @@ const SqlWorkspace: React.FC<Props> = ({
             onBlur={() => setIsPromptFocused(false)}
             onChange={(e) => onPromptChange(e.target.value)}
             onKeyDown={handlePromptKeyDown}
-            placeholder="Ask AI to write SQL... e.g. Show revenue trends by segment"
             rows={1}
-            className={`w-full pl-10 pr-40 py-3 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 shadow-sm transition-all resize-none overflow-hidden leading-5 ${isPromptFocused ? 'shadow-lg ring-4 ring-blue-500/5' : 'whitespace-nowrap'}`}
+            className={`w-full pl-10 pr-40 py-3 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 shadow-sm transition-all resize-none overflow-hidden leading-5 
+                ${isPromptFocused ? 'shadow-lg ring-4 ring-blue-500/5 text-gray-900' : 'text-transparent select-none'}`}
             style={{ 
                 minHeight: '44px',
             }}
           />
-          <Database size={16} className="absolute left-3.5 top-3.5 text-blue-400" />
+          
+          {/* Overlay to show text with ellipsis when collapsed */}
+          {!isPromptFocused && (
+            <div className="absolute inset-0 pl-10 pr-40 py-3 pointer-events-none flex items-center">
+                <span className={`truncate text-sm leading-5 w-full ${!prompt ? 'text-gray-400' : 'text-gray-900'}`}>
+                    {prompt || "Ask AI to write SQL... e.g. Show revenue trends by segment"}
+                </span>
+            </div>
+          )}
+
+          <Database size={16} className="absolute left-3.5 top-3.5 text-blue-400 z-10 pointer-events-none" />
           <button 
             onClick={onTriggerAi} 
             // Prevent default on mousedown to avoid blurring the textarea instantly when clicking
             onMouseDown={(e) => e.preventDefault()}
             disabled={isAiGenerating || isAiFixing || !prompt} 
-            className="absolute right-2 top-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="absolute right-2 top-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-blue-700 transition-colors disabled:opacity-50 z-20"
           >
             {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />}
             Generate SQL
