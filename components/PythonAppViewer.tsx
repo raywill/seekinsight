@@ -63,55 +63,78 @@ const TextInput = ({ label, value, onChange }: any) => (
   </div>
 );
 
-const ShareDialog = ({ isOpen, onClose, url }: { isOpen: boolean; onClose: () => void; url: string }) => {
+const SharePopover = ({ isOpen, onClose, url }: { isOpen: boolean; onClose: () => void; url: string }) => {
   const [copied, setCopied] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) setCopied(false);
+    if (isOpen) {
+      setCopied(false);
+      // Auto-select text when opened
+      setTimeout(() => {
+        if (inputRef.current) inputRef.current.select();
+      }, 100);
+    }
   }, [isOpen]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback for non-secure contexts
+        if (inputRef.current) {
+            inputRef.current.select();
+            document.execCommand('copy');
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to copy', err);
+      // Ensure text is selected so user can manual copy
+      if (inputRef.current) inputRef.current.select();
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100">
-        <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide flex items-center gap-2">
-            <Share2 size={16} className="text-purple-600" />
+    <>
+      <div className="fixed inset-0 z-[100]" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-2 w-[360px] bg-white rounded-2xl shadow-xl border border-gray-200 z-[110] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+          <h3 className="text-xs font-black text-gray-700 uppercase tracking-wide flex items-center gap-2">
+            <Share2 size={14} className="text-purple-600" />
             Share Configuration
           </h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
-            <X size={16} />
-          </button>
         </div>
         
-        <div className="p-6 space-y-4">
-          <p className="text-xs text-gray-500 font-medium leading-relaxed">
-            Share this exact state with others. Anyone with this link will see the app with your current parameters.
-          </p>
-          
-          <div className="flex items-center gap-2 p-1.5 bg-gray-50 border border-gray-200 rounded-xl">
-            <div className="flex-1 px-3 py-1.5 overflow-hidden">
-               <div className="text-xs font-mono text-gray-600 truncate select-all">{url}</div>
+        <div className="p-4">
+          <div className="flex items-center gap-2 p-1.5 bg-white border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-purple-500/20 focus-within:border-purple-300 transition-all shadow-sm">
+            <div className="flex-1 overflow-hidden">
+               <input 
+                 ref={inputRef}
+                 type="text"
+                 readOnly
+                 value={url}
+                 onClick={(e) => e.currentTarget.select()}
+                 className="w-full px-2 py-1.5 bg-transparent border-none text-xs font-mono text-gray-600 focus:outline-none focus:ring-0 truncate"
+               />
             </div>
             <button 
               onClick={handleCopy}
-              className={`px-4 py-2.5 rounded-lg text-xs font-bold text-white transition-all flex items-center gap-2 shadow-sm ${copied ? 'bg-green-500' : 'bg-purple-600 hover:bg-purple-700'}`}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold text-white transition-all flex items-center gap-1.5 shadow-sm shrink-0 ${copied ? 'bg-green-500' : 'bg-purple-600 hover:bg-purple-700'}`}
             >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? <Check size={12} /> : <Copy size={12} />}
               {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -144,9 +167,9 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
           initialValues[key] = (config as any).default;
         }
 
-        // 2. Hydrate from URL (p_state) if present
+        // 2. Hydrate from URL (share_params) if present
         const searchParams = new URLSearchParams(window.location.search);
-        const pState = searchParams.get('p_state');
+        const pState = searchParams.get('share_params');
         
         let mergedValues = initialValues;
         
@@ -167,7 +190,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
                  userInteracted.current = true; 
              }
           } catch (e) {
-             console.warn("Failed to parse p_state from URL", e);
+             console.warn("Failed to parse share_params from URL", e);
           }
         }
 
@@ -200,8 +223,8 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
      // Ensure we are linking to this app
      url.searchParams.set('app', app.id);
      // Encode current parameters
-     // using 'p_state' (Parameter State) to avoid conflicts
-     url.searchParams.set('p_state', JSON.stringify(paramValues));
+     // using 'share_params' (Parameter State) to avoid conflicts
+     url.searchParams.set('share_params', JSON.stringify(paramValues));
      
      setShareUrl(url.toString());
      setIsShareOpen(true);
@@ -303,15 +326,18 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
           <div className="relative flex items-center gap-2">
              <button
                 onClick={handleShareClick}
-                className="p-2 rounded-full hover:bg-purple-50 hover:text-purple-600 transition-colors text-gray-400"
+                className={`p-2 rounded-full transition-colors ${isShareOpen ? 'bg-purple-50 text-purple-600' : 'text-gray-400 hover:bg-gray-100'}`}
                 title="Share App State"
              >
                 <Share2 size={20} />
              </button>
 
+             {/* Share Popover positioned relative to the button group */}
+             <SharePopover isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} url={shareUrl} />
+
              <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-900 outline-none"
+                className={`p-2 rounded-full transition-colors outline-none ${isMenuOpen ? 'bg-gray-100 text-gray-900' : 'text-gray-900 hover:bg-gray-100'}`}
              >
                 <MoreVertical size={20} />
              </button>
@@ -437,9 +463,6 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
           </div>
         </div>
       </div>
-      
-      {/* Share Dialog */}
-      <ShareDialog isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} url={shareUrl} />
     </div>
   );
 };
