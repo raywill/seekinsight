@@ -49,12 +49,12 @@ const PythonWorkspace: React.FC<Props> = ({
         
         if (isPromptFocused) {
             const scrollHeight = textarea.scrollHeight;
-            // Min height 46px (match py-3 + line-height), Max height 160px
-            const newHeight = Math.min(Math.max(scrollHeight, 46), 160);
+            // Min height 44px (match py-3 + line-height), Max height 160px
+            const newHeight = Math.min(Math.max(scrollHeight, 44), 160);
             textarea.style.height = `${newHeight}px`;
         } else {
             // Collapsed state
-            textarea.style.height = '46px';
+            textarea.style.height = '44px';
             textarea.scrollTop = 0;
         }
     }
@@ -107,10 +107,10 @@ const PythonWorkspace: React.FC<Props> = ({
             onKeyDown={handlePromptKeyDown}
             placeholder="Ask AI for a Python script... e.g. Analyze correlation between age and price"
             rows={1}
-            className={`w-full pl-10 pr-40 py-3 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
-            style={{ minHeight: '46px' }}
+            className={`w-full pl-10 pr-40 py-3 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden leading-5 ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : 'whitespace-nowrap'}`}
+            style={{ minHeight: '44px' }}
           />
-          <Terminal size={16} className="absolute left-3.5 top-4 text-purple-400" />
+          <Terminal size={16} className="absolute left-3.5 top-3.5 text-purple-400" />
           <button 
             onClick={onTriggerAi} 
             // Prevent default on mousedown to avoid blurring the textarea instantly when clicking
