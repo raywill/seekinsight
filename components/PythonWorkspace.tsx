@@ -56,6 +56,7 @@ const PythonWorkspace: React.FC<Props> = ({
             // Collapsed state
             textarea.style.height = '44px';
             textarea.scrollTop = 0;
+            textarea.scrollLeft = 0; // Force horizontal reset
         }
     }
   }, [prompt, isPromptFocused]);
@@ -108,7 +109,12 @@ const PythonWorkspace: React.FC<Props> = ({
             placeholder="Ask AI for a Python script... e.g. Analyze correlation between age and price"
             rows={1}
             className={`w-full pl-10 pr-40 py-3 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden leading-5 ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : 'whitespace-nowrap'}`}
-            style={{ minHeight: '44px' }}
+            style={{ 
+                minHeight: '44px',
+                // When collapsed, use mask-image to fade out text before it hits the button (pr-40 = 160px)
+                maskImage: !isPromptFocused ? 'linear-gradient(to right, black calc(100% - 170px), transparent calc(100% - 160px))' : 'none',
+                WebkitMaskImage: !isPromptFocused ? 'linear-gradient(to right, black calc(100% - 170px), transparent calc(100% - 160px))' : 'none'
+            }}
           />
           <Terminal size={16} className="absolute left-3.5 top-3.5 text-purple-400" />
           <button 
