@@ -107,7 +107,7 @@ const PythonWorkspace: React.FC<Props> = ({
             onKeyDown={handlePromptKeyDown}
             placeholder="Ask AI for a Python script... e.g. Analyze correlation between age and price"
             rows={1}
-            className={`w-full pl-10 pr-40 py-3 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden leading-5 ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
+            className={`w-full pl-10 pr-40 py-3 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-purple-500/5 shadow-sm transition-all resize-none overflow-hidden leading-5 text-gray-900 ${isPromptFocused ? 'shadow-lg ring-4 ring-purple-500/5' : ''}`}
             style={{ 
                 minHeight: '44px',
             }}
