@@ -694,7 +694,7 @@ app.post('/sql', async (req, res) => {
     let activeFields = fields;
     
     let isMulti = false;
-    for (let i = 0; i < fields.length; ++i) {
+    for (let i = 0; Array.isArray(fields) && i < fields.length; ++i) {
       if (Array.isArray(fields) && undefined === fields[i]) {
          isMulti = true
          break
