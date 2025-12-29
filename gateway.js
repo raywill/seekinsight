@@ -695,7 +695,7 @@ app.post('/sql', async (req, res) => {
 
     // 1. Handle Multi-Statement Execution
     // Scenario 1: Mixed SELECTs or Multiple SELECTs -> fields is [ [Field...], undefined, ... ]
-    if (Array.isArray(fields) && Array.isArray(fields[0])) {
+    if (Array.isArray(fields) && Array.isArray(fields[fields.length - 1])) {
          // Grab the LAST result set
          activeRows = result[result.length - 1];
          activeFields = fields[fields.length - 1];
