@@ -27,15 +27,15 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
 
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error') || l.toLowerCase().includes('traceback')));
 
-  // Auto-expand on new data or loading
+  // Auto-expand only on loading or explicit run result, NOT on background preview fetch
   useEffect(() => {
     if (fullHeight) return;
     if (isLoading) {
         setIsCollapsed(false);
-    } else if (result || previewResult) {
+    } else if (result) {
         setIsCollapsed(false);
     }
-  }, [isLoading, result, previewResult, fullHeight]);
+  }, [isLoading, result, fullHeight]);
 
   const startResize = useCallback((e: React.MouseEvent) => {
     if (fullHeight || isFullscreen) return;
@@ -226,7 +226,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
                             {previewResult.data.map((row, i) => (
                             <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
                                 {previewResult.columns.map(col => (
-                                <td key={col} className="px-3 py-1.5 text-gray-600 max-w-xs truncate hover:whitespace-normal hover:break-all align-top">
+                                <td key={col} className="px-3 py-1.5 text-gray-600 max-w-xs truncate hover:bg-blue-50/30 align-top" title={String(row[col] ?? 'NULL')}>
                                     {String(row[col] ?? 'NULL')}
                                 </td>
                                 ))}

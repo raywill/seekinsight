@@ -27,14 +27,14 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
 
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error')));
 
-  // Auto-expand on new data or loading
+  // Auto-expand only on loading or explicit run result, NOT on background preview fetch
   useEffect(() => {
     if (isLoading) {
         setIsCollapsed(false);
-    } else if (result || previewResult) {
+    } else if (result) {
         setIsCollapsed(false);
     }
-  }, [isLoading, result, previewResult]);
+  }, [isLoading, result]);
 
   // Handle Resize Events
   const startResize = useCallback((e: React.MouseEvent) => {
@@ -252,11 +252,24 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
                         <tbody>
                             {previewResult.data.map((row, i) => (
                             <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
-                                {previewResult.columns.map(col => (
-                                <td key={col} className="px-3 py-1.5 text-gray-600 max-w-xs truncate hover:whitespace-normal hover:break-all align-top">
-                                    {String(row[col] ?? 'NULL')}
-                                </td>
-                                ))}
+                                {previewResult.columns.map(col => {
+                                  const isExpanded = expandedCells.has(`${i}-${col}`);
+                                  const cellValue = String(row[col] ?? 'NULL');
+                                  return (
+                                    <td 
+                                      key={col} 
+                                      className={`px-3 py-1.5 text-gray-600 max-w-xs border-r border-transparent transition-all align-top ${
+                                        isExpanded 
+                                          ? 'whitespace-pre-wrap break-words bg-blue-50/30 cursor-text' 
+                                          : 'truncate hover:bg-blue-50/30'
+                                      }`}
+                                      onClick={() => handleCellClick(i, col)}
+                                      title={!isExpanded ? cellValue : undefined}
+                                    >
+                                      {cellValue}
+                                    </td>
+                                  );
+                                })}
                             </tr>
                             ))}
                         </tbody>
