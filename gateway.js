@@ -692,6 +692,19 @@ app.post('/sql', async (req, res) => {
 
     let activeRows = result;
     let activeFields = fields;
+    
+    let isMulti = false;
+    for (let i = 0; i < fields.length; ++i) {
+      if (Array.isArray(fields) && undefined === fields[i]) {
+         isMulti = true
+         break
+      }
+    }
+    // 0. Only process the last query if is multi-statement
+    if (isMulti) {
+       activeRows = result[result.length - 1];
+       activeFields = fields[fields.length - 1];
+    }
 
     // 1. Handle Multi-Statement Execution
     // Scenario 1: Mixed SELECTs or Multiple SELECTs -> fields is [ [Field...], undefined, ... ]
