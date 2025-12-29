@@ -18,6 +18,9 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.2.1",
-    "mysql2": "^3.16.0"
+    "mysql2": "^3.16.0",
+    "prismjs": "^1.29.0",
+    "@fontsource/inter": "^5.0.0",
+    "@fontsource/jetbrains-mono": "^5.0.0"
   }
 }
