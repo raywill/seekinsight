@@ -684,48 +684,78 @@ app.delete('/notebooks/:id', async (req, res) => {
 app.post('/sql', async (req, res) => {
   const { sql, dbName } = req.body;
   if (!dbName) return res.status(400).json({ message: 'Missing dbName' });
+
   try {
     const pool = await getPool(dbName);
-    // mysql2 with multipleStatements: true returns [rows, fields]
-    // If multiple queries: rows is array of results, fields is array of fields
     const [result, fields] = await pool.query(sql);
 
     let activeRows = result;
     let activeFields = fields;
 
-    // 1. Handle Multi-Statement Execution
-    // Scenario 1: Mixed SELECTs or Multiple SELECTs -> fields is [ [Field...], undefined, ... ]
-    if (Array.isArray(fields) && Array.isArray(fields[0])) {
-         // Grab the LAST result set
-         activeRows = result[result.length - 1];
-         activeFields = fields[fields.length - 1];
-    }
-    // Scenario 2: Multiple DMLs -> fields is undefined, result is [ResultSetHeader, ResultSetHeader...]
-    // We detect this if result is an array of objects that have 'affectedRows'
-    else if (!fields && Array.isArray(result) && result.length > 0 && ('affectedRows' in result[0])) {
-         activeRows = result[result.length - 1];
+    /**
+     * 1. Handle Multi-Statement Execution
+     * Strategy:
+     * - Prefer the LAST statement that has FieldPackets (i.e. SELECT)
+     * - Skip SET / USE / BEGIN / COMMIT which yield fields === undefined
+     */
+    if (Array.isArray(result)) {
+      let lastSelectIdx = -1;
+
+      if (Array.isArray(fields)) {
+        for (let i = 0; i < fields.length; i++) {
+          if (Array.isArray(fields[i])) {
+            lastSelectIdx = i;
+          }
+        }
+      }
+
+      if (lastSelectIdx >= 0) {
+        activeRows = result[lastSelectIdx];
+        activeFields = fields[lastSelectIdx];
+      } else {
+        // No SELECT at all (all SET / DML / DDL)
+        activeRows = result[result.length - 1];
+        activeFields = null;
+      }
     }
 
-    // 2. Handle DML/DDL (Non-SELECT)
-    // If activeRows is a ResultSetHeader (object with affectedRows), transform it into a visible table
-    if (activeRows && 'affectedRows' in activeRows && !Array.isArray(activeRows)) {
-         return res.json({
-            rows: [{
-                status: 'Success',
-                message: activeRows.info || 'Query executed successfully',
-                affected_rows: activeRows.affectedRows,
-                insert_id: activeRows.insertId,
-                warning_count: activeRows.warningStatus
-            }],
-            columns: ['status', 'message', 'affected_rows', 'insert_id', 'warning_count']
-         });
+    /**
+     * 2. Handle DML / DDL / SET (ResultSetHeader)
+     */
+    if (
+      activeRows &&
+      !Array.isArray(activeRows) &&
+      typeof activeRows === 'object' &&
+      'affectedRows' in activeRows
+    ) {
+      return res.json({
+        rows: [{
+          status: 'Success',
+          message: activeRows.info || 'Query executed successfully',
+          affected_rows: activeRows.affectedRows,
+          insert_id: activeRows.insertId,
+          warning_count: activeRows.warningStatus
+        }],
+        columns: ['status', 'message', 'affected_rows', 'insert_id', 'warning_count']
+      });
     }
 
-    // 3. Handle Standard SELECT
-    // Standardize column extraction from FieldPackets
-    const columns = activeFields ? activeFields.map(f => f.name) : (Array.isArray(activeRows) && activeRows.length > 0 ? Object.keys(activeRows[0]) : []);
-    
-    res.json({ rows: Array.isArray(activeRows) ? activeRows : [activeRows], columns });
+    /**
+     * 3. Handle SELECT
+     * Never blindly trust FieldPackets
+     */
+    let columns = [];
+
+    if (Array.isArray(activeFields)) {
+      columns = activeFields.map(f => f.name);
+    } else if (Array.isArray(activeRows) && activeRows.length > 0) {
+      columns = Object.keys(activeRows[0]);
+    }
+
+    res.json({
+      rows: Array.isArray(activeRows) ? activeRows : [activeRows],
+      columns
+    });
 
   } catch (err) {
     if (IS_DEBUG) {
