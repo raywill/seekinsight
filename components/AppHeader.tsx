@@ -83,7 +83,7 @@ const AppHeader: React.FC<Props> = ({
           <button
             key={tab.id}
             onClick={() => onModeChange(tab.id)}
-            className={`h-full flex items-center relative px-3 text-xs font-bold tracking-wide transition-all border-b-[3px] ${
+            className={`h-full flex items-center pt-2 relative px-3 text-xs font-bold tracking-wide transition-all border-b-[3px] ${
               activeMode === tab.id 
                 ? 'border-blue-600 text-blue-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
@@ -91,7 +91,7 @@ const AppHeader: React.FC<Props> = ({
           >
             {tab.label}
             {tab.id === DevMode.INSIGHT_HUB && hasNewSuggestions && (
-              <span className="absolute top-3.5 right-1 flex h-2 w-2">
+              <span className="absolute top-4 right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
               </span>
