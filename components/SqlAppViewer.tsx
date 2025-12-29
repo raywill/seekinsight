@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PublishedApp, DevMode, ExecutionResult, AIChartConfig } from '../types';
-import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid, MoreVertical, Home, Copy } from 'lucide-react';
+import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid, MoreVertical, Home, Copy, Share2, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
 import SqlResultPanel from './SqlResultPanel';
 import * as ai from '../services/aiProvider';
+import { createShareSnapshot } from '../services/appService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 
 interface Props {
@@ -166,6 +167,78 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
   );
 };
 
+const SharePopover = ({ isOpen, onClose, url }: { isOpen: boolean; onClose: () => void; url: string }) => {
+  const [copied, setCopied] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCopied(false);
+      setTimeout(() => {
+        if (inputRef.current) inputRef.current.select();
+      }, 100);
+    }
+  }, [isOpen]);
+
+  const handleCopy = async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        if (inputRef.current) {
+            inputRef.current.select();
+            document.execCommand('copy');
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to copy', err);
+      if (inputRef.current) inputRef.current.select();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[100]" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-2 w-[360px] bg-white rounded-2xl shadow-xl border border-gray-200 z-[110] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+          <h3 className="text-xs font-black text-gray-700 uppercase tracking-wide flex items-center gap-2">
+            <Share2 size={14} className="text-blue-600" />
+            Share App
+          </h3>
+        </div>
+        
+        <div className="p-4">
+          <div className="flex items-center gap-2 p-1.5 bg-white border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-300 transition-all shadow-sm">
+            <div className="flex-1 overflow-hidden">
+               <input 
+                 ref={inputRef}
+                 type="text"
+                 readOnly
+                 value={url}
+                 onClick={(e) => e.currentTarget.select()}
+                 className="w-full px-2 py-1.5 bg-transparent border-none text-xs font-mono text-gray-600 focus:outline-none focus:ring-0 truncate"
+               />
+            </div>
+            <button 
+              onClick={handleCopy}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold text-white transition-all flex items-center gap-1.5 shadow-sm shrink-0 ${copied ? 'bg-green-500' : 'bg-blue-600 hover:bg-blue-700'}`}
+            >
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
 const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, onFork }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [analysisReport, setAnalysisReport] = useState<string>('');
@@ -174,6 +247,11 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, 
   const [isRecommendingCharts, setIsRecommendingCharts] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Share State
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
 
   useEffect(() => {
     if (app.snapshot_json) {
@@ -190,6 +268,29 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, 
       }
     }
   }, [app]);
+
+  const handleShareClick = async () => {
+     if (isGeneratingLink) return;
+     setIsGeneratingLink(true);
+     try {
+         // Create Snapshot on Backend (Empty params for SQL app)
+         const shareId = await createShareSnapshot(app.id, {});
+         
+         // Construct Clean URL
+         const url = new URL(window.location.href);
+         url.searchParams.set('app', app.id);
+         url.searchParams.set('s', shareId);
+         
+         setShareUrl(url.toString());
+         setIsShareOpen(true);
+         setIsMenuOpen(false);
+     } catch (e) {
+         alert("Failed to generate share link.");
+         console.error(e);
+     } finally {
+         setIsGeneratingLink(false);
+     }
+  };
 
   const handleRun = async () => {
     setIsRunning(true);
@@ -279,10 +380,22 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, 
               </div>
             </div>
           </div>
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
+             <button
+                onClick={handleShareClick}
+                disabled={isGeneratingLink}
+                className={`p-2 rounded-full transition-colors ${isShareOpen ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:bg-gray-100'}`}
+                title="Share App State"
+             >
+                {isGeneratingLink ? <Loader2 size={20} className="animate-spin text-blue-500" /> : <Share2 size={20} />}
+             </button>
+
+             {/* Share Popover positioned relative to the button group */}
+             <SharePopover isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} url={shareUrl} />
+
              <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-900 outline-none"
+                className={`p-2 rounded-full transition-colors outline-none ${isMenuOpen ? 'bg-gray-100 text-gray-900' : 'text-gray-900 hover:bg-gray-100'}`}
              >
                 <MoreVertical size={20} />
              </button>
@@ -291,6 +404,13 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, 
                <>
                  <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                    <button 
+                       onClick={handleShareClick}
+                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors sm:hidden"
+                    >
+                      <LinkIcon size={16} className="text-blue-500" /> Share Link
+                    </button>
+
                     {app.source_notebook_id && onEdit && (
                         <>
                             <button 
