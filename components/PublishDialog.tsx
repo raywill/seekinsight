@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { DevMode, ExecutionResult } from '../types';
-import { publishApp } from '../services/appService';
-import { X, Rocket, Sparkles, AlertCircle, CheckCircle2, RefreshCw, ExternalLink, ArrowLeft, Loader2, Code2 } from 'lucide-react';
+import { publishApp, updateApp } from '../services/appService';
+import { X, Rocket, Sparkles, AlertCircle, CheckCircle2, RefreshCw, ExternalLink, ArrowLeft, Loader2, Code2, Save } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onOpenApp?: (appId: string) => void;
+  editingAppId?: string | null; // If present, update this app instead of creating new
   type: DevMode;
   code: string;
   dbName: string | null;
@@ -16,13 +17,14 @@ interface Props {
   defaultTitle?: string;
   defaultDescription?: string;
   analysisReport?: string;
-  sourcePrompt?: string; // New: Original AI prompt
+  sourcePrompt?: string; 
 }
 
 const PublishDialog: React.FC<Props> = ({ 
   isOpen, 
   onClose,
   onOpenApp,
+  editingAppId,
   type, 
   code, 
   dbName, 
@@ -40,7 +42,7 @@ const PublishDialog: React.FC<Props> = ({
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDetectingSchema, setIsDetectingSchema] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [newAppId, setNewAppId] = useState<string | null>(null);
+  const [publishedAppId, setPublishedAppId] = useState<string | null>(null);
 
   // Auto-fill form when dialog opens
   useEffect(() => {
@@ -48,7 +50,7 @@ const PublishDialog: React.FC<Props> = ({
       setTitle(defaultTitle || '');
       setDescription(defaultDescription || '');
       setSuccess(false);
-      setNewAppId(null);
+      setPublishedAppId(null);
       setParamsJson('{}');
 
       // Auto-detect schema for Python apps
@@ -103,32 +105,52 @@ const PublishDialog: React.FC<Props> = ({
         }
       }
 
-      const id = await publishApp(
-        title, 
-        description, 
-        author, 
-        type, 
-        code, 
-        dbName, 
-        sourceNotebookId || undefined, 
-        params, 
-        resultSnapshot || undefined, 
-        analysisReport,
-        sourcePrompt // Pass prompt separately
-      );
+      let id;
+      if (editingAppId) {
+          // Update Mode
+          id = await updateApp(
+            editingAppId,
+            title, 
+            description, 
+            author, 
+            type, 
+            code, 
+            dbName, 
+            sourceNotebookId || undefined, 
+            params, 
+            resultSnapshot || undefined, 
+            analysisReport,
+            sourcePrompt
+          );
+      } else {
+          // Create Mode
+          id = await publishApp(
+            title, 
+            description, 
+            author, 
+            type, 
+            code, 
+            dbName, 
+            sourceNotebookId || undefined, 
+            params, 
+            resultSnapshot || undefined, 
+            analysisReport,
+            sourcePrompt
+          );
+      }
       
-      setNewAppId(id);
+      setPublishedAppId(id);
       setSuccess(true);
     } catch (e) {
-      alert("Publish failed");
+      alert("Publish/Update failed");
     } finally {
       setIsPublishing(false);
     }
   };
 
   const handleViewApp = () => {
-      if (newAppId && onOpenApp) {
-          onOpenApp(newAppId);
+      if (publishedAppId && onOpenApp) {
+          onOpenApp(publishedAppId);
           onClose();
       }
   };
@@ -143,7 +165,9 @@ const PublishDialog: React.FC<Props> = ({
             <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 animate-bounce">
               <CheckCircle2 size={40} />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">Published Successfully!</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-2">
+                {editingAppId ? 'Updated Successfully!' : 'Published Successfully!'}
+            </h3>
             <p className="text-gray-500 mb-8 max-w-xs mx-auto">Your app is now live in the marketplace and ready to be shared.</p>
             
             <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -172,10 +196,10 @@ const PublishDialog: React.FC<Props> = ({
             <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-xl text-white ${type === DevMode.SQL ? 'bg-blue-600' : 'bg-purple-600'}`}>
-                  <Rocket size={20} />
+                  {editingAppId ? <Save size={20} /> : <Rocket size={20} />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-gray-900 leading-none">Publish {type === DevMode.SQL ? 'Dashboard' : 'App'}</h3>
+                  <h3 className="text-lg font-black text-gray-900 leading-none">{editingAppId ? 'Update App' : 'Publish New App'}</h3>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Share your insight</p>
                 </div>
               </div>
@@ -266,8 +290,8 @@ const PublishDialog: React.FC<Props> = ({
                 disabled={isPublishing || !title || isDetectingSchema}
                 className={`px-8 py-3 text-white rounded-xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${type === DevMode.SQL ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20'}`}
                >
-                 {isPublishing ? <RefreshCw size={18} className="animate-spin" /> : <Rocket size={18} />}
-                 Confirm Publish
+                 {isPublishing ? <RefreshCw size={18} className="animate-spin" /> : (editingAppId ? <Save size={18} /> : <Rocket size={18} />)}
+                 {editingAppId ? 'Update App' : 'Confirm Publish'}
                </button>
             </div>
           </>

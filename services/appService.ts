@@ -92,6 +92,49 @@ export const publishApp = async (
   return data.id;
 };
 
+export const updateApp = async (
+  id: string,
+  title: string,
+  description: string,
+  author: string,
+  type: DevMode,
+  code: string,
+  source_db_name: string,
+  source_notebook_id: string | undefined,
+  params_schema?: any,
+  resultSnapshot?: ExecutionResult,
+  analysisReport?: string,
+  prompt?: string
+): Promise<string> => {
+    
+    // Create a composite snapshot containing both result and report
+    const compositeSnapshot = {
+        result: resultSnapshot,
+        analysis: analysisReport
+    };
+
+    const res = await fetch(`${GATEWAY_URL}/apps/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        description,
+        prompt,
+        author,
+        type,
+        code,
+        source_db_name,
+        source_notebook_id,
+        params_schema: params_schema ? JSON.stringify(params_schema) : null,
+        snapshot_json: JSON.stringify(compositeSnapshot)
+      })
+    });
+    
+    if (!res.ok) throw new Error("Update failed");
+    const data = await res.json();
+    return data.id;
+};
+
 export const cloneNotebook = async (
     source_db_name: string, 
     new_topic: string, 

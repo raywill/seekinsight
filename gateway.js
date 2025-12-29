@@ -376,6 +376,7 @@ app.post('/apps/:id/view', async (req, res) => {
   }
 });
 
+// Create New App
 app.post('/apps', async (req, res) => {
   try {
     const { title, description, prompt, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
@@ -390,6 +391,39 @@ app.post('/apps', async (req, res) => {
     res.json({ success: true, id });
   } catch (err) {
     console.error("[Apps POST Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Existing App
+app.put('/apps/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, prompt, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
+    const pool = await getPool(SYSTEM_DB);
+
+    const [existing] = await pool.query(`SELECT id FROM \`${PUBLISHED_APPS_TABLE}\` WHERE id = ?`, [id]);
+    if (existing.length === 0) return res.status(404).json({ message: 'App not found' });
+    
+    await pool.query(
+      `UPDATE \`${PUBLISHED_APPS_TABLE}\` SET 
+        title = ?, 
+        description = ?, 
+        prompt = ?, 
+        author = ?, 
+        type = ?, 
+        code = ?, 
+        source_db_name = ?, 
+        source_notebook_id = ?, 
+        params_schema = ?, 
+        snapshot_json = ? 
+      WHERE id = ?`,
+      [title, description, prompt, author || 'User', type, code, source_db_name, source_notebook_id, params_schema, snapshot_json, id]
+    );
+    
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error("[Apps PUT Error]:", err);
     res.status(500).json({ message: err.message });
   }
 });

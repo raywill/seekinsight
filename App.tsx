@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [currentNotebook, setCurrentNotebook] = useState<Notebook | null>(null);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [viewingApp, setViewingApp] = useState<PublishedApp | null>(null);
+  const [editingAppId, setEditingAppId] = useState<string | null>(null); // New: Track if we are updating an existing app
   
   const [dbReady, setDbReady] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -154,6 +155,7 @@ const App: React.FC = () => {
        setViewingApp(null);
        setIsMarketOpen(false);
        setHasNewSuggestions(false);
+       setEditingAppId(null);
     }
   }, [currentNotebook, viewingApp, gatewayUrl]);
 
@@ -250,7 +252,7 @@ const App: React.FC = () => {
       };
   }
 
-  const handleEditApp = async (app: PublishedApp) => {
+  const loadAppToNotebook = async (app: PublishedApp, mode: 'edit' | 'fork') => {
     if (!app.source_notebook_id) {
         alert("This app was created before the edit feature was enabled, or the source notebook link is missing.");
         return;
@@ -263,11 +265,14 @@ const App: React.FC = () => {
 
         if (originalNb) {
             // Updated: Pass source and app_id for logging/analytics
-            await handleOpenNotebook(originalNb, { source: 'app_edit', app_id: app.id });
+            await handleOpenNotebook(originalNb, { source: mode === 'edit' ? 'app_edit' : 'app_clone', app_id: app.id });
             
             // Restore code/prompt/results on top of the opened notebook state
             setProject(prev => restoreAppState(app, prev));
             
+            // Critical difference: 'edit' sets editingAppId, 'fork' clears it (creating a new app)
+            setEditingAppId(mode === 'edit' ? app.id : null);
+
             setViewingApp(null);
             setIsMarketOpen(false);
         } else {
@@ -278,7 +283,10 @@ const App: React.FC = () => {
     }
   }
 
-  const handleCloneApp = async (app: PublishedApp) => {
+  const handleEditApp = (app: PublishedApp) => loadAppToNotebook(app, 'edit');
+  const handleForkApp = (app: PublishedApp) => loadAppToNotebook(app, 'fork');
+
+  const handleCloneNotebook = async (app: PublishedApp) => {
       try {
           let suggestionsJson = undefined;
           
@@ -288,10 +296,11 @@ const App: React.FC = () => {
               suggestionsJson
           );
           
-          await handleOpenNotebook(newNotebook, { source: 'app_clone', ref_app_id: app.id });
+          await handleOpenNotebook(newNotebook, { source: 'nb_clone', ref_app_id: app.id });
           // Restore code/prompt/results on top of the new notebook state
           setProject(prev => restoreAppState(app, prev));
 
+          setEditingAppId(null); // Ensure we are creating a new app ID from this new notebook
           setViewingApp(null);
           setIsMarketOpen(false);
       } catch (e: any) {
@@ -306,6 +315,7 @@ const App: React.FC = () => {
     setHasNewSuggestions(false);
     setIsMarketOpen(false); // Fix: Force close market
     setViewingApp(null); // Fix: Force close app viewer
+    setEditingAppId(null);
     // Push history
     window.history.pushState({}, '', '/');
   };
@@ -559,7 +569,7 @@ const App: React.FC = () => {
              onClose={handleCloseAppViewer}
              onHome={handleExit}
              onEdit={handleEditApp}
-             onClone={handleCloneApp}
+             onClone={handleCloneNotebook} // Map to new handler
           />
       );
   }
@@ -571,7 +581,7 @@ const App: React.FC = () => {
             onHome={handleExit}
             onOpenApp={handleOpenAppById}
             onEditApp={handleEditApp}
-            onCloneApp={handleCloneApp}
+            onCloneApp={handleForkApp} // New prop for forking
          />
       );
   }
@@ -735,6 +745,7 @@ const App: React.FC = () => {
          isOpen={isPublishOpen} 
          onClose={() => setIsPublishOpen(false)}
          onOpenApp={handleOpenAppById}
+         editingAppId={editingAppId} // Pass ID to distinguish update vs create
          type={project.activeMode === DevMode.SQL ? DevMode.SQL : DevMode.PYTHON}
          code={project.activeMode === DevMode.SQL ? project.sqlCode : project.pythonCode}
          dbName={project.dbName}

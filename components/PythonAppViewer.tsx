@@ -212,26 +212,26 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
              {isMenuOpen && (
                <>
                  <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
-                 <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                     {app.source_notebook_id && onEdit && (
-                        <button 
-                           onClick={() => { onEdit(app); setIsMenuOpen(false); }}
-                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                        >
-                          <PencilLine size={16} className="text-gray-400" /> Edit
-                        </button>
+                        <>
+                            <button 
+                               onClick={() => { onEdit(app); setIsMenuOpen(false); }}
+                               className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                            >
+                              <PencilLine size={16} className="text-purple-500" /> Edit App
+                            </button>
+                        </>
                     )}
                     
-                    {onClone && (
-                        <button 
-                           onClick={handleCloneClick}
-                           disabled={isCloning}
-                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                        >
-                          {isCloning ? <RefreshCw size={16} className="animate-spin text-purple-500" /> : <GitFork size={16} className="text-gray-400" />} 
-                          Clone
-                        </button>
-                    )}
+                    <button 
+                       onClick={handleCloneClick}
+                       disabled={isCloning}
+                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                    >
+                      {isCloning ? <RefreshCw size={16} className="animate-spin text-gray-400" /> : <Database size={16} className="text-gray-400" />} 
+                      Clone to New Notebook
+                    </button>
 
                     <div className="h-px bg-gray-100 my-1"></div>
 

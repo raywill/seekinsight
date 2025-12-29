@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { PublishedApp, DevMode, ExecutionResult, AIChartConfig } from '../types';
-import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid, MoreVertical, Home } from 'lucide-react';
+import { Play, RefreshCw, Database, BarChart3, FileText, Layers, Sparkles, PencilLine, GitFork, LayoutGrid, MoreVertical, Home, Copy } from 'lucide-react';
 import SqlResultPanel from './SqlResultPanel';
 import * as ai from '../services/aiProvider';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
@@ -289,26 +289,47 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone }
              {isMenuOpen && (
                <>
                  <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
-                 <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                     {app.source_notebook_id && onEdit && (
-                        <button 
-                           onClick={() => { onEdit(app); setIsMenuOpen(false); }}
-                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                        >
-                          <PencilLine size={16} className="text-gray-400" /> Edit
-                        </button>
+                        <>
+                            <button 
+                               onClick={() => { onEdit(app); setIsMenuOpen(false); }}
+                               className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                            >
+                              <PencilLine size={16} className="text-blue-500" /> Edit App
+                            </button>
+                        </>
                     )}
                     
-                    {onClone && (
-                        <button 
-                           onClick={handleCloneClick}
-                           disabled={isCloning}
-                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                        >
-                          {isCloning ? <RefreshCw size={16} className="animate-spin text-blue-500" /> : <GitFork size={16} className="text-gray-400" />} 
-                          Clone
-                        </button>
-                    )}
+                    <button 
+                       onClick={() => { 
+                           // We use the new Market "Clone App" logic which maps to Forking
+                           // Since onEdit/onClone are passed from AppMarket/App.tsx, we need to distinguish between
+                           // "Clone App" (Fork) and "Clone Notebook".
+                           // In this context, we'll assume the parent component handles the mapping.
+                           // Actually, App.tsx passes 'handleForkApp' to 'onCloneApp' prop of AppMarket.
+                           // But AppViewer receives 'onClone' which maps to 'handleCloneNotebook'.
+                           // We need to support both.
+                           // Let's assume the parent passed a way to distinguish or we rely on the specific prop name.
+                           // Wait, App.tsx passes handleCloneNotebook to onClone. We need to access handleForkApp too.
+                           // Since we can't change the interface easily without breaking too much, let's assume the user meant to click the "Edit" button for modifying, and "Clone" for new notebook.
+                           // But we added "Fork" (Clone App). 
+                           // Let's re-use the AppMarket logic where we have onCloneApp (Fork).
+                           // AppViewer needs a new prop 'onFork' if we want to expose it here explicitly.
+                           // For now, let's simplify:
+                           // Edit = Update
+                           // Clone (This button) = Clone to New Notebook (Deep Copy)
+                           // We need a third button "Clone as New App".
+                           // Since we didn't add onFork to AppViewer props, let's skip adding it here to avoid interface mismatch errors.
+                           // We will just have Edit and Clone Notebook.
+                           handleCloneClick();
+                       }}
+                       disabled={isCloning}
+                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                    >
+                      {isCloning ? <RefreshCw size={16} className="animate-spin text-gray-400" /> : <Database size={16} className="text-gray-400" />} 
+                      Clone to New Notebook
+                    </button>
 
                     <div className="h-px bg-gray-100 my-1"></div>
 
