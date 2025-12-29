@@ -215,7 +215,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
 
         {/* CONSOLE TAB CONTENT */}
         {activeTab === 'console' && (
-            <div className={`p-4 font-mono text-[13px] leading-relaxed min-h-full ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
+            <div className={`h-full overflow-auto p-4 font-mono text-[13px] leading-relaxed ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
               {result?.logs?.map((log, idx) => (
                 <div key={idx} className="flex gap-3 py-0.5">
                   <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
