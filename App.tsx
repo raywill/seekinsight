@@ -176,11 +176,19 @@ const App: React.FC = () => {
     }
   }, [dbReady, project.tables.length, project.suggestions.length]);
 
-  const handleOpenNotebook = async (nb: Notebook) => {
+  const handleOpenNotebook = async (nb: Notebook, urlParams?: Record<string, string>) => {
     // Optimistically set state
     await loadNotebookSession(nb);
+    
+    // Construct URL Params
+    const params = new URLSearchParams();
+    params.set('nb', nb.id);
+    if (urlParams) {
+        Object.entries(urlParams).forEach(([k, v]) => params.set(k, v));
+    }
+
     // Push history
-    window.history.pushState({}, '', `?nb=${nb.id}`);
+    window.history.pushState({}, '', `?${params.toString()}`);
   };
 
   // Helper to extract state from app snapshot
@@ -254,7 +262,9 @@ const App: React.FC = () => {
         const originalNb = notebooks.find(nb => nb.id === app.source_notebook_id);
 
         if (originalNb) {
-            await handleOpenNotebook(originalNb);
+            // Updated: Pass source and app_id for logging/analytics
+            await handleOpenNotebook(originalNb, { source: 'app_edit', app_id: app.id });
+            
             // Restore code/prompt/results on top of the opened notebook state
             setProject(prev => restoreAppState(app, prev));
             
@@ -278,7 +288,7 @@ const App: React.FC = () => {
               suggestionsJson
           );
           
-          await handleOpenNotebook(newNotebook);
+          await handleOpenNotebook(newNotebook, { source: 'app_clone', ref_app_id: app.id });
           // Restore code/prompt/results on top of the new notebook state
           setProject(prev => restoreAppState(app, prev));
 
@@ -566,7 +576,7 @@ const App: React.FC = () => {
       );
   }
 
-  if (!dbReady && !currentNotebook) return <Lobby onOpen={handleOpenNotebook} onOpenMarket={handleOpenMarket} />;
+  if (!dbReady && !currentNotebook) return <Lobby onOpen={(nb) => handleOpenNotebook(nb)} onOpenMarket={handleOpenMarket} />;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
