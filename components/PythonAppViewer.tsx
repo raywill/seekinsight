@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PublishedApp, ExecutionResult } from '../types';
-import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home, Share2, Copy, Check, Link as LinkIcon, X } from 'lucide-react';
+import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home, Share2, Copy, Check, Link as LinkIcon, X, Loader2 } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
+import { createShareSnapshot, getShareSnapshot } from '../services/appService';
 
 interface Props {
   app: PublishedApp;
@@ -148,6 +149,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
   
   // Share State
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   
   const userInteracted = useRef(false);
@@ -156,50 +158,59 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
   useEffect(() => {
     userInteracted.current = false; // Reset interaction flag on app load
     
-    if (app.params_schema) {
-      try {
-        const parsedSchema = JSON.parse(app.params_schema);
-        setSchema(parsedSchema);
-        
-        // 1. Initialize values based on schema defaults
-        const initialValues: Record<string, any> = {};
-        for (const [key, config] of Object.entries(parsedSchema)) {
-          initialValues[key] = (config as any).default;
+    // Async function to handle hydration
+    const initialize = async () => {
+        let mergedValues: Record<string, any> = {};
+        let parsedSchema: Record<string, any> = {};
+
+        if (app.params_schema) {
+            try {
+                parsedSchema = JSON.parse(app.params_schema);
+                setSchema(parsedSchema);
+                
+                // 1. Initialize values based on schema defaults
+                for (const [key, config] of Object.entries(parsedSchema)) {
+                    mergedValues[key] = (config as any).default;
+                }
+            } catch (e) {
+                console.error("Failed to parse params schema", e);
+            }
         }
 
-        // 2. Hydrate from URL (share_params) if present
+        // 2. Hydrate from Backend Snapshot ('s' param)
         const searchParams = new URLSearchParams(window.location.search);
-        const pState = searchParams.get('share_params');
+        const shareId = searchParams.get('s') || searchParams.get('share');
         
-        let mergedValues = initialValues;
+        // Backward compatibility for 'share_params' or 'p_state' could be here, but we are fully migrating.
         
-        if (pState) {
-          try {
-             const urlValues = JSON.parse(pState);
-             // Verify keys exist in schema to prevent pollution
-             const validUrlValues: Record<string, any> = {};
-             Object.keys(urlValues).forEach(k => {
-                if (parsedSchema[k]) {
-                   validUrlValues[k] = urlValues[k];
+        if (shareId) {
+            try {
+                const snapshotParams = await getShareSnapshot(shareId);
+                if (snapshotParams) {
+                    // Verify keys exist in schema to prevent pollution
+                    const validValues: Record<string, any> = {};
+                    Object.keys(snapshotParams).forEach(k => {
+                       if (parsedSchema[k]) {
+                          validValues[k] = snapshotParams[k];
+                       }
+                    });
+                    
+                    if (Object.keys(validValues).length > 0) {
+                        mergedValues = { ...mergedValues, ...validValues };
+                        userInteracted.current = true; 
+                    }
                 }
-             });
-             
-             if (Object.keys(validUrlValues).length > 0) {
-                 mergedValues = { ...initialValues, ...validUrlValues };
-                 // Mark as interacted so it triggers a run even if it matches snapshot defaults
-                 userInteracted.current = true; 
-             }
-          } catch (e) {
-             console.warn("Failed to parse share_params from URL", e);
-          }
+            } catch (e) {
+                console.warn("Failed to load share snapshot", e);
+            }
         }
 
         setParamValues(mergedValues);
-      } catch (e) {
-        console.error("Failed to parse params schema", e);
-      }
-    }
+    };
 
+    initialize();
+
+    // Load static result snapshot if available
     if (app.snapshot_json) {
       try {
         const parsed = JSON.parse(app.snapshot_json);
@@ -217,18 +228,31 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
     setParamValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleShareClick = () => {
-     // Construct URL
-     const url = new URL(window.location.href);
-     // Ensure we are linking to this app
-     url.searchParams.set('app', app.id);
-     // Encode current parameters
-     // using 'share_params' (Parameter State) to avoid conflicts
-     url.searchParams.set('share_params', JSON.stringify(paramValues));
-     
-     setShareUrl(url.toString());
-     setIsShareOpen(true);
-     setIsMenuOpen(false);
+  const handleShareClick = async () => {
+     if (isGeneratingLink) return;
+     setIsGeneratingLink(true);
+     try {
+         // Create Snapshot on Backend
+         const shareId = await createShareSnapshot(app.id, paramValues);
+         
+         // Construct Clean URL
+         const url = new URL(window.location.href);
+         url.searchParams.set('app', app.id);
+         url.searchParams.set('s', shareId);
+         
+         // Remove legacy params if any
+         url.searchParams.delete('p_state');
+         url.searchParams.delete('share_params');
+         
+         setShareUrl(url.toString());
+         setIsShareOpen(true);
+         setIsMenuOpen(false);
+     } catch (e) {
+         alert("Failed to generate share link.");
+         console.error(e);
+     } finally {
+         setIsGeneratingLink(false);
+     }
   };
 
   const handleRun = useCallback(async () => {
@@ -326,10 +350,11 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
           <div className="relative flex items-center gap-2">
              <button
                 onClick={handleShareClick}
+                disabled={isGeneratingLink}
                 className={`p-2 rounded-full transition-colors ${isShareOpen ? 'bg-purple-50 text-purple-600' : 'text-gray-400 hover:bg-gray-100'}`}
                 title="Share App State"
              >
-                <Share2 size={20} />
+                {isGeneratingLink ? <Loader2 size={20} className="animate-spin text-purple-500" /> : <Share2 size={20} />}
              </button>
 
              {/* Share Popover positioned relative to the button group */}

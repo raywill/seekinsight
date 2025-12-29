@@ -149,3 +149,20 @@ export const cloneNotebook = async (
     if (!res.ok) throw new Error("Clone failed");
     return await res.json();
 }
+
+export const createShareSnapshot = async (appId: string, params: any): Promise<string> => {
+    const res = await fetch(`${GATEWAY_URL}/shares`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId, params })
+    });
+    if (!res.ok) throw new Error("Failed to create share link");
+    const data = await res.json();
+    return data.id;
+};
+
+export const getShareSnapshot = async (shareId: string): Promise<any> => {
+    const res = await fetch(`${GATEWAY_URL}/shares/${shareId}`);
+    if (!res.ok) return null;
+    return await res.json();
+};

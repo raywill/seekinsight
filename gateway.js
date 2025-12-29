@@ -29,6 +29,7 @@ function getPythonExecutable() {
 const SYSTEM_DB = 'seekinsight';
 const NOTEBOOK_LIST_TABLE = 'seekinsight_notebook_list';
 const PUBLISHED_APPS_TABLE = 'seekinsight_published_apps';
+const SHARE_SNAPSHOTS_TABLE = 'seekinsight_share_snapshots';
 
 const pools = new Map();
 
@@ -300,6 +301,16 @@ async function initSystem() {
     )
   `);
 
+  // Share Snapshots Table
+  await sysPool.query(`
+    CREATE TABLE IF NOT EXISTS \`${SHARE_SNAPSHOTS_TABLE}\` (
+      id VARCHAR(12) PRIMARY KEY,
+      app_id VARCHAR(50),
+      params_json TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migration: Add views column to Apps if missing
   try {
     const [columns] = await sysPool.query(`SHOW COLUMNS FROM \`${PUBLISHED_APPS_TABLE}\` LIKE 'views'`);
@@ -335,6 +346,44 @@ async function initSystem() {
     }
   }
 }
+
+// --- Share Snapshot API ---
+
+app.post('/shares', async (req, res) => {
+  try {
+    const { appId, params } = req.body;
+    if (!appId) return res.status(400).json({ message: 'App ID required' });
+    
+    // Generate a short 6-char ID
+    const id = crypto.randomBytes(4).toString('hex').substring(0, 8); 
+    
+    const pool = await getPool(SYSTEM_DB);
+    await pool.query(
+      `INSERT INTO \`${SHARE_SNAPSHOTS_TABLE}\` (id, app_id, params_json) VALUES (?, ?, ?)`,
+      [id, appId, JSON.stringify(params || {})]
+    );
+    
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error("[Shares POST Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/shares/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = await getPool(SYSTEM_DB);
+    const [rows] = await pool.query(`SELECT params_json FROM \`${SHARE_SNAPSHOTS_TABLE}\` WHERE id = ?`, [id]);
+    
+    if (rows.length === 0) return res.status(404).json({ message: 'Snapshot not found' });
+    
+    res.json(JSON.parse(rows[0].params_json || '{}'));
+  } catch (err) {
+    console.error("[Shares GET Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // --- Apps API ---
 

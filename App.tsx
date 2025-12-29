@@ -18,11 +18,13 @@ import AppViewer from './components/AppViewer';
 import Lobby from './components/Lobby';
 import AppHeader from './components/AppHeader'; // New
 import { useFileUpload } from './hooks/useFileUpload'; // New
+import { FileQuestion, LayoutGrid } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentNotebook, setCurrentNotebook] = useState<Notebook | null>(null);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [viewingApp, setViewingApp] = useState<PublishedApp | null>(null);
+  const [appNotFound, setAppNotFound] = useState(false); // New: Track 404 state
   const [editingAppId, setEditingAppId] = useState<string | null>(null); // New: Track if we are updating an existing app
   
   const [dbReady, setDbReady] = useState(false);
@@ -109,7 +111,13 @@ const App: React.FC = () => {
        // Only fetch if strictly needed to avoid flicker
        if (!viewingApp || viewingApp.id !== appId) {
            const app = await fetchApp(appId);
-           if (app) setViewingApp(app);
+           if (app) {
+             setViewingApp(app);
+             setAppNotFound(false);
+           } else {
+             setViewingApp(null);
+             setAppNotFound(true);
+           }
        }
        setIsMarketOpen(false);
        // We don't necessarily close the notebook if one was open, 
@@ -117,6 +125,7 @@ const App: React.FC = () => {
        return;
     } else {
        if (viewingApp) setViewingApp(null);
+       setAppNotFound(false);
     }
 
     // 2. Market View
@@ -158,6 +167,7 @@ const App: React.FC = () => {
        setIsMarketOpen(false);
        setHasNewSuggestions(false);
        setEditingAppId(null);
+       setAppNotFound(false);
     }
   }, [currentNotebook, viewingApp, gatewayUrl]);
 
@@ -351,11 +361,13 @@ const App: React.FC = () => {
     setIsMarketOpen(false); // Fix: Force close market
     setViewingApp(null); // Fix: Force close app viewer
     setEditingAppId(null);
+    setAppNotFound(false);
     // Push history
     window.history.pushState({}, '', '/');
   };
   
   const handleOpenMarket = () => {
+      setAppNotFound(false);
       setIsMarketOpen(true);
       window.history.pushState({}, '', '?view=market');
   }
@@ -374,15 +386,20 @@ const App: React.FC = () => {
       const app = await fetchApp(appId);
       if (app) {
           setViewingApp(app);
+          setAppNotFound(false);
           // Also increment view here if coming directly from URL, though ideally API handles dedup or gateway call
           // But since app viewer doesn't have ID until fetch, we might just rely on user clicking or specific analytic call
           fetch(`${gatewayUrl}/apps/${appId}/view`, { method: 'POST' }).catch(console.warn);
           window.history.pushState({}, '', `?app=${appId}`); 
+      } else {
+          setAppNotFound(true);
+          window.history.pushState({}, '', `?app=${appId}`); // Keep URL to show error for this specific ID
       }
   }
   
   const handleCloseAppViewer = () => {
       setViewingApp(null);
+      setAppNotFound(false);
       // Usually apps are viewed from Market, so return to market
       setIsMarketOpen(true);
       window.history.pushState({}, '', '?view=market');
@@ -596,6 +613,27 @@ const App: React.FC = () => {
     setProject(prev => ({ ...prev, suggestions: updated }));
     syncSuggestionsToDb(updated);
   };
+
+  if (appNotFound) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
+        <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm border border-gray-100">
+          <FileQuestion size={40} className="text-gray-300" /> 
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">App Not Found</h2>
+        <p className="text-sm text-gray-500 font-medium mb-8 text-center max-w-xs leading-relaxed">
+          The app you are looking for might have been deleted or the link is invalid.
+        </p>
+        <button 
+          onClick={handleOpenMarket}
+          className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2 text-xs uppercase tracking-widest"
+        >
+          <LayoutGrid size={16} />
+          Browse Marketplace
+        </button>
+      </div>
+    );
+  }
 
   if (viewingApp) {
       return (
