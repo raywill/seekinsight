@@ -12,6 +12,7 @@ interface Props {
   onHome?: () => void;
   onEdit?: (app: PublishedApp) => void;
   onClone?: (app: PublishedApp) => void;
+  onFork?: (app: PublishedApp) => void;
 }
 
 const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#f43f5e', '#64748b'];
@@ -165,7 +166,7 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
   );
 };
 
-const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone }) => {
+const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, onFork }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [analysisReport, setAnalysisReport] = useState<string>('');
   const [isRunning, setIsRunning] = useState(false);
@@ -300,30 +301,18 @@ const SqlAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone }
                             </button>
                         </>
                     )}
+
+                    {onFork && (
+                        <button 
+                           onClick={() => { onFork(app); setIsMenuOpen(false); }}
+                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                          <GitFork size={16} className="text-green-500" /> Clone App
+                        </button>
+                    )}
                     
                     <button 
-                       onClick={() => { 
-                           // We use the new Market "Clone App" logic which maps to Forking
-                           // Since onEdit/onClone are passed from AppMarket/App.tsx, we need to distinguish between
-                           // "Clone App" (Fork) and "Clone Notebook".
-                           // In this context, we'll assume the parent component handles the mapping.
-                           // Actually, App.tsx passes 'handleForkApp' to 'onCloneApp' prop of AppMarket.
-                           // But AppViewer receives 'onClone' which maps to 'handleCloneNotebook'.
-                           // We need to support both.
-                           // Let's assume the parent passed a way to distinguish or we rely on the specific prop name.
-                           // Wait, App.tsx passes handleCloneNotebook to onClone. We need to access handleForkApp too.
-                           // Since we can't change the interface easily without breaking too much, let's assume the user meant to click the "Edit" button for modifying, and "Clone" for new notebook.
-                           // But we added "Fork" (Clone App). 
-                           // Let's re-use the AppMarket logic where we have onCloneApp (Fork).
-                           // AppViewer needs a new prop 'onFork' if we want to expose it here explicitly.
-                           // For now, let's simplify:
-                           // Edit = Update
-                           // Clone (This button) = Clone to New Notebook (Deep Copy)
-                           // We need a third button "Clone as New App".
-                           // Since we didn't add onFork to AppViewer props, let's skip adding it here to avoid interface mismatch errors.
-                           // We will just have Edit and Clone Notebook.
-                           handleCloneClick();
-                       }}
+                       onClick={handleCloneClick}
                        disabled={isCloning}
                        className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
                     >

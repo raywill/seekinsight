@@ -10,13 +10,14 @@ interface Props {
   onHome?: () => void;
   onEdit?: (app: PublishedApp) => void;
   onClone?: (app: PublishedApp) => void;
+  onFork?: (app: PublishedApp) => void;
 }
 
-const AppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone }) => {
+const AppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, onFork }) => {
   if (app.type === DevMode.SQL) {
-    return <SqlAppViewer app={app} onClose={onClose} onHome={onHome} onEdit={onEdit} onClone={onClone} />;
+    return <SqlAppViewer app={app} onClose={onClose} onHome={onHome} onEdit={onEdit} onClone={onClone} onFork={onFork} />;
   }
-  return <PythonAppViewer app={app} onClose={onClose} onHome={onHome} onEdit={onEdit} onClone={onClone} />;
+  return <PythonAppViewer app={app} onClose={onClose} onHome={onHome} onEdit={onEdit} onClone={onClone} onFork={onFork} />;
 };
 
 export default AppViewer;

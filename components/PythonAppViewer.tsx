@@ -10,6 +10,7 @@ interface Props {
   onHome?: () => void;
   onEdit?: (app: PublishedApp) => void;
   onClone?: (app: PublishedApp) => void;
+  onFork?: (app: PublishedApp) => void;
 }
 
 // UI Components for Dynamic Form
@@ -62,7 +63,7 @@ const TextInput = ({ label, value, onChange }: any) => (
   </div>
 );
 
-const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone }) => {
+const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, onFork }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [paramValues, setParamValues] = useState<Record<string, any>>({});
   const [schema, setSchema] = useState<Record<string, any>>({});
@@ -222,6 +223,15 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
                               <PencilLine size={16} className="text-purple-500" /> Edit App
                             </button>
                         </>
+                    )}
+
+                    {onFork && (
+                        <button 
+                           onClick={() => { onFork(app); setIsMenuOpen(false); }}
+                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                          <GitFork size={16} className="text-purple-500" /> Clone App
+                        </button>
                     )}
                     
                     <button 

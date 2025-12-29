@@ -569,7 +569,8 @@ const App: React.FC = () => {
              onClose={handleCloseAppViewer}
              onHome={handleExit}
              onEdit={handleEditApp}
-             onClone={handleCloneNotebook} // Map to new handler
+             onFork={handleForkApp} // Pass handleForkApp here
+             onClone={handleCloneNotebook} 
           />
       );
   }
@@ -581,7 +582,7 @@ const App: React.FC = () => {
             onHome={handleExit}
             onOpenApp={handleOpenAppById}
             onEditApp={handleEditApp}
-            onCloneApp={handleForkApp} // New prop for forking
+            onCloneApp={handleForkApp} 
          />
       );
   }
