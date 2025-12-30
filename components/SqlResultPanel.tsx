@@ -213,12 +213,12 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
       </div>
 
       <div className="relative z-10 flex-1 relative overflow-hidden bg-white">
-         {/* Updated Minimal Capsule Loader */}
+         {/* Updated Minimal Capsule Loader (More Transparent) */}
          {isLoading && (
             <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-                <div className="bg-white/90 border border-blue-100/50 shadow-lg shadow-blue-500/5 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
-                    <RefreshCw size={14} className="text-blue-500 animate-spin" />
-                    <span className="text-[11px] font-black text-gray-600 uppercase tracking-wider">Executing Query...</span>
+                <div className="bg-white/60 border border-blue-100/50 shadow-lg shadow-blue-500/5 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
+                    <RefreshCw size={14} className="text-blue-600 animate-spin" />
+                    <span className="text-[11px] font-black text-gray-700 uppercase tracking-wider">Executing Query...</span>
                 </div>
             </div>
          )}
