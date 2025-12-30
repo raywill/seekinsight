@@ -1,9 +1,11 @@
+
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import * as gemini from "./geminiService";
 import * as aliyun from "./aliyunService";
 
 export interface AiService {
   generateCode(prompt: string, mode: DevMode, tables: TableMetadata[]): Promise<{ code: string; thought: string }>;
+  refineCode(prompt: string, mode: DevMode, tables: TableMetadata[], currentCode: string): Promise<{ code: string; thought: string }>;
   debugCode(prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string): Promise<{ code: string; thought: string }>;
   inferColumnMetadata(tableName: string, data: any[]): Promise<Record<string, string>>;
   analyzeHeaders(sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }>;
@@ -23,6 +25,9 @@ const getProvider = (): AiService => {
 
 export const generateCode = (prompt: string, mode: DevMode, tables: TableMetadata[]) => 
   getProvider().generateCode(prompt, mode, tables);
+
+export const refineCode = (prompt: string, mode: DevMode, tables: TableMetadata[], currentCode: string) => 
+  getProvider().refineCode(prompt, mode, tables, currentCode);
 
 export const debugCode = (prompt: string, mode: DevMode, tables: TableMetadata[], code: string, error: string) => 
   getProvider().debugCode(prompt, mode, tables, code, error);

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
@@ -123,6 +124,29 @@ export const generateCode = async (
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,
+    config: {
+      systemInstruction: systemInstruction,
+      temperature: 0.1,
+    },
+  });
+
+  return parseCoTResponse(response.text || "");
+};
+
+export const refineCode = async (
+  prompt: string, 
+  mode: DevMode, 
+  tables: TableMetadata[],
+  currentCode: string
+): Promise<{ code: string; thought: string }> => {
+  const systemInstruction = SYSTEM_PROMPTS.REFINE_CODE(mode, tables);
+  const userContent = USER_PROMPTS.REFINE_CONTEXT(prompt, currentCode, mode);
+
+  await logPrompt(`REFINE_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: userContent,
     config: {
       systemInstruction: systemInstruction,
       temperature: 0.1,

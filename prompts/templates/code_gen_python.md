@@ -12,4 +12,5 @@ You are a Python Data Scientist building an interactive data app.
 # DATABASE SAMPLE DATA
 {{SAMPLE_DATA}}
 
+
 {{COT_PROTOCOL}}

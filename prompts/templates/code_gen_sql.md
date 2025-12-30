@@ -9,4 +9,5 @@ You are an expert SQL Analyst.
 # DATABASE SAMPLE DATA
 {{SAMPLE_DATA}}
 
+
 {{COT_PROTOCOL}}

@@ -3,7 +3,7 @@ import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor, { BaseCodeEditorRef } from './BaseCodeEditor';
 import SqlResultPanel from './SqlResultPanel';
-import { Database, Play, Sparkles, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb } from 'lucide-react';
+import { Database, Play, Sparkles, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb, Pencil } from 'lucide-react';
 
 interface Props {
   code: string;
@@ -268,6 +268,8 @@ const SqlWorkspace: React.FC<Props> = ({
     }
   };
 
+  const hasCode = code && code.length > 20 && !code.trim().startsWith("-- Write SQL here");
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
       <div className="px-8 py-4 bg-blue-50/30 border-b border-blue-100/50 flex items-start gap-3">
@@ -279,7 +281,7 @@ const SqlWorkspace: React.FC<Props> = ({
             onBlur={() => setIsPromptFocused(false)}
             onChange={(e) => onPromptChange(e.target.value)}
             onKeyDown={handlePromptKeyDown}
-            placeholder="Ask AI to write SQL... (Cmd+Enter to generate)"
+            placeholder={hasCode ? "Ask AI to modify this SQL... (Cmd+Enter)" : "Ask AI to write SQL... (Cmd+Enter)"}
             rows={1}
             className="w-full pl-10 pr-40 py-2 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900"
             style={{ 
@@ -294,8 +296,8 @@ const SqlWorkspace: React.FC<Props> = ({
             disabled={isAiGenerating || isAiFixing || !prompt} 
             className="absolute right-2 top-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-blue-700 transition-colors disabled:opacity-50 z-20"
           >
-            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-            Generate SQL
+            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : (hasCode ? <Pencil size={12} /> : <Sparkles size={12} />)}
+            {hasCode ? 'Refine SQL' : 'Generate SQL'}
           </button>
         </div>
         

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor from './BaseCodeEditor';
 import PythonResultPanel from './PythonResultPanel';
-import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw, Lightbulb } from 'lucide-react';
+import { Terminal, Play, Sparkles, RefreshCcw, Box, RotateCcw, Lightbulb, Pencil } from 'lucide-react';
 
 interface Props {
   code: string;
@@ -98,6 +98,8 @@ const PythonWorkspace: React.FC<Props> = ({
     prevLoading.current = isAiGenerating || isAiFixing;
   }, [isAiGenerating, isAiFixing, showUndo]);
 
+  const hasCode = code && code.length > 20 && !code.trim().startsWith("# Write Python here");
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
       <div className="px-8 py-4 bg-purple-50/30 border-b border-purple-100/50 flex items-start gap-3">
@@ -109,7 +111,7 @@ const PythonWorkspace: React.FC<Props> = ({
             onBlur={() => setIsPromptFocused(false)}
             onChange={(e) => onPromptChange(e.target.value)}
             onKeyDown={handlePromptKeyDown}
-            placeholder="Ask AI for a Python script... (Cmd+Enter to generate)"
+            placeholder={hasCode ? "Ask AI to modify this script... (Cmd+Enter)" : "Ask AI for a Python script... (Cmd+Enter)"}
             rows={1}
             className="w-full pl-10 pr-40 py-2 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900"
             style={{ 
@@ -124,8 +126,8 @@ const PythonWorkspace: React.FC<Props> = ({
             disabled={isAiGenerating || isAiFixing || !prompt} 
             className="absolute right-2 top-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-purple-700 transition-colors disabled:opacity-50 z-20"
           >
-            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />} 
-            Script with AI
+            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : (hasCode ? <Pencil size={12} /> : <Sparkles size={12} />)} 
+            {hasCode ? 'Refine Script' : 'Script with AI'}
           </button>
         </div>
 

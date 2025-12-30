@@ -1,3 +1,4 @@
+
 import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 
@@ -155,6 +156,21 @@ export const generateCode = async (prompt: string, mode: DevMode, tables: TableM
   ];
 
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
+
+  const responseText = await callAliyun(messages, 0.1);
+  return parseCoTResponse(responseText);
+};
+
+export const refineCode = async (prompt: string, mode: DevMode, tables: TableMetadata[], currentCode: string): Promise<{ code: string; thought: string }> => {
+  const systemInstruction = SYSTEM_PROMPTS.REFINE_CODE(mode, tables);
+  const userContent = USER_PROMPTS.REFINE_CONTEXT(prompt, currentCode, mode);
+
+  const messages = [
+    { role: "system", content: systemInstruction },
+    { role: "user", content: userContent }
+  ];
+
+  await logPrompt(`REFINE_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const responseText = await callAliyun(messages, 0.1);
   return parseCoTResponse(responseText);

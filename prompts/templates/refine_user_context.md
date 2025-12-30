@@ -1,0 +1,8 @@
+
+# 1. CURRENT CODE
+```{{LANGUAGE}}
+{{CODE}}
+```
+
+# 2. INSTRUCTION
+{{INSTRUCTION}}

@@ -462,13 +462,24 @@ const App: React.FC = () => {
   const handleSqlAiGenerate = async (promptOverride?: string) => {
     const promptToUse = promptOverride || project.sqlAiPrompt;
     if (!promptToUse) return;
+    
     setProject(prev => ({ ...prev, isSqlAiGenerating: true, lastSqlCodeBeforeAi: prev.sqlCode, sqlAiThought: null }));
+    
     try {
-      const { code, thought } = await ai.generateCode(promptToUse, DevMode.SQL, project.tables);
+      let result;
+      // Heuristic: If code is longer than 20 chars and doesn't look like default comment
+      const isRefinement = project.sqlCode && project.sqlCode.length > 20 && !project.sqlCode.trim().startsWith("-- Write SQL here");
+      
+      if (isRefinement) {
+          result = await ai.refineCode(promptToUse, DevMode.SQL, project.tables, project.sqlCode);
+      } else {
+          result = await ai.generateCode(promptToUse, DevMode.SQL, project.tables);
+      }
+
       setProject(prev => ({ 
           ...prev, 
-          sqlCode: code, 
-          sqlAiThought: thought, // Store thought
+          sqlCode: result.code, 
+          sqlAiThought: result.thought, // Store thought
           isSqlAiGenerating: false 
       }));
     } catch (err) {
@@ -479,13 +490,24 @@ const App: React.FC = () => {
   const handlePythonAiGenerate = async (promptOverride?: string) => {
     const promptToUse = promptOverride || project.pythonAiPrompt;
     if (!promptToUse) return;
+    
     setProject(prev => ({ ...prev, isPythonAiGenerating: true, lastPythonCodeBeforeAi: prev.pythonCode, pythonAiThought: null }));
+    
     try {
-      const { code, thought } = await ai.generateCode(promptToUse, DevMode.PYTHON, project.tables);
+      let result;
+      // Heuristic: If code is longer than 20 chars and doesn't look like default comment
+      const isRefinement = project.pythonCode && project.pythonCode.length > 20 && !project.pythonCode.trim().startsWith("# Write Python here");
+
+      if (isRefinement) {
+          result = await ai.refineCode(promptToUse, DevMode.PYTHON, project.tables, project.pythonCode);
+      } else {
+          result = await ai.generateCode(promptToUse, DevMode.PYTHON, project.tables);
+      }
+
       setProject(prev => ({ 
           ...prev, 
-          pythonCode: code, 
-          pythonAiThought: thought, // Store thought
+          pythonCode: result.code, 
+          pythonAiThought: result.thought, // Store thought
           isPythonAiGenerating: false 
       }));
     } catch (err) {

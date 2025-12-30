@@ -10,6 +10,9 @@ import languageReq from '../prompts/fragments/language_req.md?raw';
 // Import Templates
 import codeGenPython from '../prompts/templates/code_gen_python.md?raw';
 import codeGenSql from '../prompts/templates/code_gen_sql.md?raw';
+import refinePython from '../prompts/templates/refine_python.md?raw';
+import refineSql from '../prompts/templates/refine_sql.md?raw';
+import refineUserContext from '../prompts/templates/refine_user_context.md?raw';
 import debugPython from '../prompts/templates/debug_python.md?raw';
 import debugSql from '../prompts/templates/debug_sql.md?raw';
 import debugUserContext from '../prompts/templates/debug_user_context.md?raw';
@@ -84,6 +87,12 @@ export const SYSTEM_PROMPTS = {
     return fillTemplate(template, { SCHEMA: schema, SAMPLE_DATA: sampleData });
   },
 
+  REFINE_CODE: (mode: DevMode, tables: TableMetadata[]) => {
+    const schema = formatSchema(tables);
+    const template = mode === DevMode.SQL ? refineSql : refinePython;
+    return fillTemplate(template, { SCHEMA: schema });
+  },
+
   DEBUG_CODE: (mode: DevMode, tables: TableMetadata[]) => {
     const schema = formatSchema(tables);
     const template = mode === DevMode.SQL ? debugSql : debugPython;
@@ -118,6 +127,14 @@ export const SYSTEM_PROMPTS = {
 };
 
 export const USER_PROMPTS = {
+  REFINE_CONTEXT: (instruction: string, code: string, mode: DevMode) => {
+    return fillTemplate(refineUserContext, {
+        INSTRUCTION: instruction,
+        CODE: code,
+        LANGUAGE: mode === DevMode.SQL ? 'sql' : 'python'
+    });
+  },
+
   DEBUG_CONTEXT: (userGoal: string, code: string, errorLog: string) => {
     return fillTemplate(debugUserContext, {
       USER_GOAL: userGoal,
