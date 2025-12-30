@@ -3,7 +3,7 @@ import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor, { BaseCodeEditorRef } from './BaseCodeEditor';
 import SqlResultPanel from './SqlResultPanel';
-import { Database, Play, Sparkles, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb, Pencil } from 'lucide-react';
+import { Database, Play, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb, ArrowUp } from 'lucide-react';
 
 interface Props {
   code: string;
@@ -283,21 +283,30 @@ const SqlWorkspace: React.FC<Props> = ({
             onKeyDown={handlePromptKeyDown}
             placeholder={hasCode ? "Ask AI to modify this SQL... (Cmd+Enter)" : "Ask AI to write SQL... (Cmd+Enter)"}
             rows={1}
-            className="w-full pl-10 pr-40 py-2 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900"
+            className="w-full pl-10 pr-16 py-2 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900 placeholder:text-gray-400"
             style={{ 
                 minHeight: '44px',
             }}
           />
           <Database size={16} className="absolute left-3.5 top-3.5 text-blue-400 z-10 pointer-events-none" />
+          
+          {/* Refined Send Button */}
           <button 
             onClick={onTriggerAi} 
-            // Prevent default on mousedown to avoid blurring the textarea instantly when clicking
             onMouseDown={(e) => e.preventDefault()}
             disabled={isAiGenerating || isAiFixing || !prompt} 
-            className="absolute right-2 top-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-blue-700 transition-colors disabled:opacity-50 z-20"
+            className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all flex items-center justify-center z-20 ${
+              prompt 
+                ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:scale-105' 
+                : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+            }`}
+            title={hasCode ? "Refine SQL" : "Generate SQL"}
           >
-            {isAiGenerating ? <RefreshCcw size={12} className="animate-spin" /> : (hasCode ? <Pencil size={12} /> : <Sparkles size={12} />)}
-            {hasCode ? 'Refine SQL' : 'Generate SQL'}
+            {isAiGenerating || isAiFixing ? (
+                <RefreshCcw size={16} className="animate-spin" />
+            ) : (
+                <ArrowUp size={18} strokeWidth={3} />
+            )}
           </button>
         </div>
         
@@ -326,7 +335,7 @@ const SqlWorkspace: React.FC<Props> = ({
                 <div className="max-w-4xl mx-auto space-y-6">
                     <div className="flex items-center gap-3 pb-4 border-b border-yellow-100">
                         <div className="p-2 bg-yellow-100 rounded-lg text-yellow-700">
-                            <Sparkles size={18} />
+                            <Lightbulb size={18} />
                         </div>
                         <div>
                             <h3 className="text-sm font-black text-yellow-800 uppercase tracking-widest">AI Reasoning Chain</h3>
