@@ -80,7 +80,8 @@ const SqlWorkspace: React.FC<Props> = ({
   }, [prompt, isPromptFocused]);
 
   const handlePromptKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Only trigger on Cmd+Enter or Ctrl+Enter to avoid IME conflict
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         onTriggerAi();
     }
@@ -278,7 +279,7 @@ const SqlWorkspace: React.FC<Props> = ({
             onBlur={() => setIsPromptFocused(false)}
             onChange={(e) => onPromptChange(e.target.value)}
             onKeyDown={handlePromptKeyDown}
-            placeholder="Ask AI to write SQL... e.g. Show revenue trends by segment"
+            placeholder="Ask AI to write SQL... (Cmd+Enter to generate)"
             rows={1}
             className="w-full pl-10 pr-40 py-2 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900"
             style={{ 
