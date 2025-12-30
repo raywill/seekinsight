@@ -138,14 +138,12 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
       {/* Overlay Backdrop when fullscreen to focus attention (optional visual tweak) */}
       {isFullscreen && <div className="absolute inset-0 bg-white z-0" />}
 
-      {/* Loading Overlay - Non-blocking */}
+      {/* Updated Minimal Capsule Loader */}
       {isLoading && (
         <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-             <div className="bg-white/90 border border-purple-100 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-sm rounded-2xl p-5 flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
-                 <div className="p-2 bg-purple-50 rounded-full">
-                    <RefreshCw size={20} className="animate-spin text-purple-600" />
-                 </div>
-                 <p className="text-[10px] font-black uppercase tracking-widest text-purple-900">Executing Runtime...</p>
+             <div className="bg-white/90 border border-purple-100/50 shadow-lg shadow-purple-500/5 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
+                <RefreshCw size={14} className="text-purple-500 animate-spin" />
+                <span className="text-[11px] font-black text-gray-600 uppercase tracking-wider">Running Script...</span>
              </div>
         </div>
       )}
