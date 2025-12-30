@@ -54,6 +54,10 @@ const App: React.FC = () => {
     sqlAiPrompt: '',
     pythonAiPrompt: '',
     
+    // Track History
+    lastSqlAiPrompt: null,
+    lastPythonAiPrompt: null,
+    
     sqlAiThought: null, // Initialize
     pythonAiThought: null, // Initialize
 
@@ -281,6 +285,8 @@ const App: React.FC = () => {
       }
       
       const codeWithComments = commentBlock + cleanCode;
+      
+      const restoredPrompt = (app.prompt || app.description || app.title);
 
       return {
           ...prev,
@@ -289,8 +295,12 @@ const App: React.FC = () => {
           sqlCode: app.type === DevMode.SQL ? codeWithComments : prev.sqlCode,
           pythonCode: app.type === DevMode.PYTHON ? codeWithComments : prev.pythonCode,
           // Use stored prompt if available, fallback to description/title
-          sqlAiPrompt: app.type === DevMode.SQL ? (app.prompt || app.description || app.title) : prev.sqlAiPrompt,
-          pythonAiPrompt: app.type === DevMode.PYTHON ? (app.prompt || app.description || app.title) : prev.pythonAiPrompt,
+          sqlAiPrompt: app.type === DevMode.SQL ? restoredPrompt : prev.sqlAiPrompt,
+          pythonAiPrompt: app.type === DevMode.PYTHON ? restoredPrompt : prev.pythonAiPrompt,
+          
+          // Also set history state so subsequent refinements have context
+          lastSqlAiPrompt: app.type === DevMode.SQL ? restoredPrompt : prev.lastSqlAiPrompt,
+          lastPythonAiPrompt: app.type === DevMode.PYTHON ? restoredPrompt : prev.lastPythonAiPrompt,
           
           derivedAppTitle: app.title, // Priority: Store original app title
 
@@ -471,7 +481,14 @@ const App: React.FC = () => {
       const isRefinement = project.sqlCode && project.sqlCode.length > 20 && !project.sqlCode.trim().startsWith("-- Write SQL here");
       
       if (isRefinement) {
-          result = await ai.refineCode(promptToUse, DevMode.SQL, project.tables, project.sqlCode);
+          result = await ai.refineCode(
+              promptToUse, 
+              DevMode.SQL, 
+              project.tables, 
+              project.sqlCode, 
+              project.lastSqlResult,
+              project.lastSqlAiPrompt // Pass context history
+          );
       } else {
           result = await ai.generateCode(promptToUse, DevMode.SQL, project.tables);
       }
@@ -480,6 +497,7 @@ const App: React.FC = () => {
           ...prev, 
           sqlCode: result.code, 
           sqlAiThought: result.thought, // Store thought
+          lastSqlAiPrompt: promptToUse, // Update context history
           isSqlAiGenerating: false 
       }));
     } catch (err) {
@@ -499,7 +517,14 @@ const App: React.FC = () => {
       const isRefinement = project.pythonCode && project.pythonCode.length > 20 && !project.pythonCode.trim().startsWith("# Write Python here");
 
       if (isRefinement) {
-          result = await ai.refineCode(promptToUse, DevMode.PYTHON, project.tables, project.pythonCode);
+          result = await ai.refineCode(
+              promptToUse, 
+              DevMode.PYTHON, 
+              project.tables, 
+              project.pythonCode, 
+              project.lastPythonResult,
+              project.lastPythonAiPrompt // Pass context history
+          );
       } else {
           result = await ai.generateCode(promptToUse, DevMode.PYTHON, project.tables);
       }
@@ -508,6 +533,7 @@ const App: React.FC = () => {
           ...prev, 
           pythonCode: result.code, 
           pythonAiThought: result.thought, // Store thought
+          lastPythonAiPrompt: promptToUse, // Update context history
           isPythonAiGenerating: false 
       }));
     } catch (err) {

@@ -127,10 +127,12 @@ export const SYSTEM_PROMPTS = {
 };
 
 export const USER_PROMPTS = {
-  REFINE_CONTEXT: (instruction: string, code: string, mode: DevMode) => {
+  REFINE_CONTEXT: (instruction: string, code: string, mode: DevMode, runtimeContext: string, previousPrompt?: string) => {
     return fillTemplate(refineUserContext, {
         INSTRUCTION: instruction,
         CODE: code,
+        RUNTIME_CONTEXT: runtimeContext,
+        PREVIOUS_PROMPT: previousPrompt || "Unknown (Code might be manually written or this is the first iteration)",
         LANGUAGE: mode === DevMode.SQL ? 'sql' : 'python'
     });
   },

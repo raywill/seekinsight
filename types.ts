@@ -90,10 +90,18 @@ export interface ProjectState {
   activeMode: DevMode;
   sqlCode: string;
   pythonCode: string;
+  
+  // Track previous state for Undo
   lastSqlCodeBeforeAi: string | null;
   lastPythonCodeBeforeAi: string | null;
+  
+  // Current Input Buffer
   sqlAiPrompt: string;
   pythonAiPrompt: string;
+  
+  // Track HISTORY: The prompt that generated the CURRENT code
+  lastSqlAiPrompt: string | null;
+  lastPythonAiPrompt: string | null;
   
   // New: Store CoT
   sqlAiThought: string | null;

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
+import { TableMetadata, DevMode, Suggestion, AIChartConfig, ExecutionResult } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 
 // Initialize the Gemini API client
@@ -137,10 +137,27 @@ export const refineCode = async (
   prompt: string, 
   mode: DevMode, 
   tables: TableMetadata[],
-  currentCode: string
+  currentCode: string,
+  lastResult?: ExecutionResult | null,
+  previousPrompt?: string | null
 ): Promise<{ code: string; thought: string }> => {
   const systemInstruction = SYSTEM_PROMPTS.REFINE_CODE(mode, tables);
-  const userContent = USER_PROMPTS.REFINE_CONTEXT(prompt, currentCode, mode);
+  
+  // Construct Runtime Context
+  let runtimeContext = "No previous execution data available.";
+  if (lastResult) {
+    if (lastResult.isError) {
+      const logs = lastResult.logs?.join('\n') || 'Unknown error';
+      runtimeContext = `⚠️ LAST EXECUTION FAILED:\n${logs.substring(0, 1000)}`;
+    } else if (lastResult.data && lastResult.data.length > 0) {
+      const safeSample = sanitizeSample(lastResult.data, 3, 50);
+      runtimeContext = `✅ LAST EXECUTION SUCCESSFUL:\nColumns: ${lastResult.columns.join(', ')}\nResult Sample (Top 3):\n${JSON.stringify(safeSample, null, 2)}`;
+    } else {
+      runtimeContext = "✅ LAST EXECUTION SUCCESSFUL (No Data Returned).";
+    }
+  }
+
+  const userContent = USER_PROMPTS.REFINE_CONTEXT(prompt, currentCode, mode, runtimeContext, previousPrompt || undefined);
 
   await logPrompt(`REFINE_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 

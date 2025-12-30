@@ -1,5 +1,5 @@
 
-import { TableMetadata, DevMode, Suggestion, AIChartConfig } from "../types";
+import { TableMetadata, DevMode, Suggestion, AIChartConfig, ExecutionResult } from "../types";
 import { SYSTEM_PROMPTS, USER_PROMPTS } from "./prompts";
 
 const IS_DEBUG = process.env.SI_DEBUG_MODE !== 'false';
@@ -161,9 +161,31 @@ export const generateCode = async (prompt: string, mode: DevMode, tables: TableM
   return parseCoTResponse(responseText);
 };
 
-export const refineCode = async (prompt: string, mode: DevMode, tables: TableMetadata[], currentCode: string): Promise<{ code: string; thought: string }> => {
+export const refineCode = async (
+  prompt: string, 
+  mode: DevMode, 
+  tables: TableMetadata[], 
+  currentCode: string, 
+  lastResult?: ExecutionResult | null,
+  previousPrompt?: string | null
+): Promise<{ code: string; thought: string }> => {
   const systemInstruction = SYSTEM_PROMPTS.REFINE_CODE(mode, tables);
-  const userContent = USER_PROMPTS.REFINE_CONTEXT(prompt, currentCode, mode);
+  
+  // Construct Runtime Context
+  let runtimeContext = "No previous execution data available.";
+  if (lastResult) {
+    if (lastResult.isError) {
+      const logs = lastResult.logs?.join('\n') || 'Unknown error';
+      runtimeContext = `⚠️ LAST EXECUTION FAILED:\n${logs.substring(0, 1000)}`;
+    } else if (lastResult.data && lastResult.data.length > 0) {
+      const safeSample = sanitizeSample(lastResult.data, 3, 50);
+      runtimeContext = `✅ LAST EXECUTION SUCCESSFUL:\nColumns: ${lastResult.columns.join(', ')}\nResult Sample (Top 3):\n${JSON.stringify(safeSample, null, 2)}`;
+    } else {
+      runtimeContext = "✅ LAST EXECUTION SUCCESSFUL (No Data Returned).";
+    }
+  }
+
+  const userContent = USER_PROMPTS.REFINE_CONTEXT(prompt, currentCode, mode, runtimeContext, previousPrompt || undefined);
 
   const messages = [
     { role: "system", content: systemInstruction },
