@@ -3,8 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Import CSS from npm packages to replace external links
-import 'prismjs/themes/prism.css';
+// Import CSS from npm packages
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';

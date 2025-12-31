@@ -122,7 +122,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
             >
               {expanded[table.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <Table size={14} className="opacity-70" />
-              <span title="{table.tableName}" className="truncate font-bold flex-1">{table.tableName}</span>
+              <span title={table.tableName} className="truncate font-bold flex-1">{table.tableName}</span>
 
               <div className="flex items-center gap-1.5 min-w-[32px] justify-end">
                 {refreshing[table.tableName] ? (
