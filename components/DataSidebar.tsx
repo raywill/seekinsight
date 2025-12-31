@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { TableMetadata } from '../types';
 import { 
@@ -24,6 +25,7 @@ interface Props {
   isUploading: boolean;
   uploadProgress: number | null;
   onLoadSample: () => void;
+  width: number;
 }
 
 const DataSidebar: React.FC<Props> = ({ 
@@ -32,7 +34,8 @@ const DataSidebar: React.FC<Props> = ({
   onRefreshTableStats, 
   isUploading, 
   uploadProgress,
-  onLoadSample
+  onLoadSample,
+  width
 }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
@@ -71,7 +74,10 @@ const DataSidebar: React.FC<Props> = ({
   };
 
   return (
-    <div className="w-72 bg-gray-50/50 border-r border-gray-200 flex flex-col h-full shrink-0">
+    <div 
+      className="bg-gray-50/50 border-r border-gray-200 flex flex-col h-full shrink-0 transition-all duration-75"
+      style={{ width }}
+    >
       <div className="px-5 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
