@@ -1,17 +1,18 @@
 
 import React, { useState } from 'react';
 import { TableMetadata } from '../types';
-import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud } from 'lucide-react';
+import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud, Library } from 'lucide-react';
 
 interface Props {
   tables: TableMetadata[];
   onUploadFile: (file: File) => void;
   onRefreshTableStats: (tableName: string) => Promise<void>;
+  onLoadSample?: () => void; // New prop
   isUploading: boolean;
   uploadProgress?: number | null;
 }
 
-const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, isUploading, uploadProgress }) => {
+const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, isUploading, uploadProgress }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -75,7 +76,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
 
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
         {tables.length === 0 && !isUploading && (
-          <div className="space-y-8 mt-2">
+          <div className="space-y-4 mt-2">
             <div className="bg-[#ebf4ff] border border-[#d1e6ff] rounded-[2.5rem] p-8 text-center shadow-inner relative overflow-hidden flex flex-col items-center">
               <div className="flex items-center justify-center gap-4 mb-8">
                 <div className="w-14 h-14 bg-white rounded-2xl shadow-xl shadow-blue-500/5 flex items-center justify-center text-[#10b981] transform -rotate-3 hover:rotate-0 transition-transform duration-300">
@@ -89,17 +90,28 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                 </div>
               </div>
 
-              <div className="space-y-3 mb-10">
+              <div className="space-y-3 mb-8">
                 <h3 className="text-xs font-black text-[#1e40af] uppercase tracking-wider">Empty Knowledge Vault</h3>
                 <p className="text-[11px] text-[#3b82f6] font-bold leading-relaxed px-2">
-                  Your local data is one click away from becoming insights.
+                  Get started by adding data.
                 </p>
               </div>
 
-              <label className="w-full py-3.5 bg-white border-2 border-[#d1e6ff] text-[#0066ff] rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-50 hover:shadow-xl hover:shadow-blue-500/10 transition-all flex items-center justify-center active:scale-95 shadow-md">
-                Upload Data File
+              <label className="w-full py-3 bg-white border-2 border-[#d1e6ff] text-[#0066ff] rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-50 hover:shadow-xl hover:shadow-blue-500/10 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md mb-3">
+                <Upload size={14} />
+                Upload File
                 <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls,.txt" />
               </label>
+              
+              {onLoadSample && (
+                <button 
+                    onClick={onLoadSample}
+                    className="w-full py-3 bg-indigo-50 border-2 border-indigo-100 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-indigo-100 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm"
+                >
+                    <Library size={14} />
+                    Load Sample Data
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -45,6 +45,15 @@ export interface Suggestion {
   type: DevMode.SQL | DevMode.PYTHON;
 }
 
+export interface Dataset {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  tables: string[];
+  topicName: string; // The suggested topic name after import
+}
+
 export interface PublishedApp {
   id: string;
   title: string;
