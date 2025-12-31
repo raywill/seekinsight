@@ -18,6 +18,7 @@ const VENV_PYTHON = process.platform === 'win32'
   ? path.join(VENV_PATH, 'Scripts', 'python.exe') 
   : path.join(VENV_PATH, 'bin', 'python');
 const LOCK_FILE = path.join(process.cwd(), '.init_lock');
+const MASTER_DB = 'seekinsight_master_datasets';
 
 function getPythonExecutable() {
   if (fs.existsSync(VENV_PYTHON)) {
@@ -61,6 +62,54 @@ async function getPool(dbName) {
   }
   return pools.get(dbName);
 }
+
+// --- Sample Datasets Configuration ---
+const DATASETS = [
+  {
+    id: 'retail',
+    name: 'Retail / E-commerce',
+    description: 'Orders, products, and customer data for sales analysis.',
+    icon: 'ShoppingCart',
+    color: 'text-orange-500',
+    fileName: 'retail.md',
+    prefix: 'retail',
+    tables: ['orders', 'products', 'customers'],
+    topicName: 'Quarterly Sales Review'
+  },
+  {
+    id: 'hr',
+    name: 'HR / Workforce',
+    description: 'Employee demographics, departments, and salary history.',
+    icon: 'Users',
+    color: 'text-blue-500',
+    fileName: 'hr.md',
+    prefix: 'hr',
+    tables: ['employees', 'departments', 'salaries'],
+    topicName: 'Workforce Demographics'
+  },
+  {
+    id: 'movies',
+    name: 'Movies & Reviews',
+    description: 'Movie database with user reviews for sentiment analysis.',
+    icon: 'Film',
+    color: 'text-purple-500',
+    fileName: 'movies.md',
+    prefix: 'movies',
+    tables: ['list', 'reviews'],
+    topicName: 'Content Sentiment Analysis'
+  },
+  {
+    id: 'saas',
+    name: 'SaaS Metrics',
+    description: 'Subscription logs and daily active user counts.',
+    icon: 'Activity',
+    color: 'text-green-500',
+    fileName: 'saas.md',
+    prefix: 'saas',
+    tables: ['subscriptions', 'active_users'],
+    topicName: 'Churn & Growth Metrics'
+  }
+];
 
 // --- Data Generation Logic ---
 
@@ -123,6 +172,27 @@ function generateFitnessData() {
   return data;
 }
 
+async function initMasterDatasets(rootConn) {
+  console.log("Initializing Master Datasets...");
+  await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${MASTER_DB}\``);
+  const masterPool = await getPool(MASTER_DB);
+
+  for (const ds of DATASETS) {
+    const filePath = path.join(process.cwd(), 'datasets', ds.fileName);
+    if (fs.existsSync(filePath)) {
+      try {
+        const sqlContent = fs.readFileSync(filePath, 'utf-8');
+        await masterPool.query(sqlContent);
+        console.log(`Loaded dataset: ${ds.name}`);
+      } catch (e) {
+        console.error(`Failed to load dataset ${ds.name}:`, e);
+      }
+    } else {
+      console.warn(`Dataset file not found: ${filePath}`);
+    }
+  }
+}
+
 async function initDemoData(sysPool) {
   console.log("Initializing Demo Data...");
   const DEMO_DB_NAME = 'seekinsight_demo';
@@ -138,6 +208,10 @@ async function initDemoData(sysPool) {
 
   // 1. Create DB
   await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${DEMO_DB_NAME}\``);
+  
+  // Initialize Master Datasets while we have root connection
+  await initMasterDatasets(rootConn);
+
   await rootConn.end();
 
   // 2. Create Table & Insert Data
@@ -346,6 +420,46 @@ async function initSystem() {
     }
   }
 }
+
+// --- Datasets API ---
+app.get('/datasets', (req, res) => {
+  res.json(DATASETS);
+});
+
+app.post('/datasets/import', async (req, res) => {
+  const { dbName, datasetId } = req.body;
+  if (!dbName || !datasetId) return res.status(400).json({ message: "Missing params" });
+
+  const dataset = DATASETS.find(d => d.id === datasetId);
+  if (!dataset) return res.status(404).json({ message: "Dataset not found" });
+
+  try {
+    const userPool = await getPool(dbName);
+
+    // Clone tables from Master DB to User DB
+    for (const tableSuffix of dataset.tables) {
+      const sourceTable = `${dataset.prefix}_${tableSuffix}`;
+      const targetTable = tableSuffix; // e.g. 'retail_orders' -> 'orders'
+
+      // Check if table exists in target
+      const [exists] = await userPool.query(`SHOW TABLES LIKE ?`, [targetTable]);
+      if (exists.length > 0) {
+        await userPool.query(`DROP TABLE \`${targetTable}\``);
+      }
+      
+      // CREATE LIKE
+      await userPool.query(`CREATE TABLE \`${targetTable}\` LIKE \`${MASTER_DB}\`.\`${sourceTable}\``);
+      
+      // INSERT SELECT
+      await userPool.query(`INSERT INTO \`${targetTable}\` SELECT * FROM \`${MASTER_DB}\`.\`${sourceTable}\``);
+    }
+
+    res.json({ success: true, topicName: dataset.topicName });
+  } catch (err) {
+    console.error("[Dataset Import Error]:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // --- Share Snapshot API ---
 

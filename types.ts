@@ -79,6 +79,16 @@ export interface Notebook {
   views?: number; // Click count
 }
 
+export interface Dataset {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  tables: string[];
+  topicName: string;
+}
+
 export interface ProjectState {
   id: string | null;
   dbName: string | null;

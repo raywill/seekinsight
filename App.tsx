@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, PublishedApp } from './types';
+import { DevMode, ProjectState, ExecutionResult, Suggestion, Notebook, PublishedApp, Dataset } from './types';
 import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
@@ -16,16 +16,17 @@ import InsightHub from './components/InsightHub';
 import PublishDialog from './components/PublishDialog';
 import AppViewer from './components/AppViewer';
 import Lobby from './components/Lobby';
-import AppHeader from './components/AppHeader'; // New
-import { useFileUpload } from './hooks/useFileUpload'; // New
+import AppHeader from './components/AppHeader';
+import DatasetPickerModal from './components/DatasetPickerModal'; // New
+import { useFileUpload } from './hooks/useFileUpload';
 import { FileQuestion, LayoutGrid } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentNotebook, setCurrentNotebook] = useState<Notebook | null>(null);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [viewingApp, setViewingApp] = useState<PublishedApp | null>(null);
-  const [appNotFound, setAppNotFound] = useState(false); // New: Track 404 state
-  const [editingAppId, setEditingAppId] = useState<string | null>(null); // New: Track if we are updating an existing app
+  const [appNotFound, setAppNotFound] = useState(false);
+  const [editingAppId, setEditingAppId] = useState<string | null>(null);
   
   const [dbReady, setDbReady] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -35,6 +36,11 @@ const App: React.FC = () => {
   
   // Publish Dialog State
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+
+  // Dataset Picker State
+  const [showDatasetPicker, setShowDatasetPicker] = useState(false);
+  const [availableDatasets, setAvailableDatasets] = useState<Dataset[]>([]);
+  const [isLoadingDatasets, setIsLoadingDatasets] = useState(false);
 
   const gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
@@ -131,8 +137,6 @@ const App: React.FC = () => {
            }
        }
        setIsMarketOpen(false);
-       // We don't necessarily close the notebook if one was open, 
-       // but strictly speaking "App View" is usually standalone.
        return;
     } else {
        if (viewingApp) setViewingApp(null);
@@ -152,7 +156,6 @@ const App: React.FC = () => {
        // If already loaded, do nothing
        if (currentNotebook?.id === nbId) return;
 
-       // Need to fetch notebook metadata first (since we might be landing here directly)
        try {
            const res = await fetch(`${gatewayUrl}/notebooks`);
            const notebooks = await res.json();
@@ -406,7 +409,6 @@ const App: React.FC = () => {
           setViewingApp(app);
           setAppNotFound(false);
           // Also increment view here if coming directly from URL, though ideally API handles dedup or gateway call
-          // But since app viewer doesn't have ID until fetch, we might just rely on user clicking or specific analytic call
           fetch(`${gatewayUrl}/apps/${appId}/view`, { method: 'POST' }).catch(console.warn);
           window.history.pushState({}, '', `?app=${appId}`); 
       } else {
@@ -468,6 +470,48 @@ const App: React.FC = () => {
     (newTables) => setProject(prev => ({ ...prev, tables: newTables })),
     handleUpdateTopic
   );
+
+  // --- Sample Dataset Logic ---
+  const handleOpenDatasetPicker = () => {
+      setIsLoadingDatasets(true);
+      setShowDatasetPicker(true);
+      fetch(`${gatewayUrl}/datasets`)
+        .then(res => res.json())
+        .then(data => setAvailableDatasets(data))
+        .catch(console.error)
+        .finally(() => setIsLoadingDatasets(false));
+  };
+
+  const handleDatasetSelect = async (ds: Dataset) => {
+      if (!project.dbName) return;
+      setIsLoadingDatasets(true);
+      try {
+          const res = await fetch(`${gatewayUrl}/datasets/import`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ dbName: project.dbName, datasetId: ds.id })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || "Import Failed");
+          
+          // Refresh tables
+          const engine = getDatabaseEngine();
+          const tables = await engine.getTables(project.dbName);
+          setProject(p => ({ ...p, tables }));
+          
+          // Update Topic
+          if (data.topicName) {
+              handleUpdateTopic(data.topicName);
+          }
+          
+          setShowDatasetPicker(false);
+      } catch (e: any) {
+          alert(e.message);
+      } finally {
+          setIsLoadingDatasets(false);
+      }
+  };
+  // -----------------------------
 
   const handleSqlAiGenerate = async (promptOverride?: string) => {
     const promptToUse = promptOverride || project.sqlAiPrompt;
@@ -787,6 +831,7 @@ const App: React.FC = () => {
           }}
           isUploading={isUploading}
           uploadProgress={uploadProgress}
+          onLoadSample={handleOpenDatasetPicker} // Connect button
         />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Tabs removed, now in Header */}
@@ -881,6 +926,15 @@ const App: React.FC = () => {
          defaultDescription={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
          sourcePrompt={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt} // Pass original prompt
          analysisReport={project.analysisReport}
+      />
+
+      {/* Dataset Picker Modal */}
+      <DatasetPickerModal 
+        isOpen={showDatasetPicker}
+        onClose={() => setShowDatasetPicker(false)}
+        onSelect={handleDatasetSelect}
+        isLoading={isLoadingDatasets}
+        datasets={availableDatasets}
       />
     </div>
   );
