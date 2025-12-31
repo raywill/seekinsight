@@ -9,8 +9,8 @@ export default function(app) {
   app.get('/apps', async (req, res) => {
     try {
       const pool = await getPool(SYSTEM_DB);
-      // Updated: Order by created_at DESC strictly, don't return large cells
-      const [rows] = await pool.query(`SELECT id, title, description, prompt, author, type, code, source_db_name, source_notebook_id, created_at FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
+      // Updated: Order by created_at DESC strictly
+      const [rows] = await pool.query(`SELECT id, title, description, prompt, author, type, created_at FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
       res.json(rows);
     } catch (err) {
       console.error("[Apps GET Error]:", err);
