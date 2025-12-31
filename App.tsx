@@ -17,7 +17,7 @@ import PublishDialog from './components/PublishDialog';
 import AppViewer from './components/AppViewer';
 import Lobby from './components/Lobby';
 import AppHeader from './components/AppHeader';
-import DatasetPickerModal from './components/DatasetPickerModal'; // New
+import DatasetPickerModal from './components/DatasetPickerModal'; 
 import { useFileUpload } from './hooks/useFileUpload';
 import { FileQuestion, LayoutGrid } from 'lucide-react';
 
@@ -41,6 +41,11 @@ const App: React.FC = () => {
   const [showDatasetPicker, setShowDatasetPicker] = useState(false);
   const [availableDatasets, setAvailableDatasets] = useState<Dataset[]>([]);
   const [isLoadingDatasets, setIsLoadingDatasets] = useState(false);
+
+  // Panel Resizing State
+  const [sidebarWidth, setSidebarWidth] = useState(288); // Default w-72 (18rem)
+  const [rightPanelWidth, setRightPanelWidth] = useState(384); // Default w-96 (24rem)
+  const [isResizing, setIsResizing] = useState<'sidebar' | 'right' | null>(null);
 
   const gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
@@ -88,6 +93,38 @@ const App: React.FC = () => {
   useEffect(() => {
     activeModeRef.current = project.activeMode;
   }, [project.activeMode]);
+
+  // Resizing Logic
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      if (isResizing === 'sidebar') {
+         const w = Math.max(200, Math.min(e.clientX, 600)); // Min 200, Max 600
+         setSidebarWidth(w);
+      } else {
+         const w = Math.max(300, Math.min(window.innerWidth - e.clientX, 800)); // Min 300, Max 800
+         setRightPanelWidth(w);
+      }
+    };
+    const handleMouseUp = () => setIsResizing(null);
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none'; 
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   // Core Logic to load a notebook's data into the workspace
   const loadNotebookSession = async (nb: Notebook) => {
@@ -783,9 +820,10 @@ const App: React.FC = () => {
             if (mode === DevMode.INSIGHT_HUB) setHasNewSuggestions(false); 
         }}
         hasNewSuggestions={hasNewSuggestions}
+        sidebarWidth={sidebarWidth} // Dynamically adjust width
       />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         <DataSidebar
           tables={project.tables}
           onUploadFile={handleUpload}
@@ -831,10 +869,17 @@ const App: React.FC = () => {
           }}
           isUploading={isUploading}
           uploadProgress={uploadProgress}
-          onLoadSample={handleOpenDatasetPicker} // Connect button
+          onLoadSample={handleOpenDatasetPicker} 
+          width={sidebarWidth} // Pass dynamic width
         />
-        <main className="flex-1 flex flex-col bg-white overflow-hidden">
-          {/* Tabs removed, now in Header */}
+        
+        {/* Left Resizer Handle */}
+        <div
+          className="w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-600 transition-colors z-50 bg-transparent -ml-0.5 flex-shrink-0"
+          onMouseDown={() => setIsResizing('sidebar')}
+        />
+
+        <main className="flex-1 flex flex-col bg-white overflow-hidden min-w-0">
           <div className="flex-1 flex flex-col overflow-hidden">
              {project.activeMode === DevMode.INSIGHT_HUB && (
               <InsightHub
@@ -892,6 +937,15 @@ const App: React.FC = () => {
              )}
           </div>
         </main>
+
+        {(project.activeMode === DevMode.SQL || project.activeMode === DevMode.PYTHON) && (
+             // Right Resizer Handle
+             <div
+                className="w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-600 transition-colors z-50 bg-transparent -mr-0.5 flex-shrink-0"
+                onMouseDown={() => setIsResizing('right')}
+             />
+        )}
+
         {project.activeMode === DevMode.SQL && (
             <SqlPublishPanel 
                 result={project.lastSqlResult} 
@@ -900,6 +954,7 @@ const App: React.FC = () => {
                 isRecommendingCharts={project.isRecommendingCharts} 
                 onDeploy={() => setIsPublishOpen(true)} 
                 isDeploying={false} 
+                width={rightPanelWidth} // Pass dynamic width
             />
         )}
         {project.activeMode === DevMode.PYTHON && (
@@ -907,6 +962,7 @@ const App: React.FC = () => {
                 result={project.lastPythonResult} 
                 onDeploy={async () => setIsPublishOpen(true)} 
                 isDeploying={false} 
+                width={rightPanelWidth} // Pass dynamic width
             />
         )}
       </div>

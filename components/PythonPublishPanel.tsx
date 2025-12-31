@@ -7,11 +7,15 @@ interface Props {
   result: ExecutionResult | null;
   onDeploy: () => void;
   isDeploying: boolean;
+  width: number;
 }
 
-const PythonPublishPanel: React.FC<Props> = ({ result, onDeploy, isDeploying }) => {
+const PythonPublishPanel: React.FC<Props> = ({ result, onDeploy, isDeploying, width }) => {
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full">
+    <div 
+      className="bg-white border-l border-gray-200 flex flex-col h-full shrink-0"
+      style={{ width }}
+    >
       <div className="p-4 border-b border-gray-200 bg-purple-50/30 flex items-center justify-center">
         <h2 className="text-[11px] font-black text-purple-700 uppercase tracking-widest flex items-center gap-2">
           <Box size={14} /> Deployment Hub

@@ -10,9 +10,10 @@ interface Props {
   onLoadSample: () => void; // New Prop
   isUploading: boolean;
   uploadProgress?: number | null;
+  width: number;
 }
 
-const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, isUploading, uploadProgress }) => {
+const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, isUploading, uploadProgress, width }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -41,7 +42,10 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
   };
 
   return (
-    <div className="w-72 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm relative z-30">
+    <div 
+      className="bg-white border-r border-gray-200 flex flex-col h-full shadow-sm relative z-30 shrink-0"
+      style={{ width }}
+    >
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
         <h2 className="text-sm font-black text-gray-800 flex items-center gap-2 uppercase tracking-tight">

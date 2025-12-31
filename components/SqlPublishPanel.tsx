@@ -11,6 +11,7 @@ interface Props {
   isRecommendingCharts: boolean;
   onDeploy: () => void;
   isDeploying: boolean;
+  width: number;
 }
 
 const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#f43f5e', '#64748b'];
@@ -201,12 +202,15 @@ const ChartCard: React.FC<{ config: AIChartConfig; rawData: any[] }> = ({ config
   );
 };
 
-const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRecommendingCharts, onDeploy, isDeploying }) => {
+const SqlPublishPanel: React.FC<Props> = ({ result, analysis, isAnalyzing, isRecommendingCharts, onDeploy, isDeploying, width }) => {
   const [tab, setTab] = useState<'report' | 'viz'>('viz');
   const hasData = result && result.data && result.data.length > 0;
 
   return (
-    <div className="w-96 bg-white border-l border-gray-100 flex flex-col h-full shadow-2xl shadow-black/5">
+    <div 
+      className="bg-white border-l border-gray-100 flex flex-col h-full shadow-2xl shadow-black/5 shrink-0"
+      style={{ width }}
+    >
       <div className="flex border-b border-gray-100 bg-white">
         <button 
           onClick={() => setTab('viz')} 
