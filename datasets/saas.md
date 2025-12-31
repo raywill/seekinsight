@@ -1,14 +1,14 @@
 
 DROP TABLE IF EXISTS `saas_subscriptions`;
 CREATE TABLE `saas_subscriptions` (
-  `sub_id` int NOT NULL,
-  `customer_email` varchar(100) DEFAULT NULL,
-  `plan` varchar(20) DEFAULT NULL,
-  `status` varchar(20) DEFAULT NULL,
-  `mrr` int DEFAULT NULL,
-  `start_date` date DEFAULT NULL,
+  `sub_id` int NOT NULL COMMENT 'Unique subscription identifier',
+  `customer_email` varchar(100) DEFAULT NULL COMMENT 'Customer email address',
+  `plan` varchar(20) DEFAULT NULL COMMENT 'Subscription plan (e.g. Pro, Enterprise)',
+  `status` varchar(20) DEFAULT NULL COMMENT 'Current status (Active, Churned)',
+  `mrr` int DEFAULT NULL COMMENT 'Monthly Recurring Revenue',
+  `start_date` date DEFAULT NULL COMMENT 'Subscription start date',
   PRIMARY KEY (`sub_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Subscription records table';
 
 INSERT INTO `saas_subscriptions` VALUES 
 (1,'cust1@corp.com','Enterprise','Active',500,'2023-01-01'),
@@ -19,12 +19,12 @@ INSERT INTO `saas_subscriptions` VALUES
 
 DROP TABLE IF EXISTS `saas_active_users`;
 CREATE TABLE `saas_active_users` (
-  `log_id` int NOT NULL,
-  `date` date DEFAULT NULL,
-  `dau` int DEFAULT NULL,
-  `wau` int DEFAULT NULL,
+  `log_id` int NOT NULL COMMENT 'Unique log identifier',
+  `date` date DEFAULT NULL COMMENT 'Date of the record',
+  `dau` int DEFAULT NULL COMMENT 'Daily Active Users count',
+  `wau` int DEFAULT NULL COMMENT 'Weekly Active Users count',
   PRIMARY KEY (`log_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Active user metrics table';
 
 INSERT INTO `saas_active_users` VALUES 
 (1,'2023-06-01',1200,5500),
