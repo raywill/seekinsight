@@ -84,7 +84,7 @@ async function logPrompt(type: string, content: string) {
   }
 }
 
-async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false) {
+async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false, model = 'qwen-plus') {
   const API_KEY = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
   const BASE_URL = (typeof process !== 'undefined' ? process.env.API_BASEURL : undefined) || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 
@@ -99,7 +99,7 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
       'Authorization': `Bearer ${API_KEY}`
     },
     body: JSON.stringify({
-      model: 'qwen-plus',
+      model: model,
       messages,
       temperature,
       ...(jsonMode ? { response_format: { type: "json_object" } } : {})
@@ -157,7 +157,7 @@ export const generateCode = async (prompt: string, mode: DevMode, tables: TableM
 
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
 
-  const responseText = await callAliyun(messages, 0.1);
+  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus-latest');
   return parseCoTResponse(responseText);
 };
 
@@ -194,7 +194,7 @@ export const refineCode = async (
 
   await logPrompt(`REFINE_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
-  const responseText = await callAliyun(messages, 0.1);
+  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus-latest');
   return parseCoTResponse(responseText);
 };
 
@@ -212,7 +212,7 @@ export const debugCode = async (prompt: string, mode: DevMode, tables: TableMeta
 
   await logPrompt(`DEBUG_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
-  const responseText = await callAliyun(messages, 0.1);
+  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus-latest');
   return parseCoTResponse(responseText);
 };
 
