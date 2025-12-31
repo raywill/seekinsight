@@ -10,7 +10,7 @@ export default function(app) {
     try {
       const pool = await getPool(SYSTEM_DB);
       // Updated: Order by created_at DESC strictly
-      const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
+      const [rows] = await pool.query(`SELECT id, title, description, prompt, author, type, created_at FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
       res.json(rows);
     } catch (err) {
       console.error("[Apps GET Error]:", err);
