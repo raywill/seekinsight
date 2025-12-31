@@ -18,7 +18,7 @@ const VENV_PYTHON = process.platform === 'win32'
   ? path.join(VENV_PATH, 'Scripts', 'python.exe') 
   : path.join(VENV_PATH, 'bin', 'python');
 const LOCK_FILE = path.join(process.cwd(), '.init_lock');
-const MASTER_DB = 'seekinsight_master_datasets';
+const MASTER_DB = 'seekinsight_datasets';
 
 function getPythonExecutable() {
   if (fs.existsSync(VENV_PYTHON)) {
