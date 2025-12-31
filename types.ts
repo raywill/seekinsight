@@ -85,8 +85,10 @@ export interface Dataset {
   description: string;
   icon: string;
   color: string;
-  tables: string[];
+  tables?: string[];
   topicName: string;
+  prefix?: string;
+  fileName?: string;
 }
 
 export interface ProjectState {

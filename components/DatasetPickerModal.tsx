@@ -72,13 +72,15 @@ const DatasetPickerModal: React.FC<Props> = ({ isOpen, onClose, onSelect, isLoad
                   </div>
 
                   <div className="mt-auto pt-4 border-t border-gray-50">
-                     <div className="flex flex-wrap gap-2 mb-3">
-                        {dataset.tables.map(t => (
-                           <span key={t} className="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-md font-mono border border-gray-200 group-hover:border-blue-100 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                             {t}
-                           </span>
-                        ))}
-                     </div>
+                     {dataset.tables && dataset.tables.length > 0 && (
+                       <div className="flex flex-wrap gap-2 mb-3">
+                          {dataset.tables.map(t => (
+                             <span key={t} className="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-md font-mono border border-gray-200 group-hover:border-blue-100 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                               {t}
+                             </span>
+                          ))}
+                       </div>
+                     )}
                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-blue-500 transition-colors">
                         <span className="flex items-center gap-1"><Activity size={12} /> {dataset.topicName}</span>
                         <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-all">
