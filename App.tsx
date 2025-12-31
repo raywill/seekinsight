@@ -400,6 +400,21 @@ const App: React.FC = () => {
     handleUpdateTopic
   );
 
+  const handleRefreshTableStats = async (tableName: string) => {
+    if (!project.dbName) return;
+    try {
+        const count = await getDatabaseEngine().refreshTableStats(tableName, project.dbName);
+        setProject(prev => ({
+            ...prev,
+            tables: prev.tables.map(t => 
+                t.tableName === tableName ? { ...t, rowCount: count } : t
+            )
+        }));
+    } catch (e) {
+        console.error("Failed to refresh table stats", e);
+    }
+  };
+
   const handleOpenDatasetPicker = async () => {
       try {
           const res = await fetch(`${gatewayUrl}/datasets`);
@@ -590,7 +605,7 @@ const App: React.FC = () => {
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <AppHeader topicName={project.topicName} isEditing={isEditingTopic} tempTopic={tempTopic} onTempTopicChange={setTempTopic} onEditStart={() => { setTempTopic(project.topicName); setIsEditingTopic(true); }} onEditSubmit={() => { handleUpdateTopic(tempTopic); setIsEditingTopic(false); }} onEditCancel={() => setIsEditingTopic(false)} onExit={handleExit} isNotebookSession={!!currentNotebook} activeMode={project.activeMode} onModeChange={(mode) => { setProject(p => ({ ...p, activeMode: mode })); if (mode === DevMode.INSIGHT_HUB) setHasNewSuggestions(false); }} hasNewSuggestions={hasNewSuggestions} />
       <div className="flex-1 flex overflow-hidden">
-        <DataSidebar tables={project.tables} onUploadFile={handleUpload} onRefreshTableStats={async t => { /* same logic */ }} isUploading={isUploading} uploadProgress={uploadProgress} onLoadSample={handleOpenDatasetPicker} />
+        <DataSidebar tables={project.tables} onUploadFile={handleUpload} onRefreshTableStats={handleRefreshTableStats} isUploading={isUploading} uploadProgress={uploadProgress} onLoadSample={handleOpenDatasetPicker} />
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
              {project.activeMode === DevMode.INSIGHT_HUB && <InsightHub suggestions={project.suggestions} onApply={(s) => { setProject(p => ({ ...p, activeMode: s.type, [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt })); if (s.type === DevMode.SQL) handleSqlAiGenerate(s.prompt); else handlePythonAiGenerate(s.prompt); }} onUpdate={handleUpdateSuggestion} onDelete={handleDeleteSuggestion} onFetchMore={handleFetchSuggestions} isLoading={isSuggesting} />}
