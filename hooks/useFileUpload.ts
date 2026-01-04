@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs';
 import * as ai from '../services/aiProvider';
 import { getDatabaseEngine } from '../services/dbService';
 import { TableMetadata } from '../types';
@@ -82,14 +82,19 @@ export const useFileUpload = (
               const col = Math.floor(imgRange.tl.nativeCol) + 1;
               
               // Convert buffer to base64
-              const base64 = typeof media.buffer === 'string' 
-                 ? media.buffer // Already base64 in some contexts
-                 : btoa(
-                     new Uint8Array(media.buffer).reduce(
-                       (data, byte) => data + String.fromCharCode(byte),
-                       ''
-                     )
-                   );
+              // Note: exceljs in browser usually provides ArrayBuffer for media.buffer
+              let base64 = '';
+              if (typeof media.buffer === 'string') {
+                 base64 = media.buffer;
+              } else {
+                 // Convert ArrayBuffer to binary string then btoa
+                 const bytes = new Uint8Array(media.buffer);
+                 let binary = '';
+                 for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                 }
+                 base64 = btoa(binary);
+              }
               
               // Add special prefix to denote this is an image for the DB Engine
               imageMap.set(`${row}-${col}`, `__IMG_BASE64__${base64}`);
