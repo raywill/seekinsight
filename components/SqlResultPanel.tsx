@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Table as TableIcon, List, Clock, Hash, Play, Download, AlertCircle, BarChart, Terminal as TerminalIcon, GripHorizontal, Maximize2, Minimize2, Eye, Info, ChevronUp, ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
+import { Table as TableIcon, List, Clock, Hash, Play, Download, AlertCircle, BarChart, Terminal as TerminalIcon, GripHorizontal, Maximize2, Minimize2, Eye, Info, ChevronUp, ChevronDown, RefreshCw, Sparkles, Image as ImageIcon } from 'lucide-react';
 
 interface Props {
   result: ExecutionResult | null;
@@ -21,6 +21,9 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set());
   
+  // Image Preview Modal State
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const panelRef = useRef<HTMLDivElement>(null);
   const startY = useRef<number>(0);
   const startHeight = useRef<number>(0);
@@ -90,7 +93,9 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isFullscreen) {
+        if (previewImage) {
+            setPreviewImage(null);
+        } else if (isFullscreen) {
           setIsFullscreen(false);
         } else {
           setExpandedCells(new Set());
@@ -99,7 +104,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
+  }, [isFullscreen, previewImage]);
 
   const handleCellClick = (rowIndex: number, colKey: string) => {
     const selection = window.getSelection();
@@ -131,6 +136,45 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
     link.href = url;
     link.download = `sql_result_${Date.now()}.tsv`;
     link.click();
+  };
+
+  const renderCellContent = (value: any, rowIndex: number, colKey: string) => {
+      const strVal = String(value ?? 'NULL');
+      
+      // Check if value is a Base64 Image string (heuristic)
+      if (strVal.startsWith('data:image/')) {
+          return (
+              <div 
+                className="group/img relative inline-block cursor-zoom-in"
+                onClick={(e) => { e.stopPropagation(); setPreviewImage(strVal); }}
+              >
+                  <img 
+                    src={strVal} 
+                    alt="Cell Content" 
+                    className="h-10 w-auto min-w-[40px] object-contain rounded border border-gray-200 bg-gray-50/50 hover:border-blue-300 transition-all" 
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors rounded flex items-center justify-center">
+                      <ImageIcon size={12} className="text-white opacity-0 group-hover/img:opacity-100 drop-shadow-md" />
+                  </div>
+              </div>
+          );
+      }
+
+      const isExpanded = expandedCells.has(`${rowIndex}-${colKey}`);
+      
+      return (
+        <div 
+            onClick={() => handleCellClick(rowIndex, colKey)}
+            title={!isExpanded ? strVal : undefined}
+            className={`transition-all ${
+            isExpanded 
+                ? 'whitespace-pre-wrap break-words cursor-text' 
+                : 'truncate cursor-pointer'
+            }`}
+        >
+            {strVal}
+        </div>
+      );
   };
 
   if (isCollapsed) {
@@ -165,6 +209,28 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
   return (
     <div ref={panelRef} style={containerStyle} className={containerClasses}>
       {isFullscreen && <div className="absolute inset-0 bg-white z-0" />}
+      
+      {/* Image Preview Modal Overlay */}
+      {previewImage && (
+          <div 
+            className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200"
+            onClick={() => setPreviewImage(null)}
+          >
+              <div className="relative max-w-full max-h-full">
+                  <img 
+                    src={previewImage} 
+                    alt="Full Preview" 
+                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                  />
+                  <button 
+                    className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                    onClick={() => setPreviewImage(null)}
+                  >
+                      Close [Esc]
+                  </button>
+              </div>
+          </div>
+      )}
       
       {!isFullscreen && (
         <div onMouseDown={startResize} className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500/30 transition-colors z-50 flex items-center justify-center">
@@ -255,20 +321,12 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
                             {previewResult.data.map((row, i) => (
                             <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
                                 {previewResult.columns.map(col => {
-                                  const isExpanded = expandedCells.has(`${i}-${col}`);
-                                  const cellValue = String(row[col] ?? 'NULL');
                                   return (
                                     <td 
                                       key={col} 
-                                      className={`px-3 py-1.5 text-gray-600 max-w-xs border-r border-transparent transition-all align-top ${
-                                        isExpanded 
-                                          ? 'whitespace-pre-wrap break-words bg-blue-50/30 cursor-text' 
-                                          : 'truncate hover:bg-blue-50/30'
-                                      }`}
-                                      onClick={() => handleCellClick(i, col)}
-                                      title={!isExpanded ? cellValue : undefined}
+                                      className={`px-3 py-1.5 text-gray-600 max-w-xs border-r border-transparent transition-all align-top ${expandedCells.has(`${i}-${col}`) ? 'bg-blue-50/30' : 'hover:bg-blue-50/30'}`}
                                     >
-                                      {cellValue}
+                                      {renderCellContent(row[col], i, col)}
                                     </td>
                                   );
                                 })}
@@ -296,20 +354,12 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
                 {result.data.length > 0 ? result.data.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
                     {result.columns.map(col => {
-                      const isExpanded = expandedCells.has(`${i}-${col}`);
-                      const cellValue = String(row[col] ?? 'NULL');
                       return (
                         <td 
                           key={col} 
-                          onClick={() => handleCellClick(i, col)}
-                          title={!isExpanded ? cellValue : undefined}
-                          className={`px-3 py-1.5 text-gray-600 max-w-xs border-r border-transparent transition-all align-top ${
-                            isExpanded 
-                              ? 'whitespace-pre-wrap break-words bg-blue-50/30 cursor-text' 
-                              : 'truncate hover:bg-blue-50/30'
-                          }`}
+                          className={`px-3 py-1.5 text-gray-600 max-w-xs border-r border-transparent transition-all align-top ${expandedCells.has(`${i}-${col}`) ? 'bg-blue-50/30' : 'hover:bg-blue-50/30'}`}
                         >
-                          {cellValue}
+                          {renderCellContent(row[col], i, col)}
                         </td>
                       );
                     })}

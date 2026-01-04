@@ -2,6 +2,44 @@
 import { getPool } from './database.js';
 import { IS_DEBUG } from './common.js';
 
+/**
+ * Detects image MIME type based on Magic Numbers (File Signatures).
+ * @param {Buffer} buffer 
+ * @returns {string} Mime Type (e.g., 'image/png') or 'application/octet-stream'
+ */
+function detectImageMime(buffer) {
+  if (!buffer || buffer.length < 4) return 'application/octet-stream';
+
+  // Convert first 12 bytes to hex for checking
+  const signature = buffer.toString('hex', 0, 12).toUpperCase();
+
+  if (signature.startsWith('89504E47')) {
+    return 'image/png';
+  }
+  if (signature.startsWith('FFD8FF')) {
+    return 'image/jpeg';
+  }
+  if (signature.startsWith('47494638')) {
+    return 'image/gif';
+  }
+  if (signature.startsWith('424D')) {
+    return 'image/bmp';
+  }
+  // WebP: RIFF (52494646) ... WEBP (57454250) at offset 8
+  if (signature.startsWith('52494646') && signature.slice(16, 24) === '57454250') {
+    return 'image/webp';
+  }
+  // ICO: 00000100
+  if (signature.startsWith('00000100')) {
+    return 'image/x-icon';
+  }
+
+  // Fallback: If strict type isn't found, default to png if usually expected, 
+  // or octet-stream. For this specific Excel use case, png is a safe fallback 
+  // as ExcelJS extraction often normalizes, but let's be generic.
+  return 'application/octet-stream'; 
+}
+
 export default function(app) {
   app.post('/sql', async (req, res) => {
     const { sql, dbName } = req.body;
@@ -60,6 +98,33 @@ export default function(app) {
       // Standardize column extraction from FieldPackets
       const columns = activeFields ? activeFields.map(f => f.name) : (Array.isArray(activeRows) && activeRows.length > 0 ? Object.keys(activeRows[0]) : []);
       
+      // 4. Post-processing: Convert Buffers (BLOBs) to Base64 strings for image rendering
+      if (Array.isArray(activeRows)) {
+        activeRows = activeRows.map(row => {
+          const newRow = { ...row };
+          for (const key in newRow) {
+            if (Buffer.isBuffer(newRow[key])) {
+              // Dynamically detect MIME type
+              const mimeType = detectImageMime(newRow[key]);
+              
+              // Only convert to Data URI if it looks like an image, otherwise leave as base64 string
+              // or handle generically. Here we assume BLOBs in this context are likely images 
+              // given the "Excel Image Import" feature.
+              if (mimeType.startsWith('image/')) {
+                 newRow[key] = `data:${mimeType};base64,${newRow[key].toString('base64')}`;
+              } else {
+                 // For non-images, we might want to just show a placeholder or hex dump, 
+                 // but returning base64 allows frontend to decide (or download).
+                 // For now, let's treat unknown as potential png fallback to ensure frontend tries to render,
+                 // or just stringify.
+                 newRow[key] = `[BINARY DATA: ${newRow[key].length} bytes]`;
+              }
+            }
+          }
+          return newRow;
+        });
+      }
+
       res.json({ rows: Array.isArray(activeRows) ? activeRows : [activeRows], columns });
 
     } catch (err) {

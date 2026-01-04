@@ -114,6 +114,12 @@ export class MySQLEngine implements DatabaseEngine {
     }
 
     if (typeof val === 'string') {
+      // Check for Image Base64 Tag
+      if (val.startsWith('__IMG_BASE64__')) {
+        const base64 = val.replace('__IMG_BASE64__', '');
+        return `FROM_BASE64('${base64}')`;
+      }
+
       // Check for date-like string (YYYY-MM-DD)
       if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
         return `'${val} 00:00:00.000000'`;
@@ -144,23 +150,29 @@ export class MySQLEngine implements DatabaseEngine {
 
     const originalKeys = Object.keys(data[0]);
     
-    // 1. Scan for Max Length per Column (Inference)
+    // 1. Scan for Max Length per Column & Image Tags (Inference)
     // We scan ALL rows to determine the appropriate SQL type to avoid truncation on outlier rows
     const maxLengths: Record<string, number> = {};
+    const hasImage: Record<string, boolean> = {};
     
-    // Initialize maxLengths
+    // Initialize
     for (const key of originalKeys) {
       maxLengths[key] = 0;
+      hasImage[key] = false;
     }
 
-    // Perform full scan for string lengths
+    // Perform full scan for string lengths and image markers
     for (let i = 0; i < data.length; i++) {
       for (const key of originalKeys) {
         const val = data[i][key];
         if (typeof val === 'string') {
-          const len = val.length;
-          if (len > maxLengths[key]) {
-            maxLengths[key] = len;
+          if (val.startsWith('__IMG_BASE64__')) {
+            hasImage[key] = true;
+          } else {
+            const len = val.length;
+            if (len > maxLengths[key]) {
+              maxLengths[key] = len;
+            }
           }
         }
       }
@@ -180,35 +192,40 @@ export class MySQLEngine implements DatabaseEngine {
       const maxLen = maxLengths[key];
       let inferredType = 'VARCHAR(255)';
 
-      const isDate = Object.prototype.toString.call(firstVal) === '[object Date]';
-      
-      if (isDate && !isNaN(firstVal.getTime())) {
-        inferredType = 'DATETIME(6)';
-      } 
-      else if (typeof firstVal === 'number') {
-        inferredType = 'DOUBLE';
+      // Priority: Image -> Date -> Number -> String
+      if (hasImage[key]) {
+        inferredType = 'LONGBLOB';
       }
-      else if (typeof firstVal === 'string') {
-        // Fix: Prioritize length check over date pattern to avoid 'Data too long' errors
-        // Fix: Use 191 as threshold for VARCHAR to be safe with utf8mb4 indexing limits
-        if (maxLen > 16777215) {
-          inferredType = 'LONGTEXT';
-        } else if (maxLen > 65535) {
-          inferredType = 'MEDIUMTEXT';
-        } else if (maxLen > 191) {
-          inferredType = 'TEXT';
-        } else if (/^\d{4}-\d{2}-\d{2}/.test(firstVal) && maxLen <= 30) {
-          // Only infer Date if max length is reasonable
+      else {
+        const isDate = Object.prototype.toString.call(firstVal) === '[object Date]';
+        
+        if (isDate && !isNaN(firstVal.getTime())) {
           inferredType = 'DATETIME(6)';
-        } else {
-          inferredType = 'VARCHAR(255)';
+        } 
+        else if (typeof firstVal === 'number') {
+          inferredType = 'DOUBLE';
+        }
+        else if (typeof firstVal === 'string') {
+          // Fix: Prioritize length check over date pattern to avoid 'Data too long' errors
+          if (maxLen > 16777215) {
+            inferredType = 'LONGTEXT';
+          } else if (maxLen > 65535) {
+            inferredType = 'MEDIUMTEXT';
+          } else if (maxLen > 191) {
+            inferredType = 'TEXT';
+          } else if (/^\d{4}-\d{2}-\d{2}/.test(firstVal) && maxLen <= 30) {
+            // Only infer Date if max length is reasonable
+            inferredType = 'DATETIME(6)';
+          } else {
+            inferredType = 'VARCHAR(255)';
+          }
         }
       }
 
       return {
         name: key.trim(),
         type: inferredType,
-        comment: aiComments?.[key] || `Imported: ${key}`
+        comment: aiComments?.[key] || (hasImage[key] ? `Imported Image` : `Imported: ${key}`)
       };
     });
 
@@ -219,7 +236,7 @@ export class MySQLEngine implements DatabaseEngine {
 
     // 4. Batch Insertion
     const cleanedKeys = columns.map(c => c.name);
-    const batchSize = 100;
+    const batchSize = 50; // Reduced batch size due to potential large image blobs
     for (let i = 0; i < data.length; i += batchSize) {
       const chunk = data.slice(i, i + batchSize);
       const valuesList = chunk.map(row => 
