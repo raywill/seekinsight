@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown } from 'lucide-react';
+import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown, Image as ImageIcon } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
@@ -20,14 +20,14 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(!fullHeight); // Default collapsed unless full height mode
+  const [isCollapsed, setIsCollapsed] = useState(!fullHeight); 
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   const startY = useRef<number>(0);
   const startHeight = useRef<number>(0);
 
   const hasError = result?.isError || (result?.logs && result.logs.some(l => l.toLowerCase().includes('error') || l.toLowerCase().includes('traceback')));
 
-  // Auto-expand on loading, explicit run result, or preview result
   useEffect(() => {
     if (fullHeight) return;
     if (isLoading) {
@@ -67,7 +67,6 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     };
   }, [isResizing, onResize, stopResize]);
 
-  // Handle automatic tab switching
   useEffect(() => {
     if (previewResult) {
         setActiveTab('preview');
@@ -84,23 +83,53 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     }
   }, [result, previewResult, hasError]);
 
-  // Handle ESC key to exit fullscreen
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        toggleFullscreen();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (previewImage) {
+            setPreviewImage(null);
+        } else if (isFullscreen) {
+            toggleFullscreen();
+        }
       }
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [isFullscreen]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen, previewImage]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
-    // Trigger a window resize event to force Plotly to redraw/fit the new container size immediately
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
     }, 100);
+  };
+
+  const renderCellContent = (value: any) => {
+      const strVal = String(value ?? 'NULL');
+      
+      if (strVal.startsWith('data:image/')) {
+          return (
+              <div 
+                className="group/img relative inline-block cursor-zoom-in"
+                onClick={(e) => { e.stopPropagation(); setPreviewImage(strVal); }}
+              >
+                  <img 
+                    src={strVal} 
+                    alt="Cell Content" 
+                    className="h-10 w-auto min-w-[40px] object-contain rounded border border-gray-200 bg-gray-50/50 hover:border-blue-300 transition-all" 
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors rounded flex items-center justify-center">
+                      <ImageIcon size={12} className="text-white opacity-0 group-hover/img:opacity-100 drop-shadow-md" />
+                  </div>
+              </div>
+          );
+      }
+      
+      return (
+        <span className="truncate block" title={strVal}>
+            {strVal}
+        </span>
+      );
   };
 
   if (isCollapsed && !fullHeight) {
@@ -124,7 +153,6 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     )
   }
 
-  // Dynamic Styles based on State
   const containerStyle: React.CSSProperties = isFullscreen 
     ? { position: 'fixed', inset: 0, zIndex: 200, width: '100vw', height: '100vh' }
     : (fullHeight ? { height: '100%', flex: 1, width: '100%' } : { height });
@@ -135,10 +163,30 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
 
   return (
     <div style={containerStyle} className={containerClasses}>
-      {/* Overlay Backdrop when fullscreen to focus attention (optional visual tweak) */}
       {isFullscreen && <div className="absolute inset-0 bg-white z-0" />}
 
-      {/* Updated Minimal Capsule Loader (More Transparent) */}
+      {/* Image Preview Modal Overlay */}
+      {previewImage && (
+          <div 
+            className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200"
+            onClick={() => setPreviewImage(null)}
+          >
+              <div className="relative max-w-full max-h-full">
+                  <img 
+                    src={previewImage} 
+                    alt="Full Preview" 
+                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                  />
+                  <button 
+                    className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                    onClick={() => setPreviewImage(null)}
+                  >
+                      Close [Esc]
+                  </button>
+              </div>
+          </div>
+      )}
+
       {isLoading && (
         <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
              <div className="bg-white/60 border border-purple-100/50 shadow-lg shadow-purple-500/5 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
@@ -198,7 +246,6 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
 
       <div className="relative z-10 flex-1 relative overflow-hidden bg-white">
         
-        {/* Empty State */}
          {!result && !previewResult && !isLoading && (
             <div className="h-full flex flex-col items-center justify-center text-gray-300">
                 <TerminalIcon size={24} className="opacity-10 mb-2" />
@@ -228,8 +275,8 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
                             {previewResult.data.map((row, i) => (
                             <tr key={i} className="border-b border-gray-50 hover:bg-blue-50/50">
                                 {previewResult.columns.map(col => (
-                                <td key={col} className="px-3 py-1.5 text-gray-600 max-w-xs truncate hover:bg-blue-50/30 align-top" title={String(row[col] ?? 'NULL')}>
-                                    {String(row[col] ?? 'NULL')}
+                                <td key={col} className="px-3 py-1.5 text-gray-600 max-w-xs hover:bg-blue-50/30 align-top">
+                                    {renderCellContent(row[col])}
                                 </td>
                                 ))}
                             </tr>

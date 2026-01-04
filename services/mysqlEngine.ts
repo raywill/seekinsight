@@ -114,12 +114,6 @@ export class MySQLEngine implements DatabaseEngine {
     }
 
     if (typeof val === 'string') {
-      // Check for Image Base64 Tag
-      if (val.startsWith('__IMG_BASE64__')) {
-        const base64 = val.replace('__IMG_BASE64__', '');
-        return `FROM_BASE64('${base64}')`;
-      }
-
       // Check for date-like string (YYYY-MM-DD)
       if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
         return `'${val} 00:00:00.000000'`;
@@ -166,7 +160,7 @@ export class MySQLEngine implements DatabaseEngine {
       for (const key of originalKeys) {
         const val = data[i][key];
         if (typeof val === 'string') {
-          if (val.startsWith('__IMG_BASE64__')) {
+          if (val.startsWith('data:image/')) {
             hasImage[key] = true;
           } else {
             const len = val.length;
@@ -194,7 +188,7 @@ export class MySQLEngine implements DatabaseEngine {
 
       // Priority: Image -> Date -> Number -> String
       if (hasImage[key]) {
-        inferredType = 'LONGBLOB';
+        inferredType = 'LONGTEXT'; // Store base64 string directly
       }
       else {
         const isDate = Object.prototype.toString.call(firstVal) === '[object Date]';

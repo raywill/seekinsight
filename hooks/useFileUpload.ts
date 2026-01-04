@@ -82,7 +82,6 @@ export const useFileUpload = (
               const col = Math.floor(imgRange.tl.nativeCol) + 1;
               
               // Convert buffer to base64
-              // Note: exceljs in browser usually provides ArrayBuffer for media.buffer
               let base64 = '';
               if (typeof media.buffer === 'string') {
                  base64 = media.buffer;
@@ -96,8 +95,11 @@ export const useFileUpload = (
                  base64 = btoa(binary);
               }
               
-              // Add special prefix to denote this is an image for the DB Engine
-              imageMap.set(`${row}-${col}`, `__IMG_BASE64__${base64}`);
+              // Use standard Data URI format instead of custom marker
+              const ext = media.extension || 'png';
+              const mimeType = (ext === 'jpg' || ext === 'jpeg') ? 'jpeg' : ext;
+              
+              imageMap.set(`${row}-${col}`, `data:image/${mimeType};base64,${base64}`);
             }
           });
 
@@ -147,7 +149,7 @@ export const useFileUpload = (
               const val0 = rawArrayData[0][col];
               const val1 = rawArrayData[1][col];
               // If image in header row, unlikely to be a header
-              if (typeof val0 === 'string' && val0.startsWith('__IMG_BASE64__')) {
+              if (typeof val0 === 'string' && val0.startsWith('data:image/')) {
                  suspiciousNoHeader = true;
                  break;
               }
@@ -194,7 +196,7 @@ export const useFileUpload = (
              const cleanRow: any = {};
              for(const k in row) {
                const val = row[k];
-               if (typeof val === 'string' && val.startsWith('__IMG_BASE64__')) {
+               if (typeof val === 'string' && val.startsWith('data:image/')) {
                  cleanRow[k] = "[IMAGE_DATA]";
                } else {
                  cleanRow[k] = val;
