@@ -1,22 +1,43 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TableMetadata } from '../types';
-import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud, Download } from 'lucide-react';
+import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud, Download, Search, BrainCircuit } from 'lucide-react';
 
 interface Props {
   tables: TableMetadata[];
   onUploadFile: (file: File) => void;
   onRefreshTableStats: (tableName: string) => Promise<void>;
-  onLoadSample: () => void; // New Prop
+  onLoadSample: () => void;
   isUploading: boolean;
   uploadProgress?: number | null;
   width: number;
+  onColumnAction?: (action: 'fulltext' | 'embedding', tableName: string, columnName: string) => void;
 }
 
-const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, isUploading, uploadProgress, width }) => {
+const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, isUploading, uploadProgress, width, onColumnAction }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  
+  // Context Menu State
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    tableName: string;
+    columnName: string;
+    columnType: string;
+  } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const toggleTable = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -39,6 +60,31 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
     if (file) {
       onUploadFile(file);
     }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, tableName: string, columnName: string, columnType: string) => {
+    // Check if type allows these actions
+    const typeUpper = columnType.toUpperCase();
+    const isString = typeUpper.includes('CHAR') || typeUpper.includes('TEXT');
+    const isBinary = typeUpper.includes('BINARY') || typeUpper.includes('BLOB');
+
+    if (isString || isBinary) {
+        e.preventDefault();
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            tableName,
+            columnName,
+            columnType
+        });
+    }
+  };
+
+  const handleMenuAction = (action: 'fulltext' | 'embedding') => {
+      if (contextMenu && onColumnAction) {
+          onColumnAction(action, contextMenu.tableName, contextMenu.columnName);
+      }
+      setContextMenu(null);
   };
 
   return (
@@ -78,7 +124,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      <div className="flex-1 overflow-y-auto p-4 space-y-1 relative">
         {tables.length === 0 && !isUploading && (
           <div className="space-y-4 mt-2">
             <div className="bg-[#ebf4ff] border border-[#d1e6ff] rounded-[2.5rem] p-8 text-center shadow-inner relative overflow-hidden flex flex-col items-center">
@@ -160,11 +206,13 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                 {table.columns.map(col => {
                   const tooltipKey = `${table.id}-${col.name}`;
                   const isTooltipActive = activeTooltip === tooltipKey;
+                  const isInteractive = col.type.toUpperCase().includes('CHAR') || col.type.toUpperCase().includes('TEXT') || col.type.toUpperCase().includes('BINARY') || col.type.toUpperCase().includes('BLOB');
                   
                   return (
                     <div
                       key={col.name}
-                      className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-blue-50 group/col relative"
+                      onContextMenu={(e) => handleContextMenu(e, table.tableName, col.name, col.type)}
+                      className={`flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-blue-50 group/col relative select-none ${isInteractive ? 'cursor-context-menu' : ''}`}
                     >
                       <span className="text-[11px] text-gray-500 font-mono font-bold truncate flex-1 group-hover/col:text-blue-600">
                         {col.name}
@@ -215,6 +263,35 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
            VPC Node Connected
         </div>
       </div>
+
+      {/* Context Menu Portal */}
+      {contextMenu && (
+        <div 
+            ref={menuRef}
+            className="fixed z-[9999] bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-56 animate-in fade-in zoom-in-95 duration-100"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+            <div className="px-4 py-2 border-b border-gray-50 mb-1">
+                <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                    {contextMenu.tableName}.{contextMenu.columnName}
+                </p>
+            </div>
+            <button 
+                onClick={() => handleMenuAction('fulltext')}
+                className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-xs font-bold text-gray-700 transition-colors"
+            >
+                <Search size={14} className="text-blue-500" />
+                Create Full Text Index
+            </button>
+            <button 
+                onClick={() => handleMenuAction('embedding')}
+                className="w-full text-left px-4 py-2 hover:bg-purple-50 flex items-center gap-3 text-xs font-bold text-gray-700 transition-colors"
+            >
+                <BrainCircuit size={14} className="text-purple-500" />
+                Create Embedding
+            </button>
+        </div>
+      )}
 
       <style>{`
         @keyframes bounce-x {

@@ -550,6 +550,23 @@ const App: React.FC = () => {
   };
   // -----------------------------
 
+  const handleColumnAction = (action: 'fulltext' | 'embedding', tableName: string, columnName: string) => {
+      setProject(prev => {
+          let newSqlCode = prev.sqlCode;
+          if (action === 'fulltext') {
+              newSqlCode = prev.sqlCode + `\n\n-- Create Full Text Index\nCREATE FULLTEXT INDEX \`idx_${tableName}_${columnName}\` ON \`${tableName}\`(\`${columnName}\`);\n`;
+          } else if (action === 'embedding') {
+              newSqlCode = prev.sqlCode + `\n\n/* \n  TODO: Generate Vector Embeddings \n  Model: text-embedding-v1\n  Source: ${tableName}.${columnName}\n*/\n-- ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}_vector\` VECTOR(768);\n-- UPDATE \`${tableName}\` SET \`${columnName}_vector\` = VECTOR_EMBEDDING('${columnName}');\n`;
+          }
+          
+          return {
+              ...prev,
+              activeMode: DevMode.SQL, // Switch to SQL to execute
+              sqlCode: newSqlCode
+          };
+      });
+  };
+
   const handleSqlAiGenerate = async (promptOverride?: string) => {
     const promptToUse = promptOverride || project.sqlAiPrompt;
     if (!promptToUse) return;
@@ -871,6 +888,7 @@ const App: React.FC = () => {
           uploadProgress={uploadProgress}
           onLoadSample={handleOpenDatasetPicker} 
           width={sidebarWidth} // Pass dynamic width
+          onColumnAction={handleColumnAction} // Connect the context menu handler
         />
         
         {/* Left Resizer Handle */}
