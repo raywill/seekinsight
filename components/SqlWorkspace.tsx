@@ -96,6 +96,17 @@ const SqlWorkspace: React.FC<Props> = ({
     }
   }, [aiThought]);
 
+  // ESC key listener to close thought panel
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showThought) {
+        setShowThought(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [showThought]);
+
   const handleToggleThought = () => {
       setShowThought(!showThought);
       if (!showThought) {
@@ -338,7 +349,10 @@ const SqlWorkspace: React.FC<Props> = ({
                             <Lightbulb size={18} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-black text-yellow-800 uppercase tracking-widest">AI Reasoning Chain</h3>
+                            <h3 className="text-sm font-black text-yellow-800 uppercase tracking-widest flex items-center gap-2">
+                                AI Reasoning Chain
+                                <span className="opacity-50 font-normal ml-2 text-[9px] lowercase bg-yellow-200/50 px-1.5 py-0.5 rounded text-yellow-800 tracking-tight">esc to close</span>
+                            </h3>
                             <p className="text-[10px] text-yellow-600 font-bold">Step-by-step logic behind the generated code</p>
                         </div>
                     </div>
