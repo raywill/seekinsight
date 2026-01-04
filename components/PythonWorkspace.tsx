@@ -155,7 +155,7 @@ const PythonWorkspace: React.FC<Props> = ({
         {aiThought && (
             <button
                 onClick={handleToggleThought}
-                className={`p-2.5 rounded-xl border transition-all relative top-0.5 ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                className={`p-2.5 rounded-xl border transition-all relative top-0.5 focus:outline-none ${showThought ? 'bg-yellow-100 border-yellow-200 text-yellow-700' : 'bg-white border-purple-100 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
                 title="Toggle AI Reasoning"
             >
                 <Lightbulb size={18} fill={showThought ? "currentColor" : "none"} />

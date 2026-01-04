@@ -1,5 +1,5 @@
-
 declare module 'react-plotly.js' {
+  import * as React from 'react';
   import { Component } from 'react';
 
   export interface PlotProps {
