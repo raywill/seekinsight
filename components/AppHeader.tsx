@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Boxes, LogOut, PencilLine } from 'lucide-react';
+import { Boxes, LogOut, PencilLine, Settings } from 'lucide-react';
 import { DevMode } from '../types';
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
   onModeChange: (mode: DevMode) => void;
   hasNewSuggestions?: boolean;
   sidebarWidth: number;
+  onOpenSettings: () => void;
 }
 
 const AppHeader: React.FC<Props> = ({
@@ -32,7 +33,8 @@ const AppHeader: React.FC<Props> = ({
   activeMode,
   onModeChange,
   hasNewSuggestions,
-  sidebarWidth
+  sidebarWidth,
+  onOpenSettings
 }) => {
   const tabs = [
     { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' },
@@ -105,8 +107,16 @@ const AppHeader: React.FC<Props> = ({
         ))}
       </div>
 
-      {/* Right: Exit */}
-      <div className="flex items-center justify-end min-w-[200px] ml-auto">
+      {/* Right: Tools & Exit */}
+      <div className="flex items-center justify-end min-w-[200px] ml-auto gap-2">
+        <button 
+            onClick={onOpenSettings} 
+            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-gray-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"
+            title="Global Settings"
+        >
+            <Settings size={18} />
+        </button>
+        <div className="w-px h-4 bg-gray-200"></div>
         <button 
             onClick={onExit} 
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"

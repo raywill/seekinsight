@@ -18,8 +18,11 @@ import AppViewer from './components/AppViewer';
 import Lobby from './components/Lobby';
 import AppHeader from './components/AppHeader';
 import DatasetPickerModal from './components/DatasetPickerModal'; 
+import SettingsModal, { UserSettings } from './components/SettingsModal';
 import { useFileUpload } from './hooks/useFileUpload';
 import { FileQuestion, LayoutGrid } from 'lucide-react';
+
+const USER_ID = '0'; // Default user ID for MVP
 
 const App: React.FC = () => {
   const [currentNotebook, setCurrentNotebook] = useState<Notebook | null>(null);
@@ -34,6 +37,19 @@ const App: React.FC = () => {
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [tempTopic, setTempTopic] = useState("");
   
+  // User Settings State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [userSettings, setUserSettings] = useState<UserSettings>(() => {
+    const saved = localStorage.getItem(`si_config_v1_${USER_ID}`);
+    return saved ? JSON.parse(saved) : { autoExecute: false };
+  });
+
+  const updateUserSettings = (key: keyof UserSettings, value: boolean) => {
+    const newSettings = { ...userSettings, [key]: value };
+    setUserSettings(newSettings);
+    localStorage.setItem(`si_config_v1_${USER_ID}`, JSON.stringify(newSettings));
+  };
+
   // Publish Dialog State
   const [isPublishOpen, setIsPublishOpen] = useState(false);
 
@@ -598,6 +614,12 @@ const App: React.FC = () => {
           lastSqlAiPrompt: promptToUse, // Update context history
           isSqlAiGenerating: false 
       }));
+
+      // Auto Execute if enabled
+      if (userSettings.autoExecute) {
+          handleRun(result.code);
+      }
+
     } catch (err) {
       setProject(prev => ({ ...prev, isSqlAiGenerating: false }));
     }
@@ -634,6 +656,12 @@ const App: React.FC = () => {
           lastPythonAiPrompt: promptToUse, // Update context history
           isPythonAiGenerating: false 
       }));
+
+      // Auto Execute if enabled
+      if (userSettings.autoExecute) {
+          handleRun(result.code);
+      }
+
     } catch (err) {
       setProject(prev => ({ ...prev, isPythonAiGenerating: false }));
     }
@@ -838,6 +866,7 @@ const App: React.FC = () => {
         }}
         hasNewSuggestions={hasNewSuggestions}
         sidebarWidth={sidebarWidth} // Dynamically adjust width
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -1000,6 +1029,14 @@ const App: React.FC = () => {
          defaultDescription={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt}
          sourcePrompt={project.activeMode === DevMode.SQL ? project.sqlAiPrompt : project.pythonAiPrompt} // Pass original prompt
          analysisReport={project.analysisReport}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={userSettings}
+        onUpdate={updateUserSettings}
       />
 
       {/* Dataset Picker Modal */}
