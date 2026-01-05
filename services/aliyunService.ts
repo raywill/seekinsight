@@ -157,7 +157,7 @@ export const generateCode = async (prompt: string, mode: DevMode, tables: TableM
 
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
 
-  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus-latest');
+  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus');
   return parseCoTResponse(responseText);
 };
 
@@ -194,7 +194,7 @@ export const refineCode = async (
 
   await logPrompt(`REFINE_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
-  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus-latest');
+  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus');
   return parseCoTResponse(responseText);
 };
 
@@ -212,7 +212,7 @@ export const debugCode = async (prompt: string, mode: DevMode, tables: TableMeta
 
   await logPrompt(`DEBUG_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
-  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus-latest');
+  const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus');
   return parseCoTResponse(responseText);
 };
 
