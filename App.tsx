@@ -37,17 +37,32 @@ const App: React.FC = () => {
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [tempTopic, setTempTopic] = useState("");
   
+  const gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
+
   // User Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [userSettings, setUserSettings] = useState<UserSettings>(() => {
-    const saved = localStorage.getItem(`si_config_v1_${USER_ID}`);
-    return saved ? JSON.parse(saved) : { autoExecute: false };
-  });
+  const [userSettings, setUserSettings] = useState<UserSettings>({ autoExecute: false });
 
-  const updateUserSettings = (key: keyof UserSettings, value: boolean) => {
+  // Load Settings on Mount
+  useEffect(() => {
+      fetch(`${gatewayUrl}/settings/${USER_ID}`)
+        .then(res => res.json())
+        .then(data => setUserSettings(data))
+        .catch(console.error);
+  }, [gatewayUrl]);
+
+  const updateUserSettings = async (key: keyof UserSettings, value: boolean) => {
     const newSettings = { ...userSettings, [key]: value };
-    setUserSettings(newSettings);
-    localStorage.setItem(`si_config_v1_${USER_ID}`, JSON.stringify(newSettings));
+    setUserSettings(newSettings); // Optimistic update
+    try {
+        await fetch(`${gatewayUrl}/settings/${USER_ID}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newSettings)
+        });
+    } catch(e) {
+        console.error("Failed to save settings", e);
+    }
   };
 
   // Publish Dialog State
@@ -62,8 +77,6 @@ const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(288); // Default w-72 (18rem)
   const [rightPanelWidth, setRightPanelWidth] = useState(384); // Default w-96 (24rem)
   const [isResizing, setIsResizing] = useState<'sidebar' | 'right' | null>(null);
-
-  const gatewayUrl = (typeof process !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
 
   const [project, setProject] = useState<ProjectState>({
     id: null,

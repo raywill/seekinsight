@@ -3,7 +3,7 @@ import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
 import { 
-  MASTER_DB, SYSTEM_DB, NOTEBOOK_LIST_TABLE, PUBLISHED_APPS_TABLE, SHARE_SNAPSHOTS_TABLE,
+  MASTER_DB, SYSTEM_DB, NOTEBOOK_LIST_TABLE, PUBLISHED_APPS_TABLE, SHARE_SNAPSHOTS_TABLE, USER_SETTINGS_TABLE,
   LOCK_FILE, IS_DEBUG, DATASETS 
 } from './common.js';
 
@@ -307,6 +307,15 @@ export async function initSystem() {
       app_id VARCHAR(50),
       params_json TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // User Settings Table
+  await sysPool.query(`
+    CREATE TABLE IF NOT EXISTS \`${USER_SETTINGS_TABLE}\` (
+      user_id VARCHAR(50) PRIMARY KEY,
+      settings_json TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
 

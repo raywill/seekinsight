@@ -11,6 +11,7 @@ import notebooksRoutes from './gateway/notebooks.js';
 import sqlRoutes from './gateway/sql.js';
 import pythonRoutes from './gateway/python.js';
 import logPromptRoutes from './gateway/log_prompt.js';
+import settingsRoutes from './gateway/settings.js';
 
 const app = express();
 app.use(cors());
@@ -24,6 +25,7 @@ notebooksRoutes(app);
 sqlRoutes(app);
 pythonRoutes(app);
 logPromptRoutes(app);
+settingsRoutes(app);
 
 initSystem().then(() => {
   app.listen(PORT, () => console.log(`🚀 Gateway running at http://localhost:${PORT}`));

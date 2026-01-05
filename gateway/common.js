@@ -22,6 +22,7 @@ export const SYSTEM_DB = 'seekinsight';
 export const NOTEBOOK_LIST_TABLE = 'seekinsight_notebook_list';
 export const PUBLISHED_APPS_TABLE = 'seekinsight_published_apps';
 export const SHARE_SNAPSHOTS_TABLE = 'seekinsight_share_snapshots';
+export const USER_SETTINGS_TABLE = 'seekinsight_user_settings';
 
 export const DATASETS = [
   {
