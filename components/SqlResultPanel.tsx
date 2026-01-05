@@ -139,7 +139,25 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
   };
 
   const renderCellContent = (value: any, rowIndex: number, colKey: string) => {
-      const strVal = String(value ?? 'NULL');
+      let strVal = '';
+      
+      // Robust conversion logic
+      if (value === null || value === undefined) {
+          strVal = 'NULL';
+      } else if (typeof value === 'object') {
+          // Check for Node/MySQL Buffer format: { type: 'Buffer', data: [...] }
+          if (value.type === 'Buffer' && Array.isArray(value.data)) {
+              try {
+                  strVal = new TextDecoder('utf-8').decode(new Uint8Array(value.data));
+              } catch (e) {
+                  strVal = JSON.stringify(value);
+              }
+          } else {
+              strVal = JSON.stringify(value);
+          }
+      } else {
+          strVal = String(value);
+      }
       
       // Check if value is a Base64 Image string (heuristic)
       if (strVal.startsWith('data:image/')) {
