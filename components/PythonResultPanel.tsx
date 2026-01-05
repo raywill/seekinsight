@@ -105,25 +105,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
   };
 
   const renderCellContent = (value: any) => {
-      let strVal = '';
-      
-      // Robust conversion logic
-      if (value === null || value === undefined) {
-          strVal = 'NULL';
-      } else if (typeof value === 'object') {
-          // Check for Node/MySQL Buffer format: { type: 'Buffer', data: [...] }
-          if (value.type === 'Buffer' && Array.isArray(value.data)) {
-              try {
-                  strVal = new TextDecoder('utf-8').decode(new Uint8Array(value.data));
-              } catch (e) {
-                  strVal = JSON.stringify(value);
-              }
-          } else {
-              strVal = JSON.stringify(value);
-          }
-      } else {
-          strVal = String(value);
-      }
+      const strVal = String(value ?? 'NULL');
       
       if (strVal.startsWith('data:image/')) {
           return (
