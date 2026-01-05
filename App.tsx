@@ -681,10 +681,13 @@ const App: React.FC = () => {
   };
 
   const handleDebugSql = async () => {
-    if (!project.lastSqlResult?.isError || !project.sqlCode) return;
+    // Relaxed check: trust the UI component to show the button appropriately. 
+    // Just ensure we have code to fix.
+    if (!project.sqlCode) return;
+    
     setProject(prev => ({ ...prev, isSqlAiFixing: true, sqlAiThought: null }));
     try {
-      const logs = project.lastSqlResult.logs?.join('\n') || '';
+      const logs = project.lastSqlResult?.logs?.join('\n') || '';
       const { code, thought } = await ai.debugCode(project.sqlAiPrompt, DevMode.SQL, project.tables, project.sqlCode, logs);
       setProject(prev => ({ 
           ...prev, 
@@ -699,10 +702,12 @@ const App: React.FC = () => {
   };
 
   const handleDebugPython = async () => {
-    if (!project.lastPythonResult?.isError || !project.pythonCode) return;
+    // Relaxed check: trust the UI component to show the button appropriately.
+    if (!project.pythonCode) return;
+    
     setProject(prev => ({ ...prev, isPythonAiFixing: true, pythonAiThought: null }));
     try {
-      const logs = project.lastPythonResult.logs?.join('\n') || '';
+      const logs = project.lastPythonResult?.logs?.join('\n') || '';
       const { code, thought } = await ai.debugCode(project.pythonAiPrompt, DevMode.PYTHON, project.tables, project.pythonCode, logs);
       setProject(prev => ({ 
           ...prev, 

@@ -139,9 +139,56 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
   };
 
   const renderCellContent = (value: any, rowIndex: number, colKey: string) => {
-      const strVal = String(value ?? 'NULL');
+      let strVal = '';
       
-      // Check if value is a Base64 Image string (heuristic)
+      // Robust conversion logic
+      if (value === null || value === undefined) {
+          strVal = 'NULL';
+      } else if (typeof value === 'object') {
+          // Check for Node/MySQL Buffer format: { type: 'Buffer', data: [...] }
+          if (value.type === 'Buffer' && Array.isArray(value.data)) {
+              const bytes = new Uint8Array(value.data);
+              
+              // 1. Check Magic Numbers for Image Types
+              let mimeType = null;
+              // JPEG: FF D8 FF
+              if (bytes.length > 2 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) mimeType = 'jpeg';
+              // PNG: 89 50 4E 47
+              else if (bytes.length > 3 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) mimeType = 'png';
+              // GIF: 47 49 46
+              else if (bytes.length > 2 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) mimeType = 'gif';
+              // BMP: 42 4D
+              else if (bytes.length > 1 && bytes[0] === 0x42 && bytes[1] === 0x4D) mimeType = 'bmp';
+
+              if (mimeType) {
+                  // Convert raw bytes to Base64
+                  let binary = '';
+                  const len = bytes.byteLength;
+                  for (let i = 0; i < len; i++) {
+                      binary += String.fromCharCode(bytes[i]);
+                  }
+                  try {
+                      const base64 = window.btoa(binary);
+                      strVal = `data:image/${mimeType};base64,${base64}`;
+                  } catch (e) {
+                      strVal = '[Image Data Error]';
+                  }
+              } else {
+                  // 2. Fallback to Text Decode
+                  try {
+                      strVal = new TextDecoder('utf-8').decode(bytes);
+                  } catch (e) {
+                      strVal = JSON.stringify(value);
+                  }
+              }
+          } else {
+              strVal = JSON.stringify(value);
+          }
+      } else {
+          strVal = String(value);
+      }
+      
+      // Check if value is a Base64 Image string (either from DB text or converted above)
       if (strVal.startsWith('data:image/')) {
           return (
               <div 
