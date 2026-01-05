@@ -84,7 +84,7 @@ async function logPrompt(type: string, content: string) {
   }
 }
 
-async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false, model = 'qwen-plus') {
+async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false, model = 'qwen-flash') {
   const API_KEY = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
   const BASE_URL = (typeof process !== 'undefined' ? process.env.API_BASEURL : undefined) || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 
