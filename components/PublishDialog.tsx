@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DevMode, ExecutionResult } from '../types';
 import { publishApp, updateApp } from '../services/appService';
+import { executePython } from '../services/pythonService';
 import { X, Rocket, Sparkles, AlertCircle, CheckCircle2, RefreshCw, ExternalLink, ArrowLeft, Loader2, Code2, Save } from 'lucide-react';
 
 interface Props {
@@ -61,23 +62,20 @@ const PublishDialog: React.FC<Props> = ({
   }, [isOpen, defaultTitle, defaultDescription, type, dbName]);
 
   const detectSchema = async () => {
+    if (!dbName) return;
     setIsDetectingSchema(true);
-    const gatewayUrl = (typeof process as any !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
     
     try {
-      const res = await fetch(`${gatewayUrl}/python`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          code, 
-          dbName, 
-          executionMode: 'SCHEMA' // Request Schema Mode
-        })
-      });
-      const data = await res.json();
+      // Use shared executePython service with SCHEMA mode
+      const result = await executePython(
+        code, 
+        dbName, 
+        {}, 
+        'SCHEMA'
+      );
       
-      if (data.schemaData && Object.keys(data.schemaData).length > 0) {
-        setParamsJson(JSON.stringify(data.schemaData, null, 2));
+      if (result.schemaData && Object.keys(result.schemaData).length > 0) {
+        setParamsJson(JSON.stringify(result.schemaData, null, 2));
       } else {
         setParamsJson('{}');
       }

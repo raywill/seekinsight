@@ -4,6 +4,7 @@ import { PublishedApp, ExecutionResult } from '../types';
 import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home, Share2, Copy, Check, Link as LinkIcon, X, Loader2 } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 import { createShareSnapshot, getShareSnapshot } from '../services/appService';
+import { executePython } from '../services/pythonService';
 
 interface Props {
   app: PublishedApp;
@@ -257,39 +258,19 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
 
   const handleRun = useCallback(async () => {
     setIsRunning(true);
-    const gatewayUrl = (typeof process as any !== 'undefined' && process.env.GATEWAY_URL) || 'http://localhost:3001';
     
     try {
-      const endpoint = '/python';
-      // Pass executionMode 'EXECUTION' (default) and the collected params
-      const body = { 
-        dbName: app.source_db_name, 
-        code: app.code,
-        executionMode: 'EXECUTION',
-        params: paramValues 
-      };
-
-      const res = await fetch(`${gatewayUrl}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      
-      const data = await res.json();
-      
-      const execResult: ExecutionResult = {
-        data: data.data || [],
-        columns: data.columns || [],
-        logs: data.logs,
-        plotlyData: data.plotlyData,
-        timestamp: new Date().toLocaleTimeString(),
-        isError: !res.ok
-      };
+      // Use shared executePython service
+      const execResult = await executePython(
+        app.code, 
+        app.source_db_name, 
+        paramValues, 
+        'EXECUTION'
+      );
       
       setResult(execResult);
     } catch (e) {
       console.error(e);
-      // alert("Execution failed. The source database might be offline.");
     } finally {
       setIsRunning(false);
     }

@@ -5,6 +5,7 @@ import { INITIAL_SQL, INITIAL_PYTHON } from './constants';
 import * as ai from './services/aiProvider';
 import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
 import { fetchApp, cloneNotebook } from './services/appService';
+import { executePython } from './services/pythonService';
 import { MySQLEngine } from './services/mysqlEngine';
 import DataSidebar from './components/DataSidebar';
 import SqlWorkspace from './components/SqlWorkspace';
@@ -596,6 +597,63 @@ const App: React.FC = () => {
       });
   };
 
+  // Fixed: handleRun now accepts modeOverride to solve stale closure issues
+  const handleRun = async (codeOverride?: string, modeOverride?: DevMode) => {
+    if (!dbReady || !project.dbName) return; 
+    
+    // Clear preview when running manual code to show actual results
+    setProject(prev => ({ ...prev, isExecuting: true, previewResult: null }));
+    
+    // Use override, or ref (fresh), or state (fallback)
+    const currentMode = modeOverride || activeModeRef.current || project.activeMode;
+    const currentCode = codeOverride || (currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode);
+    
+    try {
+      let result: ExecutionResult;
+      if (currentMode === DevMode.SQL) {
+        result = await getDatabaseEngine().executeQuery(currentCode, project.dbName);
+      } else {
+        // Use the shared service for Python execution
+        result = await executePython(currentCode, project.dbName);
+      }
+      setProject(prev => ({
+        ...prev,
+        isExecuting: false,
+        [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: result,
+        isAnalyzing: currentMode === DevMode.SQL && result.data.length > 0 && !result.isError
+      }));
+      if (currentMode === DevMode.SQL && result.data.length > 0 && !result.isError) {
+        ai.generateAnalysis(currentCode, result.data, project.topicName, project.sqlAiPrompt).then(report => {
+          setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
+        });
+        setProject(prev => ({ ...prev, isRecommendingCharts: true }));
+        ai.recommendCharts(currentCode, result.data).then(charts => {
+          setProject(prev => ({ ...prev, lastSqlResult: { ...result, chartConfigs: charts }, isRecommendingCharts: false }));
+        });
+      }
+    } catch (err: any) {
+      if (process.env.SI_DEBUG_MODE !== 'false') {
+        console.error(`[Execution Error - ${currentMode}]:`, err);
+      }
+      
+      const errorResult: ExecutionResult = {
+        data: [],
+        columns: [],
+        logs: [err.message || "Unknown error occurred during execution"],
+        isError: true,
+        timestamp: new Date().toLocaleTimeString()
+      };
+
+      setProject(prev => ({ 
+        ...prev, 
+        isExecuting: false, 
+        isRecommendingCharts: false, 
+        isAnalyzing: false,
+        [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult
+      }));
+    }
+  };
+
   const handleSqlAiGenerate = async (promptOverride?: string, forceFresh = false) => {
     const promptToUse = promptOverride || project.sqlAiPrompt;
     if (!promptToUse) return;
@@ -630,7 +688,7 @@ const App: React.FC = () => {
 
       // Auto Execute if enabled
       if (userSettings.autoExecute) {
-          handleRun(result.code);
+          handleRun(result.code, DevMode.SQL); // Explicitly pass mode
       }
 
     } catch (err) {
@@ -672,7 +730,7 @@ const App: React.FC = () => {
 
       // Auto Execute if enabled
       if (userSettings.autoExecute) {
-          handleRun(result.code);
+          handleRun(result.code, DevMode.PYTHON); // Explicitly pass mode
       }
 
     } catch (err) {
@@ -695,7 +753,7 @@ const App: React.FC = () => {
           sqlAiThought: thought, // Store fix thought
           isSqlAiFixing: false 
       }));
-      handleRun(code);
+      handleRun(code, DevMode.SQL);
     } catch (err) {
       setProject(prev => ({ ...prev, isSqlAiFixing: false }));
     }
@@ -715,76 +773,9 @@ const App: React.FC = () => {
           pythonAiThought: thought, // Store fix thought
           isPythonAiFixing: false 
       }));
-      handleRun(code);
+      handleRun(code, DevMode.PYTHON);
     } catch (err) {
       setProject(prev => ({ ...prev, isPythonAiFixing: false }));
-    }
-  };
-
-  const handleRun = async (codeOverride?: string) => {
-    if (!dbReady || !project.dbName) return; 
-    
-    // Clear preview when running manual code to show actual results
-    setProject(prev => ({ ...prev, isExecuting: true, previewResult: null }));
-    
-    const currentMode = project.activeMode;
-    const currentCode = codeOverride || (currentMode === DevMode.SQL ? project.sqlCode : project.pythonCode);
-    
-    try {
-      let result: ExecutionResult;
-      if (currentMode === DevMode.SQL) {
-        result = await getDatabaseEngine().executeQuery(currentCode, project.dbName);
-      } else {
-        const response = await fetch(`${gatewayUrl}/python`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: currentCode, dbName: project.dbName })
-        });
-        const data = await response.json();
-        result = { 
-          data: data.data || [], 
-          columns: data.columns || [], 
-          logs: data.logs || [], 
-          plotlyData: data.plotlyData, 
-          timestamp: new Date().toLocaleTimeString(), 
-          isError: !response.ok 
-        };
-      }
-      setProject(prev => ({
-        ...prev,
-        isExecuting: false,
-        [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: result,
-        isAnalyzing: currentMode === DevMode.SQL && result.data.length > 0 && !result.isError
-      }));
-      if (currentMode === DevMode.SQL && result.data.length > 0 && !result.isError) {
-        ai.generateAnalysis(currentCode, result.data, project.topicName, project.sqlAiPrompt).then(report => {
-          setProject(prev => ({ ...prev, analysisReport: report, isAnalyzing: false }));
-        });
-        setProject(prev => ({ ...prev, isRecommendingCharts: true }));
-        ai.recommendCharts(currentCode, result.data).then(charts => {
-          setProject(prev => ({ ...prev, lastSqlResult: { ...result, chartConfigs: charts }, isRecommendingCharts: false }));
-        });
-      }
-    } catch (err: any) {
-      if (process.env.SI_DEBUG_MODE !== 'false') {
-        console.error(`[Execution Error - ${currentMode}]:`, err);
-      }
-      
-      const errorResult: ExecutionResult = {
-        data: [],
-        columns: [],
-        logs: [err.message || "Unknown error occurred during execution"],
-        isError: true,
-        timestamp: new Date().toLocaleTimeString()
-      };
-
-      setProject(prev => ({ 
-        ...prev, 
-        isExecuting: false, 
-        isRecommendingCharts: false, 
-        isAnalyzing: false,
-        [currentMode === DevMode.SQL ? 'lastSqlResult' : 'lastPythonResult']: errorResult
-      }));
     }
   };
 
