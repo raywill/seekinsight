@@ -303,7 +303,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
         <div className="flex items-center gap-3">
           {activeTab === 'table' && result?.data && result.data.length > 0 && (
             <button onClick={exportToTSV} className="text-[10px] font-black text-blue-600 hover:underline flex items-center gap-1 mr-2">
-              <Download size={10} /> EXPORT TSV
+              <Download size={10} /> EXPORT TSV <span className="opacity-50 font-normal">({result.data.length})</span>
             </button>
           )}
           <span className="text-[10px] font-mono text-gray-400 font-bold hidden sm:block">{result?.timestamp || previewResult?.timestamp}</span>
