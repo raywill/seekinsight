@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown, Image as ImageIcon } from 'lucide-react';
+import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown, Image as ImageIcon, Copy, Check } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
@@ -22,6 +22,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(!fullHeight); 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [copiedLogs, setCopiedLogs] = useState(false);
   
   const startY = useRef<number>(0);
   const startHeight = useRef<number>(0);
@@ -102,6 +103,17 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
     }, 100);
+  };
+
+  const handleCopyLogs = () => {
+    if (!result?.logs || result.logs.length === 0) return;
+    const text = result.logs.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        setCopiedLogs(true);
+        setTimeout(() => setCopiedLogs(false), 2000);
+    }).catch(err => {
+        console.error('Failed to copy logs:', err);
+    });
   };
 
   const renderCellContent = (value: any) => {
@@ -265,6 +277,18 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
           )}
         </div>
         <div className="flex items-center gap-3">
+          
+          {activeTab === 'console' && result?.logs && result.logs.length > 0 && (
+             <button 
+                onClick={handleCopyLogs}
+                className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-all"
+                title="Copy Output"
+             >
+                {copiedLogs ? <Check size={12} /> : <Copy size={12} />}
+                <span className="hidden sm:inline">{copiedLogs ? 'Copied' : 'Copy'}</span>
+             </button>
+          )}
+
           <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider hidden sm:block">
             PY3.10 • {result?.timestamp || previewResult?.timestamp}
           </div>
