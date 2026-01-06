@@ -123,8 +123,8 @@ class SI_Wrapper:
         base_url = os.environ.get('API_BASEURL', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
         url = f"{base_url.rstrip('/')}/chat/completions"
         
-        # Default model if not specified
-        model_name = model or os.environ.get('AI_MODEL_NAME', 'qwen-turbo')
+        # Default model if not specified, prioritize Env var
+        model_name = model or os.environ.get('AI_MODEL_NAME') or 'qwen-turbo'
         
         payload = {
             "model": model_name,
@@ -166,7 +166,7 @@ try:
 
     SI = SI_Wrapper(engine, SI_MODE, SI_PARAMS_DICT)
     
-    # Legacy Alias Support (Optional, can be removed if prompt is strict)
+    # Legacy Alias Support
     def sql(q): return SI.sql(q)
     def forge_plotly(f): return SI.plot(f)
     

@@ -84,9 +84,16 @@ async function logPrompt(type: string, content: string) {
   }
 }
 
-async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false, model = 'qwen-flash') {
+async function callAliyun(messages: { role: string; content: string }[], temperature = 0.7, jsonMode = false, model?: string) {
   const API_KEY = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
   const BASE_URL = (typeof process !== 'undefined' ? process.env.API_BASEURL : undefined) || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+  
+  // Priority: Env Var Config > Passed Model Arg > Default
+  const configuredModel = typeof process !== 'undefined' ? process.env.AI_MODEL_NAME : undefined;
+  // If user explicitly configured a model in ENV, we likely want to use it everywhere. 
+  // However, if we need specific capabilities (like Code or JSON), sometimes we pass a specific model.
+  // Strategy: If env var is set, prefer it. Otherwise use arg or default.
+  const targetModel = configuredModel || model || 'qwen-turbo';
 
   if (!API_KEY) {
     throw new Error("Aliyun API Key is missing.");
@@ -99,7 +106,7 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
       'Authorization': `Bearer ${API_KEY}`
     },
     body: JSON.stringify({
-      model: model,
+      model: targetModel,
       messages,
       temperature,
       ...(jsonMode ? { response_format: { type: "json_object" } } : {})
@@ -116,7 +123,7 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
   // Log Token Usage
   if (data.usage) {
     const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
-    console.groupCollapsed(`%c[Token Usage] Aliyun (${model})`, 'color: #059669; font-weight: bold;');
+    console.groupCollapsed(`%c[Token Usage] Aliyun (${targetModel})`, 'color: #059669; font-weight: bold;');
     console.log(`Prompt Tokens:     ${prompt_tokens}`);
     console.log(`Completion Tokens: ${completion_tokens}`);
     console.log(`Total Tokens:      ${total_tokens}`);
@@ -168,6 +175,7 @@ export const generateCode = async (prompt: string, mode: DevMode, tables: TableM
 
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
 
+  // Default fallback for Code Gen if not configured: qwen-coder-plus-1106
   const responseText = await callAliyun(messages, 0.1, false, 'qwen-coder-plus-1106');
   return parseCoTResponse(responseText);
 };
