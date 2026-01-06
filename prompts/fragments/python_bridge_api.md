@@ -1,6 +1,7 @@
+
 # STRICT API CONTRACT (SI Object)
 The global `SI` object is a **strict bridge interface**. It is NOT a general utility library.
-You must ONLY use `SI` for the following 3 specific capabilities. For everything else, use standard Python.
+You must ONLY use `SI` for the following specific capabilities. For everything else, use standard Python.
 
 ## 1. INPUTS (Interactive UI)
 - Auto extract only high-value variables as inputs
@@ -16,6 +17,11 @@ You must ONLY use `SI` for the following 3 specific capabilities. For everything
 ## 3. VISUALIZATION (Plotly)
 - `SI.plot(fig)`
 - Renders a Plotly Figure object.
+
+## 4. AI CAPABILITIES (LLM Call)
+- `text_result = SI.ai_complete(prompt_string)`
+- Use this to process text data, perform sentiment analysis, extract keywords, or summarize text content when standard libraries are insufficient.
+- Returns a string.
 
 # FORBIDDEN METHODS (Anti-Hallucination)
 - DO NOT use `SI.print`, `SI.display`, `SI.markdown`, `SI.write`, or `SI.table`.

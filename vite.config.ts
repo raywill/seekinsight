@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
       'process.env.API_BASEURL': JSON.stringify(env.API_BASEURL),
       'process.env.GATEWAY_URL': JSON.stringify(env.GATEWAY_URL || 'http://localhost:3001'),
       'process.env.AI_PROVIDER': JSON.stringify(env.AI_PROVIDER || 'aliyun'),
+      'process.env.AI_MODEL_NAME': JSON.stringify(env.AI_MODEL_NAME),
       'process.env.SI_DEBUG_MODE': JSON.stringify(env.SI_DEBUG_MODE !== 'false'),
       // Fix: Ensure SQL_AUTO_COMPLETE is defined as a string 'true' or 'false' for reliable environment variable behavior
       'process.env.SQL_AUTO_COMPLETE': JSON.stringify(env.SQL_AUTO_COMPLETE === 'false' ? 'false' : 'true'),

@@ -24,6 +24,8 @@ from sqlalchemy import create_engine
 import json
 import os
 import sys
+import urllib.request
+import urllib.error
 import plotly.io as pio
 
 class SI_Params:
@@ -109,6 +111,48 @@ class SI_Wrapper:
         if self.mode == 'SCHEMA':
             print(f"__SCHEMA_JSON__:{json.dumps(self.params.schema)}")
 
+    def ai_complete(self, prompt, model=None):
+        """
+        Calls the LLM API to get a text completion.
+        Uses environment variables API_KEY and API_BASEURL.
+        """
+        api_key = os.environ.get('API_KEY')
+        if not api_key:
+            return "[Error: API_KEY not configured]"
+            
+        base_url = os.environ.get('API_BASEURL', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
+        url = f"{base_url.rstrip('/')}/chat/completions"
+        
+        # Default model if not specified
+        model_name = model or os.environ.get('AI_MODEL_NAME', 'qwen-turbo')
+        
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        try:
+            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
+            with urllib.request.urlopen(req) as response:
+                if response.status == 200:
+                    result = json.loads(response.read().decode('utf-8'))
+                    return result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                else:
+                    return f"[Error: API Status {response.status}]"
+        except urllib.error.HTTPError as e:
+            err_msg = e.read().decode('utf-8')
+            print(f"AI API Error: {err_msg}", file=sys.stderr)
+            return f"[Error: {e.code}]"
+        except Exception as e:
+            print(f"AI Request Error: {str(e)}", file=sys.stderr)
+            return f"[Error: {str(e)}]"
+
 # Initialize
 try:
     engine = create_engine("${connectionString}")
@@ -142,7 +186,11 @@ except Exception as e:
     const childEnv = { 
       ...process.env, 
       SI_EXEC_MODE: envMode,
-      SI_PARAMS: envParams
+      SI_PARAMS: envParams,
+      // Ensure API keys and config are passed to the child process
+      API_KEY: process.env.API_KEY,
+      API_BASEURL: process.env.API_BASEURL,
+      AI_MODEL_NAME: process.env.AI_MODEL_NAME
     };
 
     const pyProcess = spawn(pythonExe, [tmpFile], { env: childEnv });
