@@ -105,15 +105,36 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     }, 100);
   };
 
-  const handleCopyLogs = () => {
+  const handleCopyLogs = async () => {
     if (!result?.logs || result.logs.length === 0) return;
     const text = result.logs.join('\n');
-    navigator.clipboard.writeText(text).then(() => {
+    
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            // Fallback for non-secure contexts
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            
+            document.body.removeChild(textArea);
+        }
         setCopiedLogs(true);
         setTimeout(() => setCopiedLogs(false), 2000);
-    }).catch(err => {
+    } catch (err) {
         console.error('Failed to copy logs:', err);
-    });
+    }
   };
 
   const renderCellContent = (value: any) => {
@@ -278,20 +299,20 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
         </div>
         <div className="flex items-center gap-3">
           
-          {activeTab === 'console' && result?.logs && result.logs.length > 0 && (
-             <button 
-                onClick={handleCopyLogs}
-                className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-all"
-                title="Copy Output"
-             >
-                {copiedLogs ? <Check size={12} /> : <Copy size={12} />}
-                <span className="hidden sm:inline">{copiedLogs ? 'Copied' : 'Copy'}</span>
-             </button>
-          )}
-
           <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider hidden sm:block">
             PY3.10 • {result?.timestamp || previewResult?.timestamp}
           </div>
+
+          {activeTab === 'console' && result?.logs && result.logs.length > 0 && (
+             <button 
+                onClick={handleCopyLogs}
+                className={`p-1.5 rounded-lg transition-all ${copiedLogs ? 'bg-green-50 text-green-600' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
+                title={copiedLogs ? "Copied!" : "Copy Output"}
+             >
+                {copiedLogs ? <Check size={14} /> : <Copy size={14} />}
+             </button>
+          )}
+
           <button 
             onClick={toggleFullscreen}
             className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
