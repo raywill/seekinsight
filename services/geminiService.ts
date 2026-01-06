@@ -79,15 +79,28 @@ async function logPrompt(type: string, content: string) {
   }
 }
 
+// Log Token Usage for Gemini
+function logGeminiUsage(model: string, usageMetadata: any) {
+  if (usageMetadata) {
+    const { promptTokenCount, candidatesTokenCount, totalTokenCount } = usageMetadata;
+    console.groupCollapsed(`%c[Token Usage] Gemini (${model})`, 'color: #059669; font-weight: bold;');
+    console.log(`Prompt Tokens:     ${promptTokenCount}`);
+    console.log(`Completion Tokens: ${candidatesTokenCount}`);
+    console.log(`Total Tokens:      ${totalTokenCount}`);
+    console.groupEnd();
+  }
+}
+
 export const analyzeHeaders = async (sample: any[][]): Promise<{ hasHeader: boolean; headers: string[] }> => {
   const safeSample = sanitizeSample(sample, 5, 200);
   const userContent = USER_PROMPTS.HEADER_ANALYSIS(safeSample);
+  const model = 'gemini-3-flash-preview';
   
   await logPrompt('HEADER_ANALYSIS', `System: ${SYSTEM_PROMPTS.HEADER_ANALYSIS}\nUser: ${userContent}`);
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: model,
       contents: userContent,
       config: {
         systemInstruction: SYSTEM_PROMPTS.HEADER_ANALYSIS,
@@ -102,6 +115,8 @@ export const analyzeHeaders = async (sample: any[][]): Promise<{ hasHeader: bool
         }
       },
     });
+
+    logGeminiUsage(model, response.usageMetadata);
 
     return JSON.parse(response.text || "{}");
   } catch (err) {
@@ -119,16 +134,19 @@ export const generateCode = async (
   tables: TableMetadata[]
 ): Promise<{ code: string; thought: string }> => {
   const systemInstruction = SYSTEM_PROMPTS.CODE_GEN(mode, tables);
+  const model = 'gemini-3-pro-preview';
   await logPrompt(`CODE_GEN_${mode}`, `System: ${systemInstruction}\nUser: ${prompt}`);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: model,
     contents: prompt,
     config: {
       systemInstruction: systemInstruction,
       temperature: 0.1,
     },
   });
+
+  logGeminiUsage(model, response.usageMetadata);
 
   return parseCoTResponse(response.text || "");
 };
@@ -142,6 +160,7 @@ export const refineCode = async (
   previousPrompt?: string | null
 ): Promise<{ code: string; thought: string }> => {
   const systemInstruction = SYSTEM_PROMPTS.REFINE_CODE(mode, tables);
+  const model = 'gemini-3-pro-preview';
   
   // Construct Runtime Context
   let runtimeContext = "No previous execution data available.";
@@ -162,13 +181,15 @@ export const refineCode = async (
   await logPrompt(`REFINE_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: model,
     contents: userContent,
     config: {
       systemInstruction: systemInstruction,
       temperature: 0.1,
     },
   });
+
+  logGeminiUsage(model, response.usageMetadata);
 
   return parseCoTResponse(response.text || "");
 };
@@ -182,6 +203,7 @@ export const debugCode = async (
 ): Promise<{ code: string; thought: string }> => {
   const systemInstruction = SYSTEM_PROMPTS.DEBUG_CODE(mode, tables);
   const safeError = error.length > 2000 ? error.substring(0, 2000) + '\n...(truncated logs)' : error;
+  const model = 'gemini-3-pro-preview';
   
   // Use the new structured template
   const userContent = USER_PROMPTS.DEBUG_CONTEXT(prompt, code, safeError);
@@ -189,13 +211,15 @@ export const debugCode = async (
   await logPrompt(`DEBUG_CODE_${mode}`, `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: model,
     contents: userContent,
     config: {
       systemInstruction: systemInstruction,
       temperature: 0.1,
     },
   });
+
+  logGeminiUsage(model, response.usageMetadata);
 
   return parseCoTResponse(response.text || "");
 };
@@ -205,13 +229,14 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
 
   const safeSample = sanitizeSample(data, 5, 200);
   const headers = Object.keys(data[0]);
+  const model = 'gemini-3-flash-preview';
 
   const userContent = USER_PROMPTS.METADATA_INFER(tableName, headers, safeSample);
   await logPrompt('METADATA_INFER', `System: ${SYSTEM_PROMPTS.METADATA_INFER}\nUser: ${userContent}`);
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: model,
       contents: userContent,
       config: {
         systemInstruction: SYSTEM_PROMPTS.METADATA_INFER,
@@ -227,6 +252,8 @@ export const inferColumnMetadata = async (tableName: string, data: any[]): Promi
       }
     });
 
+    logGeminiUsage(model, response.usageMetadata);
+
     const result = JSON.parse(response.text || "{}");
     return result;
   } catch (err) {
@@ -239,6 +266,7 @@ export const generateAnalysis = async (query: string, result: any[], topic: stri
   if (!result || result.length === 0) return "No data returned to analyze.";
   
   const safeResult = sanitizeSample(result, 5, 300);
+  const model = 'gemini-3-flash-preview';
 
   const userContent = `
 ${prompt ? `Business Requirement: ${prompt}` : ''}
@@ -250,7 +278,7 @@ Result Data (Sample): ${JSON.stringify(safeResult)}
   await logPrompt('ANALYSIS', `System: ${systemInstruction}\nUser: ${userContent}`);
   
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: model,
     contents: userContent,
     config: {
       systemInstruction: systemInstruction,
@@ -258,12 +286,15 @@ Result Data (Sample): ${JSON.stringify(safeResult)}
     }
   });
 
+  logGeminiUsage(model, response.usageMetadata);
+
   return response.text || "";
 };
 
 export const recommendCharts = async (query: string, result: any[]): Promise<AIChartConfig[]> => {
   if (!result || result.length === 0) return [];
   const columns = Object.keys(result[0]);
+  const model = 'gemini-3-flash-preview';
   
   const safeSample = sanitizeSample(result, 10, 100);
 
@@ -272,7 +303,7 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: model,
       contents: userContent,
       config: {
         systemInstruction: SYSTEM_PROMPTS.CHART_REC,
@@ -300,6 +331,8 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
       }
     });
 
+    logGeminiUsage(model, response.usageMetadata);
+
     const data = JSON.parse(response.text || "{}");
     return data.charts || [];
   } catch (err) {
@@ -310,6 +343,7 @@ export const recommendCharts = async (query: string, result: any[]): Promise<AIC
 
 export const generateSuggestions = async (tables: TableMetadata[], topic: string, existingSuggestions: Suggestion[] = []): Promise<Suggestion[]> => {
   const systemInstruction = SYSTEM_PROMPTS.SUGGESTIONS(topic, tables, existingSuggestions);
+  const model = 'gemini-3-flash-preview';
   
   const userContent = `Analyze the schema provided in the system instructions and generate 8 distinct ideas (4 SQL, 4 Python).`;
   
@@ -317,7 +351,7 @@ export const generateSuggestions = async (tables: TableMetadata[], topic: string
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: model,
       contents: userContent,
       config: {
         systemInstruction: systemInstruction,
@@ -345,6 +379,8 @@ export const generateSuggestions = async (tables: TableMetadata[], topic: string
       }
     });
 
+    logGeminiUsage(model, response.usageMetadata);
+
     const data = JSON.parse(response.text || "{}");
     return (data.suggestions || []).map((s: any) => ({
       ...s,
@@ -360,17 +396,20 @@ export const generateSuggestions = async (tables: TableMetadata[], topic: string
 export const generateTopic = async (currentTopic: string, tables: TableMetadata[]): Promise<string> => {
   const systemInstruction = SYSTEM_PROMPTS.TOPIC_GEN(tables);
   const userContent = USER_PROMPTS.TOPIC_GEN(currentTopic);
+  const model = 'gemini-3-flash-preview';
   
   await logPrompt('TOPIC_GEN', `System: ${systemInstruction}\nUser: ${userContent}`);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: model,
     contents: userContent,
     config: {
       systemInstruction: systemInstruction,
       temperature: 0.3,
     },
   });
+
+  logGeminiUsage(model, response.usageMetadata);
 
   return (response.text || "").replace(/['"“”]/g, '').trim().substring(0, 10);
 };

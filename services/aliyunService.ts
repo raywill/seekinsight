@@ -112,6 +112,17 @@ async function callAliyun(messages: { role: string; content: string }[], tempera
   }
 
   const data = await response.json();
+
+  // Log Token Usage
+  if (data.usage) {
+    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
+    console.groupCollapsed(`%c[Token Usage] Aliyun (${model})`, 'color: #059669; font-weight: bold;');
+    console.log(`Prompt Tokens:     ${prompt_tokens}`);
+    console.log(`Completion Tokens: ${completion_tokens}`);
+    console.log(`Total Tokens:      ${total_tokens}`);
+    console.groupEnd();
+  }
+
   return data.choices[0].message.content;
 }
 
