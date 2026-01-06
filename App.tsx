@@ -596,7 +596,7 @@ const App: React.FC = () => {
       });
   };
 
-  const handleSqlAiGenerate = async (promptOverride?: string) => {
+  const handleSqlAiGenerate = async (promptOverride?: string, forceFresh = false) => {
     const promptToUse = promptOverride || project.sqlAiPrompt;
     if (!promptToUse) return;
     
@@ -605,7 +605,7 @@ const App: React.FC = () => {
     try {
       let result;
       // Heuristic: If code is longer than 20 chars and doesn't look like default comment
-      const isRefinement = project.sqlCode && project.sqlCode.length > 20 && !project.sqlCode.trim().startsWith("-- Write SQL here");
+      const isRefinement = !forceFresh && project.sqlCode && project.sqlCode.length > 20 && !project.sqlCode.trim().startsWith("-- Write SQL here");
       
       if (isRefinement) {
           result = await ai.refineCode(
@@ -638,7 +638,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePythonAiGenerate = async (promptOverride?: string) => {
+  const handlePythonAiGenerate = async (promptOverride?: string, forceFresh = false) => {
     const promptToUse = promptOverride || project.pythonAiPrompt;
     if (!promptToUse) return;
     
@@ -647,7 +647,7 @@ const App: React.FC = () => {
     try {
       let result;
       // Heuristic: If code is longer than 20 chars and doesn't look like default comment
-      const isRefinement = project.pythonCode && project.pythonCode.length > 20 && !project.pythonCode.trim().startsWith("# Write Python here");
+      const isRefinement = !forceFresh && project.pythonCode && project.pythonCode.length > 20 && !project.pythonCode.trim().startsWith("# Write Python here");
 
       if (isRefinement) {
           result = await ai.refineCode(
@@ -951,8 +951,8 @@ const App: React.FC = () => {
                 suggestions={project.suggestions}
                 onApply={(s) => {
                   setProject(p => ({ ...p, activeMode: s.type, [s.type === DevMode.SQL ? 'sqlAiPrompt' : 'pythonAiPrompt']: s.prompt }));
-                  if (s.type === DevMode.SQL) handleSqlAiGenerate(s.prompt);
-                  else handlePythonAiGenerate(s.prompt);
+                  if (s.type === DevMode.SQL) handleSqlAiGenerate(s.prompt, true);
+                  else handlePythonAiGenerate(s.prompt, true);
                 }}
                 onUpdate={handleUpdateSuggestion}
                 onDelete={handleDeleteSuggestion}
