@@ -90,10 +90,32 @@ class SI_Params:
             return default
         return self.injected.get(key, default)
 
+class SI_App:
+    def layout(self, sidebar=True, header=True):
+        """
+        Control the visibility of the App UI chrome.
+        """
+        payload = {
+            "action": "layout",
+            "payload": {
+                "sidebar": sidebar,
+                "header": header
+            }
+        }
+        # Use a special command prefix for the frontend to intercept
+        print(f"__SI_CMD__:{json.dumps(payload)}")
+
+    def focus_mode(self):
+        """
+        Shortcut to hide everything and focus on the result.
+        """
+        self.layout(sidebar=False, header=False)
+
 class SI_Wrapper:
     def __init__(self, engine, mode, params):
         self.engine = engine
         self.params = SI_Params(mode, params)
+        self.app = SI_App()
         self.mode = mode
 
     def sql(self, query):
@@ -250,8 +272,8 @@ except Exception as e:
           try { schemaData = JSON.parse(line.replace("__SCHEMA_JSON__:", '')); } catch(e) {}
           return false;
         }
-        // NOTE: We do NOT filter out __SI_DISPLAY_BLOCK__ here. 
-        // We let it pass through as a log line so the frontend can intercept it in the console stream.
+        // NOTE: We do NOT filter out __SI_DISPLAY_BLOCK__ or __SI_CMD__ here. 
+        // We let them pass through as log lines so the frontend can intercept them.
         return true;
       });
 
