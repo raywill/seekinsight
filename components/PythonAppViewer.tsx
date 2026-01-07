@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PublishedApp, ExecutionResult } from '../types';
-import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home, Share2, Copy, Check, Link as LinkIcon, X, Loader2 } from 'lucide-react';
+import { Play, RefreshCw, Database, Terminal, Settings2, PencilLine, GitFork, LayoutGrid, MoreVertical, Sliders, ChevronDown, Home, Share2, Copy, Check, Link as LinkIcon, Loader2 } from 'lucide-react';
 import PythonResultPanel from './PythonResultPanel';
 import { createShareSnapshot, getShareSnapshot } from '../services/appService';
 import { executePython } from '../services/pythonService';
@@ -418,9 +418,6 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
                 >
                     <MoreVertical size={20} />
                 </button>
-
-                {/* Close Button - Only in Header */}
-                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors ml-2"><X size={24}/></button>
 
                 {isMenuOpen && (
                 <>
