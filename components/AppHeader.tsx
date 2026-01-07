@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Boxes, LogOut, PencilLine, Settings } from 'lucide-react';
+import { Boxes, LogOut, PencilLine, Settings, Rocket } from 'lucide-react';
 import { DevMode } from '../types';
 
 interface Props {
@@ -18,6 +18,7 @@ interface Props {
   hasNewSuggestions?: boolean;
   sidebarWidth: number;
   onOpenSettings: () => void;
+  onOpenApps?: () => void;
 }
 
 const AppHeader: React.FC<Props> = ({
@@ -34,7 +35,8 @@ const AppHeader: React.FC<Props> = ({
   onModeChange,
   hasNewSuggestions,
   sidebarWidth,
-  onOpenSettings
+  onOpenSettings,
+  onOpenApps
 }) => {
   const tabs = [
     { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' },
@@ -109,6 +111,15 @@ const AppHeader: React.FC<Props> = ({
 
       {/* Right: Tools & Exit */}
       <div className="flex items-center justify-end min-w-[200px] ml-auto gap-2">
+        {isNotebookSession && onOpenApps && (
+            <button 
+                onClick={onOpenApps} 
+                className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-blue-600 transition-colors px-2 py-1.5 rounded-lg hover:bg-blue-50"
+                title="Linked Apps"
+            >
+                <Rocket size={18} />
+            </button>
+        )}
         <button 
             onClick={onOpenSettings} 
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-gray-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"

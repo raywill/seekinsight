@@ -89,11 +89,13 @@ const SimpleMarkdown = ({ content }: { content: string }) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('###')) return <h3 key={i} className="text-sm font-black text-gray-900 mt-6 mb-2 uppercase tracking-tight">{trimmed.replace(/^###\s*/, '')}</h3>;
         if (trimmed.startsWith('##')) return <h2 key={i} className="text-base font-black text-gray-900 mt-8 mb-3 border-b border-gray-100 pb-1">{trimmed.replace(/^##\s*/, '')}</h2>;
-        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+        
+        // Strict list check: must start with - or * followed by a space.
+        if (trimmed.match(/^[-*]\s/)) {
           return (
             <div key={i} className="flex gap-3 items-start pl-2">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-              <p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p>
+              <p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s+/, '')}</p>
             </div>
           );
         }

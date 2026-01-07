@@ -20,6 +20,7 @@ import Lobby from './components/Lobby';
 import AppHeader from './components/AppHeader';
 import DatasetPickerModal from './components/DatasetPickerModal'; 
 import SettingsModal, { UserSettings } from './components/SettingsModal';
+import LinkedAppsModal from './components/LinkedAppsModal';
 import { useFileUpload } from './hooks/useFileUpload';
 import { FileQuestion, LayoutGrid } from 'lucide-react';
 
@@ -43,6 +44,9 @@ const App: React.FC = () => {
   // User Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [userSettings, setUserSettings] = useState<UserSettings>({ autoExecute: false });
+
+  // Linked Apps Modal State
+  const [isAppsListOpen, setIsAppsListOpen] = useState(false);
 
   // Layout Control State
   // Note: In Dev Mode (App.tsx), we generally keep everything visible. 
@@ -906,6 +910,7 @@ const App: React.FC = () => {
           hasNewSuggestions={hasNewSuggestions}
           sidebarWidth={sidebarWidth} // Dynamically adjust width
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenApps={() => setIsAppsListOpen(true)}
         />
       )}
 
@@ -1073,6 +1078,17 @@ const App: React.FC = () => {
         settings={userSettings}
         onUpdate={updateUserSettings}
       />
+
+      {/* Linked Apps Modal */}
+      {currentNotebook && (
+        <LinkedAppsModal 
+          isOpen={isAppsListOpen}
+          onClose={() => setIsAppsListOpen(false)}
+          notebookId={currentNotebook.id}
+          onEdit={handleEditApp}
+          onView={handleOpenAppById}
+        />
+      )}
 
       {/* Dataset Picker Modal */}
       <DatasetPickerModal 

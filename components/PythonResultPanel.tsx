@@ -26,11 +26,14 @@ const ConsoleMarkdown = ({ content }: { content: string }) => {
         if (trimmed.startsWith('###')) return <h3 key={i} className="text-sm font-black text-gray-900 mt-2 mb-1 uppercase tracking-tight">{trimmed.replace(/^###\s*/, '')}</h3>;
         if (trimmed.startsWith('##')) return <h2 key={i} className="text-base font-black text-gray-900 mt-3 mb-2 border-b border-gray-100 pb-1">{trimmed.replace(/^##\s*/, '')}</h2>;
         if (trimmed.startsWith('#')) return <h1 key={i} className="text-lg font-black text-gray-900 mt-4 mb-2">{trimmed.replace(/^#\s*/, '')}</h1>;
-        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+        
+        // Strict list check: must start with - or * followed by a space.
+        // This prevents **bold** or *italics* from being confused with a list item.
+        if (trimmed.match(/^[-*]\s/)) {
           return (
             <div key={i} className="flex gap-2 items-start pl-1">
               <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
-              <p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p>
+              <p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s+/, '')}</p>
             </div>
           );
         }
