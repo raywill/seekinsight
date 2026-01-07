@@ -631,23 +631,18 @@ const App: React.FC = () => {
       }
 
       // Process SI Commands from logs
+      // NOTE: We do NOT filter __SI_CMD__ here anymore. 
+      // It is hidden visually by PythonResultPanel but must persist in result.logs for Snapshots.
       if (result.logs && result.logs.length > 0) {
-          const cleanLogs: string[] = [];
           result.logs.forEach(log => {
               const trimmedLog = log.trim();
               if (trimmedLog.startsWith('__SI_CMD__:')) {
-                  // In Dev Mode, we deliberately IGNORE layout commands like focus_mode()
-                  // because it disrupts the development workflow.
-                  // We still catch and suppress the log line so it doesn't appear in the output console.
                   try {
-                      // We can log it to debug console if needed
-                      // console.debug("Supressed SI Command in Dev Mode:", trimmedLog);
+                      // Parse for validation/debugging only in Dev Mode
+                      JSON.parse(trimmedLog.substring('__SI_CMD__:'.length));
                   } catch (e) {}
-              } else {
-                  cleanLogs.push(log);
               }
           });
-          result.logs = cleanLogs;
       }
 
       setProject(prev => ({
@@ -1027,25 +1022,12 @@ const App: React.FC = () => {
         </main>
 
         {(project.activeMode === DevMode.SQL || project.activeMode === DevMode.PYTHON) && layoutConfig.showSidebar && (
-             // Right Resizer Handle (Only show if layout permits - though logic implies right sidebar is separate, user request implied overall Chrome layout)
-             // Keeping right sidebar visible for now unless layoutConfig logic expands. 
-             // Note: Original request was about "app left side control panel and top header". 
-             // The publish panel is on the right. I'll assume that stays unless explicitly hidden too, 
-             // but usually "Focus Mode" implies full screen content.
-             // If "Focus Mode" means *content only*, then PublishPanel should probably hide too?
-             // The current implementation hides Header and Left Sidebar.
              <div
                 className="w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-600 transition-colors z-50 bg-transparent -mr-0.5 flex-shrink-0"
                 onMouseDown={() => setIsResizing('right')}
              />
         )}
 
-        {/* Right Sidebar - Publish Panel */}
-        {/* We keep this visible as it often contains the output/charts/reports which ARE the content in SQL mode. */}
-        {/* In Python mode, the result panel IS in the workspace, so the right panel is for deployment. */}
-        {/* For true focus mode, maybe we want to hide this too? The user said "left side control panel". */}
-        {/* I will keep right panel visible as it wasn't explicitly requested to be hidden, and in SQL mode it holds the charts. */}
-        
         {project.activeMode === DevMode.SQL && layoutConfig.showSidebar && (
             <SqlPublishPanel 
                 result={project.lastSqlResult} 

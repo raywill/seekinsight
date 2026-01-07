@@ -98,8 +98,8 @@ class SI_App:
         payload = {
             "action": "layout",
             "payload": {
-                "sidebar": sidebar,
-                "header": header
+                "showSidebar": sidebar,
+                "showHeader": header
             }
         }
         # Use a special command prefix for the frontend to intercept

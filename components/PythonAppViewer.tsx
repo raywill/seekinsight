@@ -140,6 +140,33 @@ const SharePopover = ({ isOpen, onClose, url }: { isOpen: boolean; onClose: () =
   );
 };
 
+// Helper function to extract layout commands from logs
+const extractLayoutCommands = (logs: string[] | undefined) => {
+    if (!logs) return {};
+    let configUpdate: any = {};
+    logs.forEach(log => {
+        const trimmed = log.trim();
+        if (trimmed.startsWith('__SI_CMD__:')) {
+            try {
+                const cmd = JSON.parse(trimmed.substring('__SI_CMD__:'.length));
+                if (cmd.action === 'layout') {
+                    // Map Python payload keys (sidebar/header) to React State keys (showSidebar/showHeader)
+                    // We check both just in case backend is updated or legacy.
+                    const p = cmd.payload;
+                    if (p.sidebar !== undefined) configUpdate.showSidebar = p.sidebar;
+                    if (p.header !== undefined) configUpdate.showHeader = p.header;
+                    
+                    if (p.showSidebar !== undefined) configUpdate.showSidebar = p.showSidebar;
+                    if (p.showHeader !== undefined) configUpdate.showHeader = p.showHeader;
+                }
+            } catch (e) {
+                console.warn("Invalid SI Command", e);
+            }
+        }
+    });
+    return configUpdate;
+};
+
 const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClone, onFork }) => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [paramValues, setParamValues] = useState<Record<string, any>>({});
@@ -219,12 +246,25 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
     if (app.snapshot_json) {
       try {
         const parsed = JSON.parse(app.snapshot_json);
+        let loadedResult: ExecutionResult | null = null;
+        
         if (parsed.result) {
-            setResult(parsed.result);
+            loadedResult = parsed.result;
         } else {
-            setResult(parsed);
+            loadedResult = parsed;
         }
-      } catch (e) {}
+
+        if (loadedResult) {
+            // Scan logs in snapshot for layout commands
+            const snapshotCommands = extractLayoutCommands(loadedResult.logs);
+            if (Object.keys(snapshotCommands).length > 0) {
+                setLayoutConfig(prev => ({ ...prev, ...snapshotCommands }));
+            }
+            setResult(loadedResult);
+        }
+      } catch (e) {
+          console.error("Failed to load snapshot", e);
+      }
     }
   }, [app]);
 
@@ -273,25 +313,13 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
       );
       
       // Process SI Commands from logs
-      if (execResult.logs && execResult.logs.length > 0) {
-          const cleanLogs: string[] = [];
-          execResult.logs.forEach(log => {
-              const trimmedLog = log.trim();
-              if (trimmedLog.startsWith('__SI_CMD__:')) {
-                  try {
-                      const cmd = JSON.parse(trimmedLog.substring('__SI_CMD__:'.length));
-                      if (cmd.action === 'layout') {
-                          setLayoutConfig(prev => ({ ...prev, ...cmd.payload }));
-                      }
-                  } catch (e) {
-                      console.warn("Invalid SI Command", e);
-                  }
-                  // Suppress command line from logs
-              } else {
-                  cleanLogs.push(log);
-              }
-          });
-          execResult.logs = cleanLogs;
+      // Note: We use the helper function to extract commands.
+      // We do NOT remove the command from the logs object that we set in state,
+      // because PythonResultPanel handles hiding it visually.
+      
+      const commands = extractLayoutCommands(execResult.logs);
+      if (Object.keys(commands).length > 0) {
+          setLayoutConfig(prev => ({ ...prev, ...commands }));
       }
 
       setResult(execResult);
