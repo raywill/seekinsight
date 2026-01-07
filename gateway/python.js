@@ -263,7 +263,17 @@ except Exception as e:
 
       let plotlyData = null;
       let schemaData = null;
-      const lines = stdout.split('\n');
+      
+      // Cleanup stdout: remove trailing newline that create empty lines in logs
+      let cleanStdout = stdout;
+      if (cleanStdout.endsWith('\n')) {
+          cleanStdout = cleanStdout.slice(0, -1);
+      }
+      
+      // If result is empty string, split() returns [""] which creates an empty log line.
+      // We want [] instead.
+      const lines = cleanStdout.length > 0 ? cleanStdout.split('\n') : [];
+      
       const logs = lines.filter(line => {
         if (line.startsWith("__PLOTLY_DATA__:")) {
           try { plotlyData = JSON.parse(line.replace("__PLOTLY_DATA__:", '')); } catch(e) {}
