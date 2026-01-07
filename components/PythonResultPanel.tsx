@@ -11,6 +11,7 @@ interface Props {
   onDebug?: () => void;
   isAiLoading?: boolean;
   fullHeight?: boolean;
+  showToolbar?: boolean; // Renamed from isFocusMode (logic inverted)
 }
 
 const MIN_HEIGHT = 240;
@@ -74,7 +75,7 @@ const ConsoleHtml = ({ content, height }: { content: string, height?: number }) 
   );
 };
 
-const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onDebug, isAiLoading, fullHeight = false }) => {
+const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onDebug, isAiLoading, fullHeight = false, showToolbar = true }) => {
   const [activeTab, setActiveTab] = useState<'console' | 'plot' | 'preview'>('console');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
@@ -340,59 +341,61 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
         </div>
       )}
 
-      {/* Header */}
-      <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError && !previewResult ? 'bg-red-50/50' : 'bg-gray-50'}`}>
-        <div className="flex gap-1">
-          <button onClick={() => setActiveTab('console')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
-            <TerminalIcon size={12} className="inline mr-1.5" /> {hasError ? 'Error Console' : 'Stdout/Stderr'}
-          </button>
-          
-          {result?.plotlyData && (
-            <button onClick={() => setActiveTab('plot')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
-              <BarChart size={12} className="inline mr-1.5" /> Interactive Plot
+      {/* Header - Conditionally Visible via showToolbar */}
+      {showToolbar && (
+        <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError && !previewResult ? 'bg-red-50/50' : 'bg-gray-50'}`}>
+          <div className="flex gap-1">
+            <button onClick={() => setActiveTab('console')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
+              <TerminalIcon size={12} className="inline mr-1.5" /> {hasError ? 'Error Console' : 'Stdout/Stderr'}
             </button>
-          )}
-
-          {previewResult && (
-            <button onClick={() => setActiveTab('preview')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200' : 'text-gray-400 hover:text-gray-600'}`}>
-              <Eye size={12} /> Data Preview
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          
-          <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider hidden sm:block">
-            PY3.10 • {result?.timestamp || previewResult?.timestamp}
-          </div>
-
-          {activeTab === 'console' && result?.logs && result.logs.length > 0 && (
-             <button 
-                onClick={handleCopyLogs}
-                className={`p-1.5 rounded-lg transition-all ${copiedLogs ? 'bg-green-50 text-green-600' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                title={copiedLogs ? "Copied!" : "Copy Output"}
-             >
-                {copiedLogs ? <Check size={14} /> : <Copy size={14} />}
-             </button>
-          )}
-
-          <button 
-            onClick={toggleFullscreen}
-            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-            title={isFullscreen ? "Exit Fullscreen (Esc)" : "Maximize Panel"}
-          >
-            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          </button>
-          {!fullHeight && (
-              <button 
-                onClick={() => setIsCollapsed(true)}
-                className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                title="Collapse"
-              >
-                <ChevronDown size={14} />
+            
+            {result?.plotlyData && (
+              <button onClick={() => setActiveTab('plot')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
+                <BarChart size={12} className="inline mr-1.5" /> Interactive Plot
               </button>
-          )}
+            )}
+
+            {previewResult && (
+              <button onClick={() => setActiveTab('preview')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200' : 'text-gray-400 hover:text-gray-600'}`}>
+                <Eye size={12} /> Data Preview
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            
+            <div className="text-[10px] font-mono text-gray-400 uppercase font-bold tracking-wider hidden sm:block">
+              PY3.10 • {result?.timestamp || previewResult?.timestamp}
+            </div>
+
+            {activeTab === 'console' && result?.logs && result.logs.length > 0 && (
+              <button 
+                  onClick={handleCopyLogs}
+                  className={`p-1.5 rounded-lg transition-all ${copiedLogs ? 'bg-green-50 text-green-600' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
+                  title={copiedLogs ? "Copied!" : "Copy Output"}
+              >
+                  {copiedLogs ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            )}
+
+            <button 
+              onClick={toggleFullscreen}
+              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+              title={isFullscreen ? "Exit Fullscreen (Esc)" : "Maximize Panel"}
+            >
+              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
+            {!fullHeight && (
+                <button 
+                  onClick={() => setIsCollapsed(true)}
+                  className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                  title="Collapse"
+                >
+                  <ChevronDown size={14} />
+                </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="relative z-10 flex-1 relative overflow-hidden bg-white">
         

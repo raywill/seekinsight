@@ -91,7 +91,7 @@ class SI_Params:
         return self.injected.get(key, default)
 
 class SI_App:
-    def layout(self, sidebar=True, header=True):
+    def layout(self, sidebar=True, header=True, toolbar=True):
         """
         Control the visibility of the App UI chrome.
         """
@@ -99,7 +99,8 @@ class SI_App:
             "action": "layout",
             "payload": {
                 "showSidebar": sidebar,
-                "showHeader": header
+                "showHeader": header,
+                "showToolbar": toolbar
             }
         }
         # Use a special command prefix for the frontend to intercept
@@ -109,7 +110,7 @@ class SI_App:
         """
         Shortcut to hide everything and focus on the result.
         """
-        self.layout(sidebar=False, header=False)
+        self.layout(sidebar=False, header=False, toolbar=False)
 
 class SI_Wrapper:
     def __init__(self, engine, mode, params):

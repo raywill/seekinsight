@@ -150,14 +150,16 @@ const extractLayoutCommands = (logs: string[] | undefined) => {
             try {
                 const cmd = JSON.parse(trimmed.substring('__SI_CMD__:'.length));
                 if (cmd.action === 'layout') {
-                    // Map Python payload keys (sidebar/header) to React State keys (showSidebar/showHeader)
-                    // We check both just in case backend is updated or legacy.
+                    // Map Python payload keys (sidebar/header/toolbar) to React State keys
                     const p = cmd.payload;
                     if (p.sidebar !== undefined) configUpdate.showSidebar = p.sidebar;
-                    if (p.header !== undefined) configUpdate.showHeader = p.header;
-                    
                     if (p.showSidebar !== undefined) configUpdate.showSidebar = p.showSidebar;
+                    
+                    if (p.header !== undefined) configUpdate.showHeader = p.header;
                     if (p.showHeader !== undefined) configUpdate.showHeader = p.showHeader;
+
+                    if (p.toolbar !== undefined) configUpdate.showToolbar = p.toolbar;
+                    if (p.showToolbar !== undefined) configUpdate.showToolbar = p.showToolbar;
                 }
             } catch (e) {
                 console.warn("Invalid SI Command", e);
@@ -178,7 +180,8 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
   // Layout Control State
   const [layoutConfig, setLayoutConfig] = useState({
     showSidebar: true,
-    showHeader: true
+    showHeader: true,
+    showToolbar: true
   });
   
   // Share State
@@ -368,7 +371,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (!layoutConfig.showHeader || !layoutConfig.showSidebar) {
-           setLayoutConfig({ showHeader: true, showSidebar: true });
+           setLayoutConfig({ showHeader: true, showSidebar: true, showToolbar: true });
         }
       }
     };
@@ -539,6 +542,7 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
                 result={result} 
                 isLoading={isRunning} 
                 fullHeight={true} 
+                showToolbar={layoutConfig.showToolbar}
              />
           </div>
         </div>
