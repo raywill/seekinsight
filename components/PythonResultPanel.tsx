@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
-import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown, Image as ImageIcon, Copy, Check } from 'lucide-react';
+import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown, Image as ImageIcon, Copy, Check, Code } from 'lucide-react';
 import Plot from 'react-plotly.js';
 
 interface Props {
@@ -14,6 +14,62 @@ interface Props {
 }
 
 const MIN_HEIGHT = 240;
+
+// Reusing SimpleMarkdown logic locally for console rendering
+const ConsoleMarkdown = ({ content }: { content: string }) => {
+  if (!content) return null;
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-2 font-sans text-gray-700 bg-white p-3 rounded border border-gray-100 shadow-sm my-2">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('###')) return <h3 key={i} className="text-sm font-black text-gray-900 mt-2 mb-1 uppercase tracking-tight">{trimmed.replace(/^###\s*/, '')}</h3>;
+        if (trimmed.startsWith('##')) return <h2 key={i} className="text-base font-black text-gray-900 mt-3 mb-2 border-b border-gray-100 pb-1">{trimmed.replace(/^##\s*/, '')}</h2>;
+        if (trimmed.startsWith('#')) return <h1 key={i} className="text-lg font-black text-gray-900 mt-4 mb-2">{trimmed.replace(/^#\s*/, '')}</h1>;
+        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+          return (
+            <div key={i} className="flex gap-2 items-start pl-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
+              <p className="text-xs text-gray-600 font-medium leading-relaxed">{trimmed.replace(/^[-*]\s*/, '')}</p>
+            </div>
+          );
+        }
+        if (!trimmed) return <div key={i} className="h-1" />;
+        
+        const formattedLine = trimmed.replace(/\*\*(.*?)\*\*/g, '<b class="font-black text-gray-800">$1</b>');
+        return <p key={i} className="text-xs text-gray-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
+      })}
+    </div>
+  );
+};
+
+// Safe HTML Renderer using Iframe
+const ConsoleHtml = ({ content, height }: { content: string, height?: number }) => {
+  return (
+    <div className="my-2 rounded border border-gray-200 overflow-hidden bg-white shadow-sm">
+      <iframe
+        srcDoc={`
+          <html>
+            <head>
+              <style>
+                body { margin: 0; padding: 12px; font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 12px; color: #374151; }
+                table { border-collapse: collapse; width: 100%; border: 1px solid #e5e7eb; }
+                th { background: #f9fafb; font-weight: 700; text-transform: uppercase; font-size: 10px; padding: 8px; text-align: left; color: #6b7280; }
+                td { border-top: 1px solid #e5e7eb; padding: 8px; }
+                tr:nth-child(even) { background: #f9fafb; }
+                a { color: #2563eb; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+              </style>
+            </head>
+            <body>${content}</body>
+          </html>
+        `}
+        style={{ width: '100%', height: height || 300, border: 'none' }}
+        sandbox="allow-scripts"
+      />
+    </div>
+  );
+};
 
 const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onDebug, isAiLoading, fullHeight = false }) => {
   const [activeTab, setActiveTab] = useState<'console' | 'plot' | 'preview'>('console');
@@ -107,7 +163,10 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
 
   const handleCopyLogs = async () => {
     if (!result?.logs || result.logs.length === 0) return;
-    const text = result.logs.join('\n');
+    // Filter out block markers before copying
+    const text = result.logs
+        .filter(l => !l.startsWith('__SI_DISPLAY_BLOCK__:'))
+        .join('\n');
     
     try {
         if (navigator.clipboard && window.isSecureContext) {
@@ -378,12 +437,30 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
         {/* CONSOLE TAB CONTENT */}
         {activeTab === 'console' && result && (
             <div className={`h-full overflow-auto p-4 font-mono text-[13px] leading-relaxed ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
-              {result?.logs?.map((log, idx) => (
-                <div key={idx} className="flex gap-3 py-0.5">
-                  <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
-                  <span className={log.toLowerCase().includes('error') || log.toLowerCase().includes('traceback') ? 'text-red-500 font-bold' : ''}>{log}</span>
-                </div>
-              ))}
+              {result?.logs?.map((log, idx) => {
+                // Check if this log is a special display block
+                if (log.startsWith('__SI_DISPLAY_BLOCK__:')) {
+                    try {
+                        const payload = JSON.parse(log.substring('__SI_DISPLAY_BLOCK__:'.length));
+                        if (payload.type === 'html') {
+                            return <ConsoleHtml key={idx} content={payload.content} height={payload.height} />;
+                        }
+                        if (payload.type === 'markdown') {
+                            return <ConsoleMarkdown key={idx} content={payload.content} />;
+                        }
+                    } catch (e) {
+                        return <div key={idx} className="text-red-400 text-xs italic">[Rich Content Render Error]</div>;
+                    }
+                    return null;
+                }
+
+                return (
+                    <div key={idx} className="flex gap-3 py-0.5">
+                    <span className="text-gray-300 select-none font-bold">[{idx+1}]</span>
+                    <span className={log.toLowerCase().includes('error') || log.toLowerCase().includes('traceback') ? 'text-red-500 font-bold' : ''}>{log}</span>
+                    </div>
+                );
+              })}
               {result?.logs?.length === 0 && <span className="text-gray-400 italic font-medium">Script completed with no stdout output.</span>}
             </div>
         )}

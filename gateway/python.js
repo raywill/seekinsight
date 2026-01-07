@@ -153,6 +153,30 @@ class SI_Wrapper:
             print(f"AI Request Error: {str(e)}", file=sys.stderr)
             return f"[Error: {str(e)}]"
 
+    def html(self, content, height=300):
+        """
+        Render HTML string in the console.
+        """
+        if self.mode == 'EXECUTION':
+            payload = {
+                "content": str(content),
+                "height": height,
+                "type": "html"
+            }
+            # Use JSON serialization to handle escaping
+            print(f"__SI_DISPLAY_BLOCK__:{json.dumps(payload)}")
+
+    def markdown(self, content):
+        """
+        Render Markdown string in the console.
+        """
+        if self.mode == 'EXECUTION':
+            payload = {
+                "content": str(content),
+                "type": "markdown"
+            }
+            print(f"__SI_DISPLAY_BLOCK__:{json.dumps(payload)}")
+
 # Initialize
 try:
     engine = create_engine("${connectionString}")
@@ -226,6 +250,8 @@ except Exception as e:
           try { schemaData = JSON.parse(line.replace("__SCHEMA_JSON__:", '')); } catch(e) {}
           return false;
         }
+        // NOTE: We do NOT filter out __SI_DISPLAY_BLOCK__ here. 
+        // We let it pass through as a log line so the frontend can intercept it in the console stream.
         return true;
       });
 
