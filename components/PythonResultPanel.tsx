@@ -165,7 +165,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
     if (!result?.logs || result.logs.length === 0) return;
     // Filter out block markers before copying
     const text = result.logs
-        .filter(l => !l.startsWith('__SI_DISPLAY_BLOCK__:'))
+        .filter(l => !l.startsWith('__SI_DISPLAY_BLOCK__:') && !l.trim().startsWith('__SI_CMD__:'))
         .join('\n');
     
     try {
@@ -451,6 +451,11 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
                     } catch (e) {
                         return <div key={idx} className="text-red-400 text-xs italic">[Rich Content Render Error]</div>;
                     }
+                    return null;
+                }
+
+                // Check for SI_CMD fallback suppression
+                if (log.trim().startsWith('__SI_CMD__:')) {
                     return null;
                 }
 

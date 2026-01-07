@@ -631,15 +631,17 @@ const App: React.FC = () => {
       if (result.logs && result.logs.length > 0) {
           const cleanLogs: string[] = [];
           result.logs.forEach(log => {
-              if (log.startsWith('__SI_CMD__:')) {
+              const trimmedLog = log.trim();
+              if (trimmedLog.startsWith('__SI_CMD__:')) {
                   try {
-                      const cmd = JSON.parse(log.substring('__SI_CMD__:'.length));
+                      const cmd = JSON.parse(trimmedLog.substring('__SI_CMD__:'.length));
                       if (cmd.action === 'layout') {
                           setLayoutConfig(prev => ({ ...prev, ...cmd.payload }));
                       }
                   } catch (e) {
                       console.warn("Invalid SI Command", e);
                   }
+                  // IMPORTANT: Do NOT push to cleanLogs, even if parsing fails, to avoid UI pollution
               } else {
                   cleanLogs.push(log);
               }
