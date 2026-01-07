@@ -45,6 +45,9 @@ const App: React.FC = () => {
   const [userSettings, setUserSettings] = useState<UserSettings>({ autoExecute: false });
 
   // Layout Control State
+  // Note: In Dev Mode (App.tsx), we generally keep everything visible. 
+  // Commands like focus_mode() are ignored here to prevent confusing the developer,
+  // but are active in the AppViewer.
   const [layoutConfig, setLayoutConfig] = useState({
     showSidebar: true,
     showHeader: true
@@ -633,15 +636,13 @@ const App: React.FC = () => {
           result.logs.forEach(log => {
               const trimmedLog = log.trim();
               if (trimmedLog.startsWith('__SI_CMD__:')) {
+                  // In Dev Mode, we deliberately IGNORE layout commands like focus_mode()
+                  // because it disrupts the development workflow.
+                  // We still catch and suppress the log line so it doesn't appear in the output console.
                   try {
-                      const cmd = JSON.parse(trimmedLog.substring('__SI_CMD__:'.length));
-                      if (cmd.action === 'layout') {
-                          setLayoutConfig(prev => ({ ...prev, ...cmd.payload }));
-                      }
-                  } catch (e) {
-                      console.warn("Invalid SI Command", e);
-                  }
-                  // IMPORTANT: Do NOT push to cleanLogs, even if parsing fails, to avoid UI pollution
+                      // We can log it to debug console if needed
+                      // console.debug("Supressed SI Command in Dev Mode:", trimmedLog);
+                  } catch (e) {}
               } else {
                   cleanLogs.push(log);
               }

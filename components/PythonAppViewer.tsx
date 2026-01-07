@@ -148,6 +148,12 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
   const [isCloning, setIsCloning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
+  // Layout Control State
+  const [layoutConfig, setLayoutConfig] = useState({
+    showSidebar: true,
+    showHeader: true
+  });
+  
   // Share State
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
@@ -181,8 +187,6 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
         // 2. Hydrate from Backend Snapshot ('s' param)
         const searchParams = new URLSearchParams(window.location.search);
         const shareId = searchParams.get('s') || searchParams.get('share');
-        
-        // Backward compatibility for 'share_params' or 'p_state' could be here, but we are fully migrating.
         
         if (shareId) {
             try {
@@ -268,6 +272,28 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
         'EXECUTION'
       );
       
+      // Process SI Commands from logs
+      if (execResult.logs && execResult.logs.length > 0) {
+          const cleanLogs: string[] = [];
+          execResult.logs.forEach(log => {
+              const trimmedLog = log.trim();
+              if (trimmedLog.startsWith('__SI_CMD__:')) {
+                  try {
+                      const cmd = JSON.parse(trimmedLog.substring('__SI_CMD__:'.length));
+                      if (cmd.action === 'layout') {
+                          setLayoutConfig(prev => ({ ...prev, ...cmd.payload }));
+                      }
+                  } catch (e) {
+                      console.warn("Invalid SI Command", e);
+                  }
+                  // Suppress command line from logs
+              } else {
+                  cleanLogs.push(log);
+              }
+          });
+          execResult.logs = cleanLogs;
+      }
+
       setResult(execResult);
     } catch (e) {
       console.error(e);
@@ -309,155 +335,175 @@ const PythonAppViewer: React.FC<Props> = ({ app, onClose, onHome, onEdit, onClon
 
   const hasSchema = Object.keys(schema).length > 0;
 
+  // Global ESC handler to restore layout if everything is hidden
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!layoutConfig.showHeader || !layoutConfig.showSidebar) {
+           setLayoutConfig({ showHeader: true, showSidebar: true });
+        }
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [layoutConfig]);
+
   return (
     <div className="fixed inset-0 z-[150] bg-gray-100 flex items-center justify-center">
       <div className="bg-white w-full h-full flex flex-col animate-in fade-in duration-300">
         
-        {/* Fullscreen Header */}
-        <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between bg-white z-20 shadow-sm shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-purple-600 shadow-purple-200">
-               <Terminal size={24} />
+        {/* Fullscreen Header - Conditionally Rendered */}
+        {layoutConfig.showHeader && (
+            <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between bg-white z-20 shadow-sm shrink-0 transition-all duration-300">
+            <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-purple-600 shadow-purple-200">
+                <Terminal size={24} />
+                </div>
+                <div>
+                <h2 className="text-2xl font-black text-gray-900 leading-tight">{app.title}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-bold text-gray-400">by {app.author}</span>
+                    <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">{app.type} APP</span>
+                </div>
+                </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 leading-tight">{app.title}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                 <span className="text-xs font-bold text-gray-400">by {app.author}</span>
-                 <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                 <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">{app.type} APP</span>
-              </div>
-            </div>
-          </div>
-          <div className="relative flex items-center gap-2">
-             <button
-                onClick={handleShareClick}
-                disabled={isGeneratingLink}
-                className={`p-2 rounded-full transition-colors ${isShareOpen ? 'bg-purple-50 text-purple-600' : 'text-gray-400 hover:bg-gray-100'}`}
-                title="Share App State"
-             >
-                {isGeneratingLink ? <Loader2 size={20} className="animate-spin text-purple-500" /> : <Share2 size={20} />}
-             </button>
+            <div className="relative flex items-center gap-2">
+                <button
+                    onClick={handleShareClick}
+                    disabled={isGeneratingLink}
+                    className={`p-2 rounded-full transition-colors ${isShareOpen ? 'bg-purple-50 text-purple-600' : 'text-gray-400 hover:bg-gray-100'}`}
+                    title="Share App State"
+                >
+                    {isGeneratingLink ? <Loader2 size={20} className="animate-spin text-purple-500" /> : <Share2 size={20} />}
+                </button>
 
-             {/* Share Popover positioned relative to the button group */}
-             <SharePopover isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} url={shareUrl} />
+                {/* Share Popover positioned relative to the button group */}
+                <SharePopover isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} url={shareUrl} />
 
-             <button 
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={`p-2 rounded-full transition-colors outline-none ${isMenuOpen ? 'bg-gray-100 text-gray-900' : 'text-gray-900 hover:bg-gray-100'}`}
-             >
-                <MoreVertical size={20} />
-             </button>
+                <button 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className={`p-2 rounded-full transition-colors outline-none ${isMenuOpen ? 'bg-gray-100 text-gray-900' : 'text-gray-900 hover:bg-gray-100'}`}
+                >
+                    <MoreVertical size={20} />
+                </button>
 
-             {isMenuOpen && (
-               <>
-                 <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
-                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-                    <button 
-                       onClick={handleShareClick}
-                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors sm:hidden"
-                    >
-                      <LinkIcon size={16} className="text-purple-500" /> Share Link
-                    </button>
+                {/* Close Button - Only in Header */}
+                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors ml-2"><X size={24}/></button>
 
-                    {app.source_notebook_id && onEdit && (
-                        <>
+                {isMenuOpen && (
+                <>
+                    <div className="fixed inset-0 z-[40]" onClick={() => setIsMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-[50] overflow-hidden p-1.5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                        <button 
+                        onClick={handleShareClick}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors sm:hidden"
+                        >
+                        <LinkIcon size={16} className="text-purple-500" /> Share Link
+                        </button>
+
+                        {app.source_notebook_id && onEdit && (
+                            <>
+                                <button 
+                                onClick={() => { onEdit(app); setIsMenuOpen(false); }}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                                >
+                                <PencilLine size={16} className="text-purple-500" /> Edit App
+                                </button>
+                            </>
+                        )}
+
+                        {onFork && (
                             <button 
-                               onClick={() => { onEdit(app); setIsMenuOpen(false); }}
-                               className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                            >
-                              <PencilLine size={16} className="text-purple-500" /> Edit App
-                            </button>
-                        </>
-                    )}
-
-                    {onFork && (
-                        <button 
-                           onClick={() => { onFork(app); setIsMenuOpen(false); }}
-                           className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                        >
-                          <GitFork size={16} className="text-purple-500" /> Fork as New App
-                        </button>
-                    )}
-                    
-                    <button 
-                       onClick={handleCloneClick}
-                       disabled={isCloning}
-                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                    >
-                      {isCloning ? <RefreshCw size={16} className="animate-spin text-gray-400" /> : <Terminal size={16} className="text-gray-400" />} 
-                      Remix in Notebook
-                    </button>
-
-                    <div className="h-px bg-gray-100 my-1"></div>
-
-                    <button 
-                       onClick={onClose} 
-                       className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
-                    >
-                      <LayoutGrid size={16} className="text-gray-400" /> Marketplace
-                    </button>
-
-                    {onHome && (
-                        <button 
-                            onClick={onHome} 
+                            onClick={() => { onFork(app); setIsMenuOpen(false); }}
                             className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                            >
+                            <GitFork size={16} className="text-purple-500" /> Fork as New App
+                            </button>
+                        )}
+                        
+                        <button 
+                        onClick={handleCloneClick}
+                        disabled={isCloning}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
                         >
-                            <Home size={16} className="text-gray-400" /> Home
+                        {isCloning ? <RefreshCw size={16} className="animate-spin text-gray-400" /> : <Terminal size={16} className="text-gray-400" />} 
+                        Remix in Notebook
                         </button>
-                    )}
-                 </div>
-               </>
-             )}
-          </div>
-        </div>
+
+                        <div className="h-px bg-gray-100 my-1"></div>
+
+                        <button 
+                        onClick={onClose} 
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                        >
+                        <LayoutGrid size={16} className="text-gray-400" /> Marketplace
+                        </button>
+
+                        {onHome && (
+                            <button 
+                                onClick={onHome} 
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors"
+                            >
+                                <Home size={16} className="text-gray-400" /> Home
+                            </button>
+                        )}
+                    </div>
+                </>
+                )}
+            </div>
+            </div>
+        )}
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar / Controls */}
-          <div className="w-80 bg-gray-50 border-r border-gray-100 p-6 flex flex-col overflow-y-auto shrink-0 z-10">
-             <div className="mb-8">
-               <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Description</h4>
-               <p className="text-sm text-gray-600 leading-relaxed font-medium">{app.description || "No description provided."}</p>
-             </div>
-
-             <div className="mb-8 flex-1">
-                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                   <Settings2 size={14} /> Configuration
-                 </h4>
-                 
-                 {hasSchema ? (
-                   <div className="space-y-4">
-                     {Object.entries(schema).map(([key, config]: [string, any]) => {
-                       if (config.type === 'slider') {
-                         return <RangeInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
-                       }
-                       if (config.type === 'select') {
-                         return <SelectInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
-                       }
-                       return <TextInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
-                     })}
-                   </div>
-                 ) : (
-                    <div className="p-4 bg-white border border-dashed border-gray-200 rounded-xl text-center">
-                       <Sliders size={20} className="text-gray-300 mx-auto mb-2" />
-                       <p className="text-xs text-gray-400 font-medium">No interactive parameters defined.</p>
-                    </div>
-                 )}
-             </div>
-
-             <div className="mt-auto">
-                <button 
-                  onClick={handleRun}
-                  disabled={isRunning}
-                  className="w-full py-4 rounded-xl text-white font-black shadow-xl transition-all active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 shadow-purple-500/20"
-                >
-                  {isRunning ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} />}
-                  Run Analysis
-                </button>
-                <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
-                  <Database size={12} /> Source: {app.source_db_name}
+          {/* Sidebar / Controls - Conditionally Rendered */}
+          {layoutConfig.showSidebar && (
+            <div className="w-80 bg-gray-50 border-r border-gray-100 p-6 flex flex-col overflow-y-auto shrink-0 z-10 transition-all duration-300">
+                <div className="mb-8">
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Description</h4>
+                <p className="text-sm text-gray-600 leading-relaxed font-medium">{app.description || "No description provided."}</p>
                 </div>
-             </div>
-          </div>
+
+                <div className="mb-8 flex-1">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Settings2 size={14} /> Configuration
+                    </h4>
+                    
+                    {hasSchema ? (
+                    <div className="space-y-4">
+                        {Object.entries(schema).map(([key, config]: [string, any]) => {
+                        if (config.type === 'slider') {
+                            return <RangeInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
+                        }
+                        if (config.type === 'select') {
+                            return <SelectInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
+                        }
+                        return <TextInput key={key} {...config} value={paramValues[key] ?? config.default} onChange={(v: any) => handleParamChange(key, v)} />;
+                        })}
+                    </div>
+                    ) : (
+                        <div className="p-4 bg-white border border-dashed border-gray-200 rounded-xl text-center">
+                        <Sliders size={20} className="text-gray-300 mx-auto mb-2" />
+                        <p className="text-xs text-gray-400 font-medium">No interactive parameters defined.</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-auto">
+                    <button 
+                    onClick={handleRun}
+                    disabled={isRunning}
+                    className="w-full py-4 rounded-xl text-white font-black shadow-xl transition-all active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 shadow-purple-500/20"
+                    >
+                    {isRunning ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} />}
+                    Run Analysis
+                    </button>
+                    <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
+                    <Database size={12} /> Source: {app.source_db_name}
+                    </div>
+                </div>
+            </div>
+          )}
 
           {/* Main Visual Content (Full Height Result Panel) */}
           <div className="flex-1 bg-white flex flex-col relative overflow-hidden h-full">
