@@ -9,7 +9,27 @@ export const VENV_PYTHON = process.platform === 'win32'
   ? path.join(VENV_PATH, 'Scripts', 'python.exe') 
   : path.join(VENV_PATH, 'bin', 'python');
 export const LOCK_FILE = path.join(process.cwd(), '.init_lock');
+
+// Database Configuration
+export const DB_TYPE = process.env.DB_TYPE || 'mysql'; // 'mysql', 'postgres', 'sqlite'
 export const MASTER_DB = 'seekinsight_datasets';
+export const SYSTEM_DB = 'seekinsight';
+
+// MySQL Config
+export const MYSQL_CONFIG = {
+  host: process.env.MYSQL_IP || '127.0.0.1',
+  port: parseInt(process.env.MYSQL_PORT || '3306'),
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || ''
+};
+
+// Postgres Config
+export const PG_CONFIG = {
+  host: process.env.PG_HOST || '127.0.0.1',
+  port: parseInt(process.env.PG_PORT || '5432'),
+  user: process.env.PG_USER || 'postgres',
+  password: process.env.PG_PASSWORD || 'postgres'
+};
 
 export function getPythonExecutable() {
   if (fs.existsSync(VENV_PYTHON)) {
@@ -18,7 +38,6 @@ export function getPythonExecutable() {
   return process.platform === 'win32' ? 'python' : 'python3';
 }
 
-export const SYSTEM_DB = 'seekinsight';
 export const NOTEBOOK_LIST_TABLE = 'seekinsight_notebook_list';
 export const PUBLISHED_APPS_TABLE = 'seekinsight_published_apps';
 export const SHARE_SNAPSHOTS_TABLE = 'seekinsight_share_snapshots';

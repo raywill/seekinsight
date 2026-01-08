@@ -4,17 +4,16 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { getPythonExecutable, IS_DEBUG } from './common.js';
+import { dal } from './dal.js';
 
 export default function(app) {
   app.post('/python', async (req, res) => {
-    const { code, dbName, executionMode, params } = req.body; // Added executionMode and params
+    const { code, dbName, executionMode, params } = req.body; 
     if (!dbName) return res.status(400).json({ message: 'Missing dbName' });
 
-    const host = process.env.MYSQL_IP || '127.0.0.1';
-    const port = process.env.MYSQL_PORT || '3306';
-    const user = process.env.MYSQL_USER || 'root';
-    const password = process.env.MYSQL_PASSWORD || '';
-    const connectionString = `mysql+mysqlconnector://${user}${password ? `:${encodeURIComponent(password)}` : ''}@${host}:${port}/${dbName}`;
+    // Use DAL to abstract the connection details based on Dialect
+    const connectionString = dal.getConnectionString(dbName);
+    
     const envMode = executionMode === 'SCHEMA' ? 'SCHEMA' : 'EXECUTION';
     const envParams = params ? JSON.stringify(params) : '{}';
 
@@ -137,7 +136,6 @@ class SI_Wrapper:
     def ai_complete(self, prompt, model=None):
         """
         Calls the LLM API to get a text completion.
-        Uses environment variables API_KEY and API_BASEURL.
         """
         api_key = os.environ.get('API_KEY')
         if not api_key:
@@ -146,7 +144,6 @@ class SI_Wrapper:
         base_url = os.environ.get('API_BASEURL', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
         url = f"{base_url.rstrip('/')}/chat/completions"
         
-        # Default model if not specified, prioritize Env var
         model_name = model or os.environ.get('AI_MODEL_NAME') or 'qwen-turbo'
         
         payload = {
@@ -177,22 +174,15 @@ class SI_Wrapper:
             return f"[Error: {str(e)}]"
 
     def html(self, content, height=300):
-        """
-        Render HTML string in the console.
-        """
         if self.mode == 'EXECUTION':
             payload = {
                 "content": str(content),
                 "height": height,
                 "type": "html"
             }
-            # Use JSON serialization to handle escaping
             print(f"__SI_DISPLAY_BLOCK__:{json.dumps(payload)}")
 
     def markdown(self, content):
-        """
-        Render Markdown string in the console.
-        """
         if self.mode == 'EXECUTION':
             payload = {
                 "content": str(content),
@@ -229,12 +219,10 @@ except Exception as e:
     
     const pythonExe = getPythonExecutable();
     
-    // Pass env vars for mode and params
     const childEnv = { 
       ...process.env, 
       SI_EXEC_MODE: envMode,
       SI_PARAMS: envParams,
-      // Ensure API keys and config are passed to the child process
       API_KEY: process.env.API_KEY,
       API_BASEURL: process.env.API_BASEURL,
       AI_MODEL_NAME: process.env.AI_MODEL_NAME
@@ -264,14 +252,11 @@ except Exception as e:
       let plotlyData = null;
       let schemaData = null;
       
-      // Cleanup stdout: remove trailing newline that create empty lines in logs
       let cleanStdout = stdout;
       if (cleanStdout.endsWith('\n')) {
           cleanStdout = cleanStdout.slice(0, -1);
       }
       
-      // If result is empty string, split() returns [""] which creates an empty log line.
-      // We want [] instead.
       const lines = cleanStdout.length > 0 ? cleanStdout.split('\n') : [];
       
       const logs = lines.filter(line => {
@@ -283,8 +268,6 @@ except Exception as e:
           try { schemaData = JSON.parse(line.replace("__SCHEMA_JSON__:", '')); } catch(e) {}
           return false;
         }
-        // NOTE: We do NOT filter out __SI_DISPLAY_BLOCK__ or __SI_CMD__ here. 
-        // We let them pass through as log lines so the frontend can intercept them.
         return true;
       });
 
@@ -298,7 +281,7 @@ except Exception as e:
         res.json({ 
           logs, 
           plotlyData, 
-          schemaData, // Return discovered schema
+          schemaData, 
           timestamp: new Date().toLocaleTimeString() 
         });
       }

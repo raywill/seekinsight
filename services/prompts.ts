@@ -4,6 +4,8 @@ import { DevMode, Suggestion, TableMetadata } from "../types";
 // Import Fragments
 import pythonBridgeApi from '../prompts/fragments/python_bridge_api.md?raw';
 import sqlDialectMysql from '../prompts/fragments/sql_dialect_mysql.md?raw';
+import sqlDialectPostgres from '../prompts/fragments/sql_dialect_postgres.md?raw';
+
 import cotProtocol from '../prompts/fragments/cot_protocol.md?raw';
 import languageReq from '../prompts/fragments/language_req.md?raw';
 
@@ -23,8 +25,6 @@ import metadataInferTmpl from '../prompts/templates/metadata_infer.md?raw';
 import analysisTmpl from '../prompts/templates/analysis.md?raw';
 import chartRecTmpl from '../prompts/templates/chart_rec.md?raw';
 
-// Removed hardcoded LANGUAGE_REQ
-
 const formatSchema = (tables: TableMetadata[]): string => {
   return tables.map(t => {
     const columns = t.columns.map(c => `| ${c.name} | ${c.type} | ${c.comment || ''} |`).join('\n');
@@ -41,22 +41,17 @@ const formatSampleData = (tables: TableMetadata[]): string => {
   return tables.map(t => {
     if (!t.sampleData || t.sampleData.length === 0) return '';
     
-    // Get headers from columns metadata to ensure order
     const headers = t.columns.map(c => c.name);
     
-    // Markdown Table Header
     const headerRow = `| ${headers.join(' | ')} |`;
     const sepRow = `| ${headers.map(() => '---').join(' | ')} |`;
     
-    // Markdown Data Rows
     const dataRows = t.sampleData.map(row => {
       return '| ' + headers.map(col => {
         const val = row[col];
         if (val === null || val === undefined) return 'NULL';
         let str = String(val);
-        // Truncate to 256 chars
         if (str.length > 256) str = str.substring(0, 256) + '...';
-        // Sanitize for Markdown table (remove newlines, escape pipes)
         str = str.replace(/\n/g, ' ').replace(/\r/g, '').replace(/\|/g, '\\|');
         return str;
       }).join(' | ') + ' |';
@@ -66,14 +61,23 @@ const formatSampleData = (tables: TableMetadata[]): string => {
   }).filter(s => s).join('\n\n');
 };
 
+const getSqlDialectFragment = () => {
+    const dbType = (typeof process !== 'undefined' ? process.env.DB_TYPE : 'mysql') || 'mysql';
+    if (dbType === 'postgres') {
+        return sqlDialectPostgres; 
+    }
+    return sqlDialectMysql;
+};
+
 const fillTemplate = (template: string, replacements: Record<string, string>) => {
   let result = template;
   for (const [key, value] of Object.entries(replacements)) {
     result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
   }
-  // Inject Common Fragments globally if not handled
+  
   result = result.replace('{{PYTHON_BRIDGE_API}}', pythonBridgeApi);
-  result = result.replace('{{SQL_DIALECT_MYSQL}}', sqlDialectMysql);
+  // Dynamic SQL Dialect Injection
+  result = result.replace('{{SQL_DIALECT_MYSQL}}', getSqlDialectFragment());
   result = result.replace('{{COT_PROTOCOL}}', cotProtocol);
   result = result.replace('{{LANGUAGE_REQ}}', languageReq);
   return result;

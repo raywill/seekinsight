@@ -7,6 +7,7 @@ import { setDatabaseEngine, getDatabaseEngine } from './services/dbService';
 import { fetchApp, cloneNotebook } from './services/appService';
 import { executePython } from './services/pythonService';
 import { MySQLEngine } from './services/mysqlEngine';
+import { PostgresEngine } from './services/postgresEngine';
 import DataSidebar from './components/DataSidebar';
 import SqlWorkspace from './components/SqlWorkspace';
 import PythonWorkspace from './components/PythonWorkspace';
@@ -269,7 +270,9 @@ const App: React.FC = () => {
 
   // Initial Setup & Popstate Listener
   useEffect(() => {
-    const engine = new MySQLEngine();
+    // Instantiate appropriate engine
+    const dbType = (typeof process !== 'undefined' ? process.env.DB_TYPE : 'mysql') || 'mysql';
+    const engine = dbType === 'postgres' ? new PostgresEngine() : new MySQLEngine();
     setDatabaseEngine(engine);
 
     // Initial sync
@@ -925,7 +928,7 @@ const App: React.FC = () => {
                   if (project.dbName) {
                     const engine = getDatabaseEngine();
                     const count = await engine.refreshTableStats(t, project.dbName);
-                    const previewRes = await engine.executeQuery(`SELECT * FROM \`${t}\` LIMIT 10`, project.dbName);
+                    const previewRes = await engine.executeQuery(`SELECT * FROM "${t}" LIMIT 10`, project.dbName); // Quote table name for safety in generic SQL
                     const latestTables = await engine.getTables(project.dbName);
                     const freshMetadata = latestTables.find(tbl => tbl.tableName === t);
 
@@ -943,7 +946,7 @@ const App: React.FC = () => {
                   }
                 } catch (e: any) {
                    const msg = e.message || "";
-                   if (msg.includes("doesn't exist") || msg.includes("no such table")) {
+                   if (msg.includes("doesn't exist") || msg.includes("no such table") || msg.includes("does not exist")) {
                       setProject(prev => ({
                         ...prev,
                         tables: prev.tables.filter(table => table.tableName !== t)

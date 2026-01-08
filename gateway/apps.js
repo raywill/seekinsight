@@ -1,16 +1,11 @@
 
 import crypto from 'crypto';
-import { SYSTEM_DB, PUBLISHED_APPS_TABLE } from './common.js';
-import { getPool } from './database.js';
+import { dal } from './dal.js';
 
 export default function(app) {
-  // --- Apps API ---
-
   app.get('/apps', async (req, res) => {
     try {
-      const pool = await getPool(SYSTEM_DB);
-      // Updated: Order by created_at DESC strictly, don't return large cells
-      const [rows] = await pool.query(`SELECT id, title, description, prompt, author, type, code, source_db_name, source_notebook_id, created_at FROM \`${PUBLISHED_APPS_TABLE}\` ORDER BY created_at DESC`);
+      const rows = await dal.getApps();
       res.json(rows);
     } catch (err) {
       console.error("[Apps GET Error]:", err);
@@ -20,23 +15,18 @@ export default function(app) {
 
   app.get('/apps/:id', async (req, res) => {
     try {
-      const { id } = req.params;
-      const pool = await getPool(SYSTEM_DB);
-      const [rows] = await pool.query(`SELECT * FROM \`${PUBLISHED_APPS_TABLE}\` WHERE id = ?`, [id]);
-      if (rows.length === 0) return res.status(404).json({ message: 'App not found' });
-      res.json(rows[0]);
+      const row = await dal.getApp(req.params.id);
+      if (!row) return res.status(404).json({ message: 'App not found' });
+      res.json(row);
     } catch (err) {
       console.error("[Apps GET Single Error]:", err);
       res.status(500).json({ message: err.message });
     }
   });
 
-  // Increment App View
   app.post('/apps/:id/view', async (req, res) => {
     try {
-      const { id } = req.params;
-      const pool = await getPool(SYSTEM_DB);
-      await pool.query(`UPDATE \`${PUBLISHED_APPS_TABLE}\` SET views = views + 1 WHERE id = ?`, [id]);
+      await dal.incrementAppView(req.params.id);
       res.json({ success: true });
     } catch (err) {
       console.error("[Apps View Increment Error]:", err);
@@ -44,18 +34,10 @@ export default function(app) {
     }
   });
 
-  // Create New App
   app.post('/apps', async (req, res) => {
     try {
-      const { title, description, prompt, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
       const id = crypto.randomBytes(4).toString('hex');
-      const pool = await getPool(SYSTEM_DB);
-      
-      await pool.query(
-        `INSERT INTO \`${PUBLISHED_APPS_TABLE}\` (id, title, description, prompt, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-        [id, title, description, prompt, author || 'User', type, code, source_db_name, source_notebook_id, params_schema, snapshot_json]
-      );
-      
+      await dal.createApp({ id, ...req.body, author: req.body.author || 'User' });
       res.json({ success: true, id });
     } catch (err) {
       console.error("[Apps POST Error]:", err);
@@ -63,33 +45,11 @@ export default function(app) {
     }
   });
 
-  // Update Existing App
   app.put('/apps/:id', async (req, res) => {
     try {
-      const { id } = req.params;
-      const { title, description, prompt, author, type, code, source_db_name, source_notebook_id, params_schema, snapshot_json } = req.body;
-      const pool = await getPool(SYSTEM_DB);
-
-      const [existing] = await pool.query(`SELECT id FROM \`${PUBLISHED_APPS_TABLE}\` WHERE id = ?`, [id]);
-      if (existing.length === 0) return res.status(404).json({ message: 'App not found' });
-      
-      await pool.query(
-        `UPDATE \`${PUBLISHED_APPS_TABLE}\` SET 
-          title = ?, 
-          description = ?, 
-          prompt = ?, 
-          author = ?, 
-          type = ?, 
-          code = ?, 
-          source_db_name = ?, 
-          source_notebook_id = ?, 
-          params_schema = ?, 
-          snapshot_json = ? 
-        WHERE id = ?`,
-        [title, description, prompt, author || 'User', type, code, source_db_name, source_notebook_id, params_schema, snapshot_json, id]
-      );
-      
-      res.json({ success: true, id });
+      const success = await dal.updateApp(req.params.id, { ...req.body, author: req.body.author || 'User' });
+      if (!success) return res.status(404).json({ message: 'App not found' });
+      res.json({ success: true, id: req.params.id });
     } catch (err) {
       console.error("[Apps PUT Error]:", err);
       res.status(500).json({ message: err.message });
@@ -98,9 +58,7 @@ export default function(app) {
 
   app.delete('/apps/:id', async (req, res) => {
     try {
-      const { id } = req.params;
-      const pool = await getPool(SYSTEM_DB);
-      await pool.query(`DELETE FROM \`${PUBLISHED_APPS_TABLE}\` WHERE id = ?`, [id]);
+      await dal.deleteApp(req.params.id);
       res.json({ success: true });
     } catch (err) {
       console.error("[Apps DELETE Error]:", err);
