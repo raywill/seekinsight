@@ -33,30 +33,32 @@ export class PostgresEngine implements DatabaseEngine {
 
   async getTables(dbName: string): Promise<TableMetadata[]> {
     try {
+      // 1. Fetch all tables
       const tablesInfoRes = await this.executeQuery(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name NOT LIKE '\\_\\_%'
+        SELECT tablename as table_name
+        FROM pg_catalog.pg_tables
+        WHERE schemaname = 'public'
       `, dbName);
       
       if (tablesInfoRes.data.length === 0) return [];
 
-      // Update: Join with pg_catalog tables to retrieve column comments
+      // 2. Fetch all columns + comments using robust pg_catalog query
+      // This bypasses information_schema to directly access the description catalog
       const columnsInfoRes = await this.executeQuery(`
-        SELECT 
-            c.table_name, 
-            c.column_name, 
-            c.data_type, 
-            c.udt_name,
-            pgd.description as column_comment
-        FROM information_schema.columns c
-        JOIN pg_catalog.pg_class t ON c.table_name = t.relname
-        JOIN pg_catalog.pg_namespace n ON t.relnamespace = n.oid AND n.nspname = c.table_schema
-        JOIN pg_catalog.pg_attribute a ON a.attrelid = t.oid AND a.attname = c.column_name
-        LEFT JOIN pg_catalog.pg_description pgd ON pgd.objoid = t.oid AND pgd.objsubid = a.attnum
-        WHERE c.table_schema = 'public'
-        ORDER BY c.table_name, c.ordinal_position
+        SELECT
+            c.relname as table_name,
+            a.attname as column_name,
+            pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
+            d.description as column_comment
+        FROM pg_catalog.pg_attribute a
+        JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+        LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.objsubid = a.attnum
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r' -- Only ordinary tables
+          AND a.attnum > 0    -- Exclude system columns
+          AND NOT a.attisdropped -- Exclude dropped columns
+        ORDER BY c.relname, a.attnum;
       `, dbName);
 
       const columnsByTable: Record<string, Column[]> = {};
@@ -65,7 +67,7 @@ export class PostgresEngine implements DatabaseEngine {
         if (!columnsByTable[tName]) columnsByTable[tName] = [];
         columnsByTable[tName].push({
           name: row.column_name,
-          type: row.data_type.toUpperCase(),
+          type: (row.data_type || 'UNKNOWN').toUpperCase(),
           comment: row.column_comment || '' 
         });
       });
