@@ -42,11 +42,21 @@ export class PostgresEngine implements DatabaseEngine {
       
       if (tablesInfoRes.data.length === 0) return [];
 
+      // Update: Join with pg_catalog tables to retrieve column comments
       const columnsInfoRes = await this.executeQuery(`
-        SELECT table_name, column_name, data_type, udt_name 
-        FROM information_schema.columns 
-        WHERE table_schema = 'public'
-        ORDER BY table_name, ordinal_position
+        SELECT 
+            c.table_name, 
+            c.column_name, 
+            c.data_type, 
+            c.udt_name,
+            pgd.description as column_comment
+        FROM information_schema.columns c
+        JOIN pg_catalog.pg_class t ON c.table_name = t.relname
+        JOIN pg_catalog.pg_namespace n ON t.relnamespace = n.oid AND n.nspname = c.table_schema
+        JOIN pg_catalog.pg_attribute a ON a.attrelid = t.oid AND a.attname = c.column_name
+        LEFT JOIN pg_catalog.pg_description pgd ON pgd.objoid = t.oid AND pgd.objsubid = a.attnum
+        WHERE c.table_schema = 'public'
+        ORDER BY c.table_name, c.ordinal_position
       `, dbName);
 
       const columnsByTable: Record<string, Column[]> = {};
@@ -56,7 +66,7 @@ export class PostgresEngine implements DatabaseEngine {
         columnsByTable[tName].push({
           name: row.column_name,
           type: row.data_type.toUpperCase(),
-          comment: '' // Postgres comments are stored separately in pg_description, tricky to join cleanly in one view query without complexity
+          comment: row.column_comment || '' 
         });
       });
 
@@ -198,6 +208,19 @@ export class PostgresEngine implements DatabaseEngine {
     const ddlCols = columns.map(c => `"${c.name}" ${c.type}`).join(", ");
     await this.executeQuery(`DROP TABLE IF EXISTS "${trimmedName}"`, dbName);
     await this.executeQuery(`CREATE TABLE "${trimmedName}" (${ddlCols})`, dbName);
+    
+    // Add comments for created table columns (Postgres requires separate statements)
+    for (const col of columns) {
+        if (col.comment) {
+            // Escape single quotes in comment
+            const safeComment = col.comment.replace(/'/g, "''");
+            try {
+                await this.executeQuery(`COMMENT ON COLUMN "${trimmedName}"."${col.name}" IS '${safeComment}'`, dbName);
+            } catch (e) {
+                console.warn(`Failed to set comment for ${col.name}`, e);
+            }
+        }
+    }
 
     // Batch Insertion
     const cleanedKeys = columns.map(c => c.name);
