@@ -2,7 +2,7 @@
 import mysql from 'mysql2/promise';
 import pg from 'pg';
 import { dal } from './dal.js';
-import { DB_TYPE, MYSQL_CONFIG, PG_CONFIG } from './common.js';
+import { DB_TYPE, MYSQL_CONFIG, PG_CONFIG, PG_URL } from './common.js';
 
 export const pools = new Map(); // Stores both MySQL pools and Postgres Clients/Pools
 
@@ -25,6 +25,24 @@ export function getMysqlPoolConfig(db = '') {
 }
 
 export function getPgPoolConfig(db = '') {
+  if (PG_URL) {
+    try {
+        const url = new URL(PG_URL);
+        if (db) {
+            url.pathname = `/${db}`;
+        }
+        return {
+            connectionString: url.toString(),
+            max: 10,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 2000,
+            ssl: { rejectUnauthorized: false } // Required for most cloud providers when using connection strings
+        };
+    } catch (e) {
+        console.error("Invalid PG_URL provided, falling back to PG_CONFIG", e);
+    }
+  }
+
   return {
     ...PG_CONFIG,
     database: db || 'postgres', // Postgres connects to 'postgres' db by default if none specified, but usually we need a specific one

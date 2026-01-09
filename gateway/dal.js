@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { 
   DB_TYPE, MASTER_DB, SYSTEM_DB, NOTEBOOK_LIST_TABLE, PUBLISHED_APPS_TABLE, SHARE_SNAPSHOTS_TABLE, USER_SETTINGS_TABLE,
-  DATASETS, LOCK_FILE, IS_DEBUG, MYSQL_CONFIG, PG_CONFIG
+  DATASETS, LOCK_FILE, IS_DEBUG, MYSQL_CONFIG, PG_CONFIG, PG_URL
 } from './common.js';
 import { getPool } from './database.js';
 
@@ -70,6 +70,19 @@ class DataAccessLayer {
         const encodedPass = password ? `:${encodeURIComponent(password)}` : '';
         return `mysql+mysqlconnector://${user}${encodedPass}@${host}:${port}/${dbName}`;
     } else if (this.type === 'postgres') {
+        if (PG_URL) {
+            try {
+                const url = new URL(PG_URL);
+                url.pathname = `/${dbName}`;
+                let pyUrl = url.toString();
+                // Ensure correct driver for SQLAlchemy
+                if (pyUrl.startsWith('postgres://')) pyUrl = pyUrl.replace('postgres://', 'postgresql+psycopg2://');
+                else if (pyUrl.startsWith('postgresql://')) pyUrl = pyUrl.replace('postgresql://', 'postgresql+psycopg2://');
+                return pyUrl;
+            } catch (e) {
+                console.warn("Failed to parse PG_URL for Python, falling back to component config");
+            }
+        }
         const { user, password, host, port } = PG_CONFIG;
         const encodedPass = password ? `:${encodeURIComponent(password)}` : '';
         return `postgresql+psycopg2://${user}${encodedPass}@${host}:${port}/${dbName}`;
@@ -82,8 +95,14 @@ class DataAccessLayer {
     if (this.type === 'mysql') {
       return await mysql.createConnection(MYSQL_CONFIG);
     } else if (this.type === 'postgres') {
-      // Connect to default 'postgres' database to issue CREATE DATABASE commands
-      const client = new pg.Client({ ...PG_CONFIG, database: 'postgres' });
+      let clientConfig;
+      if (PG_URL) {
+          clientConfig = { connectionString: PG_URL, ssl: { rejectUnauthorized: false } };
+      } else {
+          // Connect to default 'postgres' database to issue CREATE DATABASE commands
+          clientConfig = { ...PG_CONFIG, database: 'postgres' };
+      }
+      const client = new pg.Client(clientConfig);
       await client.connect();
       return client;
     }

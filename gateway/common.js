@@ -24,6 +24,7 @@ export const MYSQL_CONFIG = {
 };
 
 // Postgres Config
+export const PG_URL = process.env.PG_URL;
 export const PG_CONFIG = {
   host: process.env.PG_HOST || '127.0.0.1',
   port: parseInt(process.env.PG_PORT || '5432'),

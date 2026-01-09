@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
       'process.env.PG_USER': JSON.stringify(env.PG_USER),
       'process.env.PG_DB': JSON.stringify(env.PG_DB),
       'process.env.PG_PASSWORD': JSON.stringify(env.PG_PASSWORD),
+      'process.env.PG_URL': JSON.stringify(env.PG_URL),
       'process.env.API_KEY': JSON.stringify(env.API_KEY || env.GEMINI_API_KEY || env.ALIYUN_API_KEY),
       'process.env.API_BASEURL': JSON.stringify(env.API_BASEURL),
       'process.env.GATEWAY_URL': JSON.stringify(env.GATEWAY_URL || 'http://localhost:3001'),
