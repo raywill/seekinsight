@@ -35,7 +35,7 @@ export function getPgPoolConfig(db = '') {
             connectionString: url.toString(),
             max: 10,
             idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 2000,
+            connectionTimeoutMillis: 10000, // Increased to 10s for cloud/serverless DBs
             ssl: { rejectUnauthorized: false } // Required for most cloud providers when using connection strings
         };
     } catch (e) {
@@ -48,7 +48,7 @@ export function getPgPoolConfig(db = '') {
     database: db || 'postgres', // Postgres connects to 'postgres' db by default if none specified, but usually we need a specific one
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Increased to 10s
   };
 }
 

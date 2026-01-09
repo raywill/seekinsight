@@ -97,10 +97,18 @@ class DataAccessLayer {
     } else if (this.type === 'postgres') {
       let clientConfig;
       if (PG_URL) {
-          clientConfig = { connectionString: PG_URL, ssl: { rejectUnauthorized: false } };
+          clientConfig = { 
+              connectionString: PG_URL, 
+              ssl: { rejectUnauthorized: false },
+              connectionTimeoutMillis: 10000 // Add timeout for root client too
+          };
       } else {
           // Connect to default 'postgres' database to issue CREATE DATABASE commands
-          clientConfig = { ...PG_CONFIG, database: 'postgres' };
+          clientConfig = { 
+              ...PG_CONFIG, 
+              database: 'postgres',
+              connectionTimeoutMillis: 10000
+          };
       }
       const client = new pg.Client(clientConfig);
       await client.connect();
@@ -111,7 +119,9 @@ class DataAccessLayer {
 
   // --- System Initialization ---
   async initSystem() {
-    if (fs.existsSync(LOCK_FILE)) return; // Idempotent check
+    // Note: We deliberately ignore LOCK_FILE check in DEV mode or if forced to retry due to partial failure previously
+    // But for safety in this demo, we check it.
+    if (fs.existsSync(LOCK_FILE)) return; 
 
     try {
       console.log(`Initializing System for Dialect: ${this.type.toUpperCase()}`);
@@ -229,6 +239,8 @@ class DataAccessLayer {
       console.log("System initialization complete.");
     } catch (e) {
       console.error("Initialization Failed:", e);
+      // Ensure we don't leave a lock file on partial failure, allowing retry
+      if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
     }
   }
 
@@ -238,10 +250,6 @@ class DataAccessLayer {
         if (fs.existsSync(filePath)) {
         try {
             const sqlContent = fs.readFileSync(filePath, 'utf-8');
-            // Split SQL by semicolons for basic execution (naive)
-            // Postgres driver doesn't support multiple statements by default in one query call usually, 
-            // but let's assume we can send it or split it.
-            // For robustness in this MVP, we try to execute.
             if (this.type === 'mysql') {
                 await pool.query(sqlContent);
             } else {
@@ -309,8 +317,6 @@ class DataAccessLayer {
         `);
 
         const fitnessData = generateFitnessData();
-        // Postgres bulk insert is different. For MVP, loop or constructing big string.
-        // Constructing value string: ($1, $2...), ($10, $11...)
         if (fitnessData.length > 0) {
             const batchSize = 100; // Smaller batch for PG parameter limit
             for (let i = 0; i < fitnessData.length; i += batchSize) {
