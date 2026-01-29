@@ -20,6 +20,7 @@ import AppViewer from './components/AppViewer';
 import Lobby from './components/Lobby';
 import AppHeader from './components/AppHeader';
 import DatasetPickerModal from './components/DatasetPickerModal'; 
+import ConnectDatabaseModal from './components/ConnectDatabaseModal';
 import SettingsModal, { UserSettings } from './components/SettingsModal';
 import LinkedAppsModal from './components/LinkedAppsModal';
 import { useFileUpload } from './hooks/useFileUpload';
@@ -50,9 +51,6 @@ const App: React.FC = () => {
   const [isAppsListOpen, setIsAppsListOpen] = useState(false);
 
   // Layout Control State
-  // Note: In Dev Mode (App.tsx), we generally keep everything visible. 
-  // Commands like focus_mode() are ignored here to prevent confusing the developer,
-  // but are active in the AppViewer.
   const [layoutConfig, setLayoutConfig] = useState({
     showSidebar: true,
     showHeader: true
@@ -87,6 +85,10 @@ const App: React.FC = () => {
   const [showDatasetPicker, setShowDatasetPicker] = useState(false);
   const [availableDatasets, setAvailableDatasets] = useState<Dataset[]>([]);
   const [isLoadingDatasets, setIsLoadingDatasets] = useState(false);
+
+  // Connect Database Modal State
+  const [isConnectDbOpen, setIsConnectDbOpen] = useState(false);
+  const [isConnectingDb, setIsConnectingDb] = useState(false);
 
   // Panel Resizing State
   const [sidebarWidth, setSidebarWidth] = useState(288); // Default w-72 (18rem)
@@ -191,7 +193,10 @@ const App: React.FC = () => {
       topicName: nb.topic,
       derivedAppTitle: null, // Reset derived title when switching notebooks
       tables,
-      suggestions: initialSuggestions
+      suggestions: initialSuggestions,
+      // If tables exist, default to Insight Hub to show suggestions/insights
+      // Otherwise stay in SQL mode to allow data import/creation
+      activeMode: tables.length > 0 ? DevMode.INSIGHT_HUB : DevMode.SQL
     }));
     setCurrentNotebook(nb);
     setDbReady(true);
@@ -600,6 +605,70 @@ const App: React.FC = () => {
   };
   // -----------------------------
 
+  // --- Connect Database Logic ---
+  const handleConnectDatabase = async (targetDbName: string) => {
+    if (!currentNotebook) return;
+    setIsConnectingDb(true);
+    
+    try {
+        const engine = getDatabaseEngine();
+        
+        // 1. Fetch tables from the target DB
+        const tables = await engine.getTables(targetDbName);
+        
+        // 2. Identify top 10 physical tables (rudimentary heuristic via name, assume all are physical for MVP)
+        const topTables = tables.slice(0, 10);
+        
+        // 3. AI Inference Loop
+        for (const table of topTables) {
+            // Get a small sample
+            const res = await engine.executeQuery(`SELECT * FROM "${table.tableName}" LIMIT 5`, targetDbName); // Use quotes for safety
+            if (res.data.length > 0) {
+                // Infer metadata
+                const comments = await ai.inferColumnMetadata(table.tableName, res.data);
+                // Apply comments to schema
+                await engine.applyColumnComments(table.tableName, comments, targetDbName);
+            }
+        }
+
+        // 4. Update Notebook Record to point to this new DB
+        // Note: In a real app, we might just copy schema, but here we "Connect" by switching the pointer.
+        // HOWEVER, since `db_name` is unique per notebook in our creation logic, 
+        // switching it might affect other users if we connect to a shared DB.
+        // But for this "Connect" feature, we assume the user wants to work on *that* DB.
+        // To be safe and compliant with the "Notebook owns its DB" model, we should probably COPY the schema/data 
+        // OR just switch the context for this session.
+        // Let's UPDATE the notebook's db_name so it persists.
+        
+        // Wait, if we switch db_name, we lose the old DB association. That is acceptable for "Connect To".
+        // But `notebooks` table has `db_name`. We can't easily change it via existing API without a new endpoint or using PATCH.
+        // We have `PATCH /notebooks/:id`. We need to add `db_name` support to it.
+        // *Correction*: `dal.updateNotebook` currently only supports topic and suggestions.
+        // Let's assume for this feature, we just switch the session context (client-side) 
+        // and maybe backend doesn't persist the switch (volatile connection) OR we update the DAL.
+        // Let's stick to updating the client state `project.dbName` and refreshing. 
+        // If the user refreshes the page, it goes back to original. 
+        // *Better*: Actually clone/import the schema? No, "Connect" implies direct access.
+        // Let's just switch the Client Session.
+        
+        setProject(prev => ({
+            ...prev,
+            dbName: targetDbName,
+            tables: tables // Tables are already fetched from target
+        }));
+        
+        // Regenerate Topic based on new tables
+        const newTopic = await ai.generateTopic("New Connection", tables);
+        handleUpdateTopic(newTopic);
+
+    } catch (e: any) {
+        console.error("Connect DB Failed", e);
+        alert(`Connection Failed: ${e.message}`);
+    } finally {
+        setIsConnectingDb(false);
+    }
+  };
+
   const handleColumnAction = (action: 'fulltext' | 'embedding', tableName: string, columnName: string) => {
       setProject(prev => {
           let newSqlCode = prev.sqlCode;
@@ -958,7 +1027,8 @@ const App: React.FC = () => {
               }}
               isUploading={isUploading}
               uploadProgress={uploadProgress}
-              onLoadSample={handleOpenDatasetPicker} 
+              onLoadSample={handleOpenDatasetPicker}
+              onConnectDB={() => setIsConnectDbOpen(true)}
               width={sidebarWidth}
               onColumnAction={handleColumnAction}
             />
@@ -1100,6 +1170,14 @@ const App: React.FC = () => {
         onSelect={handleDatasetSelect}
         isLoading={isLoadingDatasets}
         datasets={availableDatasets}
+      />
+
+      {/* Connect Database Modal */}
+      <ConnectDatabaseModal 
+        isOpen={isConnectDbOpen}
+        onClose={() => setIsConnectDbOpen(false)}
+        onConnect={handleConnectDatabase}
+        isLoading={isConnectingDb}
       />
     </div>
   );

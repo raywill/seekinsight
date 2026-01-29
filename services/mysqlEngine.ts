@@ -91,6 +91,36 @@ export class MySQLEngine implements DatabaseEngine {
     return count;
   }
 
+  async applyColumnComments(tableName: string, comments: Record<string, string>, dbName: string): Promise<void> {
+    // 1. Fetch current schema to get types (MySQL requires full column definition to change comment)
+    const columnsRes = await this.executeQuery(`
+      SELECT COLUMN_NAME, COLUMN_TYPE
+      FROM information_schema.COLUMNS 
+      WHERE TABLE_SCHEMA = '${dbName}' AND TABLE_NAME = '${tableName}'
+    `, dbName);
+    
+    const colTypes: Record<string, string> = {};
+    columnsRes.data.forEach(row => {
+      colTypes[row.COLUMN_NAME] = row.COLUMN_TYPE;
+    });
+
+    // 2. Generate ALTER statements
+    const updates = [];
+    for (const [colName, comment] of Object.entries(comments)) {
+      if (colTypes[colName]) {
+        const type = colTypes[colName];
+        const safeComment = comment.replace(/'/g, "''");
+        // MySQL Syntax: ALTER TABLE t MODIFY col type COMMENT '...'
+        updates.push(`MODIFY COLUMN \`${colName}\` ${type} COMMENT '${safeComment}'`);
+      }
+    }
+
+    if (updates.length > 0) {
+      const sql = `ALTER TABLE \`${tableName}\` ${updates.join(', ')}`;
+      await this.executeQuery(sql, dbName);
+    }
+  }
+
   /**
    * High-precision Date formatter for MySQL/OceanBase (YYYY-MM-DD HH:MM:SS.ffffff)
    */

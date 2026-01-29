@@ -57,6 +57,26 @@ function generateFitnessData() {
   return data;
 }
 
+// --- Helper: Postgres Schema Fetcher ---
+const getPgTableSchema = async (pool, tableName) => {
+    const res = await pool.query(`
+        SELECT
+            a.attname as column_name,
+            pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
+            d.description as column_comment
+        FROM pg_catalog.pg_attribute a
+        JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+        LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.objsubid = a.attnum
+        WHERE n.nspname = 'public'
+          AND c.relname = $1
+          AND a.attnum > 0    -- Exclude system columns
+          AND NOT a.attisdropped -- Exclude dropped columns
+        ORDER BY a.attnum;
+    `, [tableName]);
+    return res.rows;
+};
+
 // --- DAL Class ---
 class DataAccessLayer {
   constructor() {
@@ -244,6 +264,27 @@ class DataAccessLayer {
     }
   }
 
+  // --- Databases Listing ---
+  async getDatabases() {
+    const rootConn = await this._getRootConnection();
+    try {
+        if (this.type === 'mysql') {
+            const [rows] = await rootConn.query(`SHOW DATABASES`);
+            // Filter system databases
+            const systemDbs = ['information_schema', 'mysql', 'performance_schema', 'sys', SYSTEM_DB, MASTER_DB];
+            return rows.map(r => r.Database).filter(db => !systemDbs.includes(db));
+        } else if (this.type === 'postgres') {
+            const res = await rootConn.query(`SELECT datname FROM pg_database WHERE datistemplate = false`);
+            const systemDbs = ['postgres', SYSTEM_DB, MASTER_DB];
+            return res.rows.map(r => r.datname).filter(db => !systemDbs.includes(db));
+        }
+    } finally {
+        await rootConn.end();
+    }
+    return [];
+  }
+
+  // ... (Rest of the file remains unchanged, including _loadDatasets, _initDemoData, Notebook CRUD, etc.)
   async _loadDatasets(pool) {
     for (const ds of DATASETS) {
         const filePath = path.join(process.cwd(), 'datasets', this.type, ds.fileName);
@@ -409,14 +450,7 @@ class DataAccessLayer {
         const [newNb] = await sysPool.query(`SELECT * FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
         return newNb[0];
     } else if (this.type === 'postgres') {
-        // Postgres Clone Strategy: Use template database if possible, but standard user logic is simpler:
-        // 1. Create DB. 2. Dump/Restore or Copy tables.
-        // For this MVP, we will iterate tables and use CTAS (Create Table As Select) across DBs via dblink? No, dblink is complex to setup.
-        // Simpler: Read into memory and write. (Not efficient for huge data, but works for MVP).
-        // Actually, in Postgres `CREATE DATABASE ... TEMPLATE source` works if source is not being accessed.
-        // BUT we can't kick users off easily.
-        // Fallback: Just Create empty DB and copy data via app memory (Stream).
-        
+        // Postgres Clone Strategy: Use in-memory transfer for MVP compatibility
         const rootConn = await this._getRootConnection();
         await rootConn.query(`CREATE DATABASE "${newDbName}"`);
         await rootConn.end();
@@ -428,25 +462,46 @@ class DataAccessLayer {
         
         for (const row of tablesRes.rows) {
             const table = row.table_name;
-            // Get DDL (Approximation) - In PG getting exact DDL via query is hard without pg_dump.
-            // We use CTAS with no data to copy structure? `CREATE TABLE new AS TABLE old WITH NO DATA`?
-            // This doesn't work across databases.
             
-            // Alternative: Introspect columns and create.
-            // For MVP: We assume tables are simple.
-            // Let's grab all data and infer? No.
+            // 1. Get Schema with Comments using robust catalog query
+            const columnsData = await getPgTableSchema(sourcePool, table);
+            const colDefs = columnsData.map(c => `"${c.column_name}" ${c.data_type}`).join(', ');
             
-            // Just skip Cloning Data for Postgres MVP OR implement basic copy:
-            // 1. Get Schema from Source
-            const colsRes = await sourcePool.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1`, [table]);
-            const colDefs = colsRes.rows.map(c => `"${c.column_name}" ${c.data_type}`).join(', ');
             await targetPool.query(`CREATE TABLE "${table}" (${colDefs})`);
             
-            // 2. Copy Data
+            // 2. Restore Comments (Postgres requires separate statements)
+            for (const col of columnsData) {
+                if (col.column_comment) {
+                    const safeComment = col.column_comment.replace(/'/g, "''");
+                    await targetPool.query(`COMMENT ON COLUMN "${table}"."${col.column_name}" IS '${safeComment}'`);
+                }
+            }
+            
+            // 3. Copy Data (Bulk Insert via Memory)
             const dataRes = await sourcePool.query(`SELECT * FROM "${table}"`);
             if (dataRes.rows.length > 0) {
-                 // Bulk insert logic similar to import
-                 // ... omitted for brevity in this step, but ideal solution is needed ...
+                const columns = columnsData.map(c => `"${c.column_name}"`).join(', ');
+                const batchSize = 100;
+                for (let i = 0; i < dataRes.rows.length; i += batchSize) {
+                    const chunk = dataRes.rows.slice(i, i + batchSize);
+                    let params = [];
+                    let placeholders = [];
+                    let pIdx = 1;
+                    
+                    chunk.forEach(rowData => {
+                        let rowPh = [];
+                        columnsData.forEach(col => {
+                            rowPh.push(`$${pIdx++}`);
+                            params.push(rowData[col.column_name]);
+                        });
+                        placeholders.push(`(${rowPh.join(',')})`);
+                    });
+                    
+                    await targetPool.query(
+                        `INSERT INTO "${table}" (${columns}) VALUES ${placeholders.join(',')}`,
+                        params
+                    );
+                }
             }
         }
 
@@ -659,7 +714,7 @@ class DataAccessLayer {
         await pool.query(`
             INSERT INTO "${USER_SETTINGS_TABLE}" (user_id, settings_json)
             VALUES ($1, $2)
-            ON CONFLICT (user_id) DO UPDATE SET settings_json = EXCLUDED.settings_json
+            ON CONFLICT (user_id) DO UPDATE SET settings_json = EXCLUDED.settings_json, updated_at = CURRENT_TIMESTAMP
         `, [userId, JSON.stringify(settings)]);
     }
   }
@@ -702,18 +757,26 @@ class DataAccessLayer {
             const targetTable = sourceTable.substring(dataset.prefix.length + 1);
             if (!targetTable) continue;
             
-            // 1. Get Schema
-            const colsRes = await masterPool.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`, [sourceTable]);
-            const colDefs = colsRes.rows.map(c => `"${c.column_name}" ${c.data_type}`).join(', ');
+            // 1. Get Schema with Comments
+            const columnsData = await getPgTableSchema(masterPool, sourceTable);
+            const colDefs = columnsData.map(c => `"${c.column_name}" ${c.data_type}`).join(', ');
             
             await userPool.query(`DROP TABLE IF EXISTS "${targetTable}"`);
             await userPool.query(`CREATE TABLE "${targetTable}" (${colDefs})`);
             
-            // 2. Data Transfer
+            // 2. Restore Comments (Postgres requires separate statements)
+            for (const col of columnsData) {
+                if (col.column_comment) {
+                    const safeComment = col.column_comment.replace(/'/g, "''");
+                    await userPool.query(`COMMENT ON COLUMN "${targetTable}"."${col.column_name}" IS '${safeComment}'`);
+                }
+            }
+            
+            // 3. Data Transfer
             const dataRes = await masterPool.query(`SELECT * FROM "${sourceTable}"`);
             if (dataRes.rows.length > 0) {
                 // Construct bulk insert
-                const columns = colsRes.rows.map(c => `"${c.column_name}"`).join(', ');
+                const columns = columnsData.map(c => `"${c.column_name}"`).join(', ');
                 
                 // Batching for safety
                 const batchSize = 100;
@@ -725,7 +788,7 @@ class DataAccessLayer {
                     
                     chunk.forEach(rowData => {
                         let rowPh = [];
-                        colsRes.rows.forEach(col => {
+                        columnsData.forEach(col => {
                             rowPh.push(`$${pIdx++}`);
                             params.push(rowData[col.column_name]);
                         });

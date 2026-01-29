@@ -7,6 +7,7 @@ export interface DatabaseEngine {
   createTableFromData(name: string, data: any[], dbName: string, aiComments?: Record<string, string>, onProgress?: (percent: number) => void): Promise<TableMetadata>;
   getTables(dbName: string): Promise<TableMetadata[]>;
   refreshTableStats(tableName: string, dbName: string): Promise<number>;
+  applyColumnComments(tableName: string, comments: Record<string, string>, dbName: string): Promise<void>;
   isReady(): boolean;
 }
 

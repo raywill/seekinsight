@@ -17,4 +17,14 @@ export default function(app) {
       res.status(500).json({ message: err.message });
     }
   });
+
+  app.get('/databases', async (req, res) => {
+    try {
+      const dbs = await dal.getDatabases();
+      res.json(dbs);
+    } catch (err) {
+      if (IS_DEBUG) console.error("[Databases GET Error]:", err);
+      res.status(500).json({ message: err.message });
+    }
+  });
 }

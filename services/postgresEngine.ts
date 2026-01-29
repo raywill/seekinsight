@@ -103,6 +103,17 @@ export class PostgresEngine implements DatabaseEngine {
     return count;
   }
 
+  async applyColumnComments(tableName: string, comments: Record<string, string>, dbName: string): Promise<void> {
+    for (const [colName, comment] of Object.entries(comments)) {
+        const safeComment = comment.replace(/'/g, "''");
+        try {
+            await this.executeQuery(`COMMENT ON COLUMN "${tableName}"."${colName}" IS '${safeComment}'`, dbName);
+        } catch(e) {
+            console.warn(`Failed to set comment for ${colName}`, e);
+        }
+    }
+  }
+
   private formatValueForSql(val: any): string {
     if (val === null || val === undefined) return 'NULL';
 

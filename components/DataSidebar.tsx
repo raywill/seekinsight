@@ -1,20 +1,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TableMetadata } from '../types';
-import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud, Download, Search, BrainCircuit } from 'lucide-react';
+import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud, Download, Search, BrainCircuit, Link as LinkIcon } from 'lucide-react';
 
 interface Props {
   tables: TableMetadata[];
   onUploadFile: (file: File) => void;
   onRefreshTableStats: (tableName: string) => Promise<void>;
   onLoadSample: () => void;
+  onConnectDB?: () => void; // New prop
   isUploading: boolean;
   uploadProgress?: number | null;
   width: number;
   onColumnAction?: (action: 'fulltext' | 'embedding', tableName: string, columnName: string) => void;
 }
 
-const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, isUploading, uploadProgress, width, onColumnAction }) => {
+const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, onConnectDB, isUploading, uploadProgress, width, onColumnAction }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -147,18 +148,27 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                 </p>
               </div>
 
-              <div className="w-full space-y-3">
-                  <label className="w-full py-3.5 bg-white border-2 border-[#d1e6ff] text-[#0066ff] rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-50 hover:shadow-xl hover:shadow-blue-500/10 transition-all flex items-center justify-center active:scale-95 shadow-md">
-                    Upload Data File
+              <div className="w-full space-y-4">
+                  <label className="w-full py-3 bg-white border border-gray-200 text-gray-500 rounded-xl text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center active:scale-95 shadow-sm">
+                    <Upload size={14} className="mr-2 opacity-60" /> Upload Data File
                     <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls,.txt" />
                   </label>
                   
                   <button 
                     onClick={onLoadSample}
-                    className="w-full py-3.5 bg-blue-100/50 border-2 border-transparent text-blue-600 rounded-2xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-200/50 transition-all flex items-center justify-center gap-2 active:scale-95"
+                    className="w-full py-3.5 bg-blue-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
                     <Download size={14} /> Load Sample Dataset
                   </button>
+
+                  {onConnectDB && (
+                    <button 
+                        onClick={onConnectDB}
+                        className="w-full py-3.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-purple-100 hover:border-purple-200 transition-all flex items-center justify-center gap-2 active:scale-95"
+                    >
+                        <LinkIcon size={14} /> Connect Database
+                    </button>
+                  )}
               </div>
             </div>
           </div>
