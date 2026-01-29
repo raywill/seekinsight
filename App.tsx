@@ -196,7 +196,7 @@ const App: React.FC = () => {
       suggestions: initialSuggestions,
       // If tables exist, default to Insight Hub to show suggestions/insights
       // Otherwise stay in SQL mode to allow data import/creation
-      activeMode: tables.length > 0 ? DevMode.INSIGHT_HUB : DevMode.SQL
+      activeMode: tables.length >= 0 ? DevMode.INSIGHT_HUB : DevMode.SQL
     }));
     setCurrentNotebook(nb);
     setDbReady(true);
