@@ -3,6 +3,7 @@ import React from 'react';
 import { Dataset } from '../types';
 import { X, ShoppingCart, Users, Film, Activity, Loader2, Download, Database } from 'lucide-react';
 import * as Icons from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const DatasetPickerModal: React.FC<Props> = ({ isOpen, onClose, onSelect, isLoading, datasets }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const getIcon = (iconName: string, colorClass: string) => {
@@ -36,8 +38,8 @@ const DatasetPickerModal: React.FC<Props> = ({ isOpen, onClose, onSelect, isLoad
               <Database size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-900 leading-none">Load Sample Dataset</h3>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Populate your empty database</p>
+              <h3 className="text-lg font-black text-gray-900 leading-none">{t('dataset.title')}</h3>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{t('dataset.subtitle')}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-400 transition-colors"><X size={20}/></button>
@@ -47,7 +49,7 @@ const DatasetPickerModal: React.FC<Props> = ({ isOpen, onClose, onSelect, isLoad
           {isLoading && datasets.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-64">
                 <Loader2 size={40} className="animate-spin text-blue-500 mb-4" />
-                <p className="text-sm font-bold text-gray-400">Loading datasets...</p>
+                <p className="text-sm font-bold text-gray-400">{t('dataset.loading')}</p>
              </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -84,7 +86,7 @@ const DatasetPickerModal: React.FC<Props> = ({ isOpen, onClose, onSelect, isLoad
                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-blue-500 transition-colors">
                         <span className="flex items-center gap-1"><Activity size={12} /> {dataset.topicName}</span>
                         <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-all">
-                           <Download size={12} /> Load Data
+                           <Download size={12} /> {t('dataset.load_data')}
                         </div>
                      </div>
                   </div>
@@ -97,7 +99,7 @@ const DatasetPickerModal: React.FC<Props> = ({ isOpen, onClose, onSelect, isLoad
         {isLoading && (
             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 flex-col gap-4">
                  <Loader2 size={48} className="animate-spin text-blue-600" />
-                 <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest animate-pulse">Cloning Dataset...</h3>
+                 <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest animate-pulse">{t('dataset.cloning')}</h3>
             </div>
         )}
       </div>

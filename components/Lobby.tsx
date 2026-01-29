@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Notebook } from '../types';
-import { Boxes, LayoutGrid, Loader2, ArrowRight, Trash2, Calendar, Plus, Database, Globe, Zap, Eye, LayoutList } from 'lucide-react';
+import { Boxes, LayoutGrid, Loader2, ArrowRight, Trash2, Calendar, Plus, Database, Globe, Zap, Eye, LayoutList, Languages } from 'lucide-react';
 import * as Icons from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   onOpen: (nb: Notebook) => void;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
+  const { t, i18n } = useTranslation();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -64,12 +66,12 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm("确定要彻底删除这个 Notebook 及其所有物理数据吗？")) return;
+    if (!confirm(t('lobby.delete_confirm'))) return;
     try {
       await fetch(`${gatewayUrl}/notebooks/${id}`, { method: 'DELETE' });
       fetchNotebooks();
     } catch (e) {
-      alert("删除失败");
+      alert(t('common.error'));
     }
   };
 
@@ -77,6 +79,10 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
       // Send view increment
       fetch(`${gatewayUrl}/notebooks/${nb.id}/view`, { method: 'POST' }).catch(console.warn);
       onOpen(nb);
+  };
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
   };
 
   const renderIcon = (name: string) => {
@@ -92,7 +98,7 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
   if (loading) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6">
       <Loader2 className="animate-spin text-blue-600" size={64} />
-      <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Accessing Insight Vault...</h1>
+      <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">{t('lobby.loading')}</h1>
     </div>
   );
 
@@ -107,7 +113,7 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                   <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">SeekInsight</h1>
                   <span className="absolute -top-2 -right-16 bg-blue-50 text-blue-600 text-[9px] font-black px-1.5 py-0.5 rounded-md border border-blue-100 lowercase tracking-tight transform rotate-3 shadow-sm select-none">for seekdb</span>
                </div>
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Personal Knowledge Graph</p>
+               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{t('lobby.subtitle')}</p>
              </div>
           </div>
 
@@ -117,7 +123,7 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                   <button 
                     onClick={() => setViewMode('grid')}
                     className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-gray-100 text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                    title="Grid View"
+                    title={t('lobby.grid_view')}
                   >
                      <LayoutGrid size={18} />
                   </button>
@@ -125,7 +131,7 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                   <button 
                     onClick={() => setViewMode('list')}
                     className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-gray-100 text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                    title="List View"
+                    title={t('lobby.list_view')}
                   >
                      <LayoutList size={18} />
                   </button>
@@ -138,7 +144,7 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-70 disabled:pointer-events-none"
               >
                  {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={18} />}
-                 <span>CREATE NEW NOTEBOOK</span>
+                 <span>{t('lobby.create_new')}</span>
               </button>
           </div>
         </header>
@@ -160,13 +166,13 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                     </div>
                 </div>
                 <div className="relative z-10">
-                    <h3 className="text-lg font-black text-white mb-1 tracking-tight">App Marketplace</h3>
-                    <p className="text-xs font-medium text-blue-200/80">Explore community templates & clone ready-made apps.</p>
+                    <h3 className="text-lg font-black text-white mb-1 tracking-tight">{t('lobby.marketplace_title')}</h3>
+                    <p className="text-xs font-medium text-blue-200/80">{t('lobby.marketplace_desc')}</p>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-300 uppercase tracking-widest">
                         <Zap size={12} className="fill-sky-300" />
-                        Featured
+                        {t('lobby.featured')}
                     </div>
                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-blue-500 transition-colors">
                         <ArrowRight size={14} />
@@ -182,7 +188,7 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                 <div className="w-16 h-16 rounded-full bg-gray-50 group-hover:bg-white group-hover:shadow-md flex items-center justify-center transition-all text-gray-300 group-hover:text-blue-500">
                     {creating ? <Loader2 className="animate-spin" size={24} /> : <Plus size={32} />}
                 </div>
-                <h3 className="text-sm font-black text-gray-400 group-hover:text-blue-600 uppercase tracking-widest transition-colors">Create New Notebook</h3>
+                <h3 className="text-sm font-black text-gray-400 group-hover:text-blue-600 uppercase tracking-widest transition-colors">{t('lobby.create_new')}</h3>
             </div>
 
             {/* Existing Notebooks */}
@@ -241,12 +247,12 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                             <Globe size={24} className="text-sky-300" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg leading-tight">App Marketplace</h3>
-                            <p className="text-xs text-blue-200/80 font-medium">Explore and clone community templates</p>
+                            <h3 className="font-bold text-lg leading-tight">{t('lobby.marketplace_title')}</h3>
+                            <p className="text-xs text-blue-200/80 font-medium">{t('lobby.marketplace_desc')}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3 pr-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-sky-300 bg-sky-400/10 px-2 py-1 rounded-lg">Featured</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-sky-300 bg-sky-400/10 px-2 py-1 rounded-lg">{t('lobby.featured')}</span>
                         <ArrowRight className="text-slate-500 group-hover:text-white transition-colors" />
                     </div>
                 </div>
@@ -259,8 +265,8 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
                                 <Database size={24} />
                              </div>
                              <div>
-                                <h3 className="text-gray-900 font-bold">No notebooks yet</h3>
-                                <p className="text-gray-400 text-sm">Create your first notebook to get started</p>
+                                <h3 className="text-gray-900 font-bold">{t('lobby.no_notebooks')}</h3>
+                                <p className="text-gray-400 text-sm">{t('lobby.no_notebooks_desc')}</p>
                              </div>
                         </div>
                     ) : (
@@ -315,12 +321,19 @@ const Lobby: React.FC<Props> = ({ onOpen, onOpenMarket }) => {
             </div>
         )}
 
-        <div className="flex-1 flex overflow-hidden"></div> {/* Placeholder for flex consistency if needed */}
+        <div className="flex-1 flex overflow-hidden"></div>
 
-        <div className="flex justify-center pt-16 pb-6 opacity-60 hover:opacity-100 transition-opacity duration-300">
+        <div className="flex flex-col items-center justify-center pt-16 pb-6 gap-6">
+           <div className="flex items-center gap-2">
+                <button onClick={() => changeLanguage('en')} className={`p-2 rounded-lg text-xs font-bold transition-all ${i18n.language === 'en' ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:bg-gray-100'}`}>English</button>
+                <button onClick={() => changeLanguage('zh-CN')} className={`p-2 rounded-lg text-xs font-bold transition-all ${i18n.language === 'zh-CN' ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:bg-gray-100'}`}>简体中文</button>
+                <button onClick={() => changeLanguage('zh-TW')} className={`p-2 rounded-lg text-xs font-bold transition-all ${i18n.language === 'zh-TW' ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:bg-gray-100'}`}>繁體中文</button>
+                <button onClick={() => changeLanguage('ja')} className={`p-2 rounded-lg text-xs font-bold transition-all ${i18n.language === 'ja' ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:bg-gray-100'}`}>日本語</button>
+           </div>
+           
            <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] flex items-center gap-3 cursor-default select-none hover:text-blue-400 transition-colors">
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.6)] animate-pulse"></div>
-              powered by seekdb
+              {t('lobby.powered_by')}
            </span>
         </div>
       </div>

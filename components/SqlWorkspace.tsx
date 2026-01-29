@@ -1,9 +1,9 @@
-
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor, { BaseCodeEditorRef } from './BaseCodeEditor';
 import SqlResultPanel from './SqlResultPanel';
 import { Database, Play, RefreshCcw, Code2, RotateCcw, Box, Table, Type, Lightbulb, ArrowUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   code: string;
@@ -43,6 +43,7 @@ const SqlWorkspace: React.FC<Props> = ({
   code, onCodeChange, prompt, onPromptChange, result, previewResult, onRun, isExecuting, 
   isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo, aiThought 
 }) => {
+  const { t } = useTranslation();
   const editorRef = useRef<BaseCodeEditorRef>(null);
   const [isUndoVisible, setIsUndoVisible] = useState(false);
   const prevLoading = useRef(isAiGenerating || isAiFixing);
@@ -292,7 +293,7 @@ const SqlWorkspace: React.FC<Props> = ({
             onBlur={() => setIsPromptFocused(false)}
             onChange={(e) => onPromptChange(e.target.value)}
             onKeyDown={handlePromptKeyDown}
-            placeholder={hasCode ? "Ask AI to modify this SQL... (Cmd+Enter)" : "Ask AI to write SQL... (Cmd+Enter)"}
+            placeholder={hasCode ? t('editor.refine_tooltip') + "... (Cmd+Enter)" : t('editor.sql_placeholder') + " (Cmd+Enter)"}
             rows={1}
             className="w-full pl-10 pr-16 py-2 bg-white border border-blue-100 rounded-xl text-sm focus:outline-none shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900 placeholder:text-gray-400"
             style={{ 
@@ -311,7 +312,7 @@ const SqlWorkspace: React.FC<Props> = ({
                 ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:scale-105' 
                 : 'bg-gray-100 text-gray-300 cursor-not-allowed'
             }`}
-            title={hasCode ? "Refine SQL" : "Generate SQL"}
+            title={hasCode ? t('editor.refine_tooltip') : t('editor.gen_tooltip')}
           >
             {isAiGenerating || isAiFixing ? (
                 <RefreshCcw size={16} className="animate-spin" />
@@ -369,7 +370,7 @@ const SqlWorkspace: React.FC<Props> = ({
               onClick={() => { onUndo?.(); setIsUndoVisible(false); }} 
               className="flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-sm border border-blue-200 text-blue-600 rounded-lg text-[10px] font-black shadow-xl hover:bg-blue-50 transition-all active:scale-95"
             >
-              <RotateCcw size={12} /> Revert AI Change
+              <RotateCcw size={12} /> {t('editor.revert_change')}
             </button>
           </div>
         )}
@@ -421,10 +422,10 @@ const SqlWorkspace: React.FC<Props> = ({
         
         <div className="px-6 py-3 border-t border-gray-100 bg-white flex justify-between items-center shrink-0 z-10">
           <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-            <div className="flex items-center gap-1.5"><Code2 size={12} className="text-blue-400" /><span>ANSI SQL</span></div>
+            <div className="flex items-center gap-1.5"><Code2 size={12} className="text-blue-400" /><span>{t('editor.ansi_sql')}</span></div>
           </div>
           <button onClick={onRun} disabled={isExecuting || isAiGenerating || isAiFixing} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50">
-            {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Execute Query
+            {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} {t('editor.execute_query')}
           </button>
         </div>
       </div>

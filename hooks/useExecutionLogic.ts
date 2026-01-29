@@ -130,8 +130,8 @@ export const useExecutionLogic = ({
             tables: tables 
         }));
         
-        const newTopic = await ai.generateTopic("New Connection", tables);
-        onTopicUpdate(newTopic);
+        // Use database name directly as the topic
+        onTopicUpdate(targetDbName);
 
     } catch (e: any) {
         console.error("Connect DB Failed", e);

@@ -1,5 +1,6 @@
 
 import { DevMode, Suggestion, TableMetadata } from "../types";
+import i18next from "i18next";
 
 // Import Fragments
 import pythonBridgeApi from '../prompts/fragments/python_bridge_api.md?raw';
@@ -7,7 +8,6 @@ import sqlDialectMysql from '../prompts/fragments/sql_dialect_mysql.md?raw';
 import sqlDialectPostgres from '../prompts/fragments/sql_dialect_postgres.md?raw';
 
 import cotProtocol from '../prompts/fragments/cot_protocol.md?raw';
-import languageReq from '../prompts/fragments/language_req.md?raw';
 
 // Import Templates
 import codeGenPython from '../prompts/templates/code_gen_python.md?raw';
@@ -69,6 +69,14 @@ const getSqlDialectFragment = () => {
     return sqlDialectMysql;
 };
 
+const getLanguageReq = () => {
+    const lang = i18next.language;
+    if (lang === 'zh-CN') return "Language Requirement: All string fields and analysis descriptions should be in Simplified Chinese.";
+    if (lang === 'zh-TW') return "Language Requirement: All string fields and analysis descriptions should be in Traditional Chinese.";
+    if (lang === 'ja') return "Language Requirement: All string fields and analysis descriptions should be in Japanese.";
+    return "Language Requirement: All string fields and analysis descriptions should be in English.";
+};
+
 const fillTemplate = (template: string, replacements: Record<string, string>) => {
   let result = template;
   for (const [key, value] of Object.entries(replacements)) {
@@ -79,7 +87,9 @@ const fillTemplate = (template: string, replacements: Record<string, string>) =>
   // Dynamic SQL Dialect Injection
   result = result.replace('{{SQL_DIALECT_MYSQL}}', getSqlDialectFragment());
   result = result.replace('{{COT_PROTOCOL}}', cotProtocol);
-  result = result.replace('{{LANGUAGE_REQ}}', languageReq);
+  
+  // Dynamic Language Requirement
+  result = result.replace('{{LANGUAGE_REQ}}', getLanguageReq());
   return result;
 };
 

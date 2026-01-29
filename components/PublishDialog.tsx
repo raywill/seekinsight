@@ -4,6 +4,7 @@ import { DevMode, ExecutionResult } from '../types';
 import { publishApp, updateApp } from '../services/appService';
 import { executePython } from '../services/pythonService';
 import { X, Rocket, Sparkles, AlertCircle, CheckCircle2, RefreshCw, ExternalLink, ArrowLeft, Loader2, Code2, Save } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   isOpen: boolean;
@@ -36,6 +37,7 @@ const PublishDialog: React.FC<Props> = ({
   analysisReport,
   sourcePrompt
 }) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [author, setAuthor] = useState('');
@@ -97,7 +99,7 @@ const PublishDialog: React.FC<Props> = ({
         try {
           params = JSON.parse(paramsJson);
         } catch (e) {
-          alert("Invalid JSON for Parameters");
+          alert(t('common.error') + ": Invalid JSON");
           setIsPublishing(false);
           return;
         }
@@ -140,7 +142,7 @@ const PublishDialog: React.FC<Props> = ({
       setPublishedAppId(id);
       setSuccess(true);
     } catch (e) {
-      alert("Publish/Update failed");
+      alert(t('common.error'));
     } finally {
       setIsPublishing(false);
     }
@@ -164,9 +166,9 @@ const PublishDialog: React.FC<Props> = ({
               <CheckCircle2 size={40} />
             </div>
             <h3 className="text-2xl font-black text-gray-900 mb-2">
-                {editingAppId ? 'Updated Successfully!' : 'Published Successfully!'}
+                {t('publish.success_title')}
             </h3>
-            <p className="text-gray-500 mb-8 max-w-xs mx-auto">Your app is now live in the marketplace and ready to be shared.</p>
+            <p className="text-gray-500 mb-8 max-w-xs mx-auto">{t('publish.success_desc')}</p>
             
             <div className="flex flex-col sm:flex-row gap-3 w-full">
                 <button 
@@ -174,7 +176,7 @@ const PublishDialog: React.FC<Props> = ({
                     className="flex-1 py-3.5 px-6 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
                 >
                     <ArrowLeft size={18} />
-                    Back to Workbook
+                    {t('publish.back_workbook')}
                 </button>
                 <button 
                     onClick={handleViewApp}
@@ -184,7 +186,7 @@ const PublishDialog: React.FC<Props> = ({
                             : 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/30'
                     }`}
                 >
-                    View App
+                    {t('publish.view_app')}
                     <ExternalLink size={18} />
                 </button>
             </div>
@@ -197,8 +199,8 @@ const PublishDialog: React.FC<Props> = ({
                   {editingAppId ? <Save size={20} /> : <Rocket size={20} />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-gray-900 leading-none">{editingAppId ? 'Update App' : 'Publish New App'}</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Share your insight</p>
+                  <h3 className="text-lg font-black text-gray-900 leading-none">{editingAppId ? t('publish.title_update') : t('publish.title_create')}</h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{t('publish.subtitle')}</p>
                 </div>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-400 transition-colors"><X size={20}/></button>
@@ -206,7 +208,7 @@ const PublishDialog: React.FC<Props> = ({
 
             <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
               <div className="space-y-2">
-                <label className="text-xs font-black text-gray-700 uppercase tracking-wide">App Title</label>
+                <label className="text-xs font-black text-gray-700 uppercase tracking-wide">{t('publish.app_title')}</label>
                 <input 
                   value={title}
                   onChange={e => setTitle(e.target.value)}
@@ -216,7 +218,7 @@ const PublishDialog: React.FC<Props> = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-black text-gray-700 uppercase tracking-wide">Description</label>
+                <label className="text-xs font-black text-gray-700 uppercase tracking-wide">{t('common.description')}</label>
                 <textarea 
                   value={description}
                   onChange={e => setDescription(e.target.value)}
@@ -226,7 +228,7 @@ const PublishDialog: React.FC<Props> = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-black text-gray-700 uppercase tracking-wide">Author Name (Optional)</label>
+                <label className="text-xs font-black text-gray-700 uppercase tracking-wide">{t('publish.author_name')}</label>
                 <input 
                   value={author}
                   onChange={e => setAuthor(e.target.value)}
@@ -240,25 +242,25 @@ const PublishDialog: React.FC<Props> = ({
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-xs font-black text-purple-800 uppercase tracking-wide flex items-center gap-1">
                       <Sparkles size={12} className="text-purple-600" /> 
-                      App Parameters
+                      {t('publish.app_params')}
                     </label>
                     {isDetectingSchema ? (
                       <span className="flex items-center gap-1 text-[10px] font-bold text-purple-500">
-                        <Loader2 size={10} className="animate-spin" /> Detecting Inputs...
+                        <Loader2 size={10} className="animate-spin" /> {t('publish.detecting')}
                       </span>
                     ) : (
                       <button 
                         onClick={detectSchema} 
                         className="text-[10px] font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1"
                       >
-                         <RefreshCw size={10} /> Re-Detect
+                         <RefreshCw size={10} /> {t('publish.re_detect')}
                       </button>
                     )}
                   </div>
                   
                   {paramsJson === '{}' && !isDetectingSchema ? (
                     <div className="text-xs text-gray-500 italic p-2">
-                      No <code className="bg-white px-1 py-0.5 rounded border border-gray-200 text-purple-600 font-mono">SI.params</code> usage detected in your code. The app will be static.
+                      {t('publish.no_params')}
                     </div>
                   ) : (
                     <textarea 
@@ -268,7 +270,7 @@ const PublishDialog: React.FC<Props> = ({
                     />
                   )}
                   <p className="text-[10px] text-gray-400 mt-1">
-                     This JSON Schema defines the sliders and dropdowns users will see.
+                     {t('publish.json_schema_desc')}
                   </p>
                 </div>
               )}
@@ -276,20 +278,20 @@ const PublishDialog: React.FC<Props> = ({
               {!resultSnapshot && (
                 <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-600 rounded-xl text-xs font-bold">
                   <AlertCircle size={16} />
-                  Warning: No execution result available for snapshot.
+                  {t('publish.warning_snapshot')}
                 </div>
               )}
             </div>
 
             <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-               <button onClick={onClose} className="px-6 py-3 text-gray-500 font-bold hover:bg-gray-200 rounded-xl transition-colors">Cancel</button>
+               <button onClick={onClose} className="px-6 py-3 text-gray-500 font-bold hover:bg-gray-200 rounded-xl transition-colors">{t('common.cancel')}</button>
                <button 
                 onClick={handlePublish}
                 disabled={isPublishing || !title || isDetectingSchema}
                 className={`px-8 py-3 text-white rounded-xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${type === DevMode.SQL ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20'}`}
                >
                  {isPublishing ? <RefreshCw size={18} className="animate-spin" /> : (editingAppId ? <Save size={18} /> : <Rocket size={18} />)}
-                 {editingAppId ? 'Update App' : 'Confirm Publish'}
+                 {editingAppId ? t('publish.update') : t('publish.confirm_publish')}
                </button>
             </div>
           </>

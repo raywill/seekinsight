@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ExecutionResult, TableMetadata } from '../types';
 import BaseCodeEditor from './BaseCodeEditor';
 import PythonResultPanel from './PythonResultPanel';
-import { Terminal, Play, RefreshCcw, Box, RotateCcw, Lightbulb, ArrowUp } from 'lucide-react';
+import { Terminal, Play, RefreshCw, Box, RotateCcw, Lightbulb, ArrowUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   code: string;
@@ -28,6 +28,7 @@ const PythonWorkspace: React.FC<Props> = ({
   code, onCodeChange, prompt, onPromptChange, result, previewResult, onRun, isExecuting, 
   isAiGenerating, isAiFixing, onTriggerAi, onDebug, tables, onUndo, showUndo, aiThought
 }) => {
+  const { t } = useTranslation();
   const [isUndoVisible, setIsUndoVisible] = useState(false);
   const prevLoading = useRef(isAiGenerating || isAiFixing);
 
@@ -122,7 +123,7 @@ const PythonWorkspace: React.FC<Props> = ({
             onBlur={() => setIsPromptFocused(false)}
             onChange={(e) => onPromptChange(e.target.value)}
             onKeyDown={handlePromptKeyDown}
-            placeholder={hasCode ? "Ask AI to modify this script... (Cmd+Enter)" : "Ask AI for a Python script... (Cmd+Enter)"}
+            placeholder={hasCode ? t('editor.refine_tooltip') + "... (Cmd+Enter)" : t('editor.python_placeholder') + " (Cmd+Enter)"}
             rows={1}
             className="w-full pl-10 pr-16 py-2 bg-white border border-purple-100 rounded-xl text-sm focus:outline-none shadow-sm transition-all resize-none overflow-hidden leading-7 text-gray-900 placeholder:text-gray-400"
             style={{ 
@@ -141,10 +142,10 @@ const PythonWorkspace: React.FC<Props> = ({
                 ? 'bg-purple-600 text-white shadow-md hover:bg-purple-700 hover:scale-105' 
                 : 'bg-gray-100 text-gray-300 cursor-not-allowed'
             }`}
-            title={hasCode ? "Refine Script" : "Script with AI"}
+            title={hasCode ? t('editor.refine_tooltip') : t('editor.gen_tooltip')}
           >
             {isAiGenerating || isAiFixing ? (
-                <RefreshCcw size={16} className="animate-spin" />
+                <RefreshCw size={16} className="animate-spin" />
             ) : (
                 <ArrowUp size={18} strokeWidth={3} />
             )}
@@ -199,7 +200,7 @@ const PythonWorkspace: React.FC<Props> = ({
               onClick={() => { onUndo?.(); setIsUndoVisible(false); }} 
               className="flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-sm border border-purple-200 text-purple-600 rounded-lg text-[10px] font-black shadow-xl hover:bg-purple-50 transition-all active:scale-95"
             >
-              <RotateCcw size={12} /> Revert AI Change
+              <RotateCcw size={12} /> {t('editor.revert_change')}
             </button>
           </div>
         )}
@@ -208,10 +209,10 @@ const PythonWorkspace: React.FC<Props> = ({
         
         <div className="px-6 py-3 border-t border-gray-100 bg-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-            <div className="flex items-center gap-1.5"><Box size={12} className="text-purple-400" /><span>Python 3.10</span></div>
+            <div className="flex items-center gap-1.5"><Box size={12} className="text-purple-400" /><span>{t('editor.python_ver')}</span></div>
           </div>
           <button onClick={onRun} disabled={isExecuting || isAiGenerating || isAiFixing} className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-xl text-sm font-black shadow-lg hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50">
-            {isExecuting ? <RefreshCcw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} Run Analysis
+            {isExecuting ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />} {t('editor.run_analysis')}
           </button>
         </div>
       </div>

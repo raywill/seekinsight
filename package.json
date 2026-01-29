@@ -33,7 +33,10 @@
     "xlsx": "^0.18.5",
     "sql.js": "^1.10.3",
     "react-plotly.js": "^2.6.0",
-    "plotly.js-dist-min": "^2.29.1"
+    "plotly.js-dist-min": "^2.29.1",
+    "i18next": "^23.10.0",
+    "react-i18next": "^14.1.0",
+    "i18next-browser-languagedetector": "^7.2.0"
   },
   "devDependencies": {
     "vite": "^5.2.11",

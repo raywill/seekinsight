@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
 import { Terminal as TerminalIcon, BarChart, Clock, Play, Box, Sparkles, RefreshCw, Maximize2, Minimize2, Eye, Info, Hash, ChevronUp, ChevronDown, Image as ImageIcon, Copy, Check, Code } from 'lucide-react';
 import Plot from 'react-plotly.js';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   result: ExecutionResult | null;
@@ -76,6 +77,7 @@ const ConsoleHtml = ({ content, height }: { content: string, height?: number }) 
 };
 
 const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onDebug, isAiLoading, fullHeight = false, showToolbar = true }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'console' | 'plot' | 'preview'>('console');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
@@ -277,9 +279,9 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
             <div className="flex items-center gap-3">
                 <div className={`flex items-center gap-2 text-xs font-bold ${hasError ? 'text-red-600' : 'text-purple-600'}`}>
                     {isLoading ? <RefreshCw size={14} className="animate-spin" /> : (hasError ? <Info size={14} /> : <TerminalIcon size={14} />)}
-                    {isLoading ? 'Running Script...' : (
-                        hasError ? 'Execution Failed' : (
-                            result ? 'Script Completed' : (previewResult ? 'Preview Mode Active' : 'Ready to Execute')
+                    {isLoading ? t('result.executing') : (
+                        hasError ? t('result.execution_failed') : (
+                            result ? 'Script Completed' : (previewResult ? t('result.preview_mode') : t('result.ready'))
                         )
                     )}
                 </div>
@@ -320,7 +322,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
                     className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
                     onClick={() => setPreviewImage(null)}
                   >
-                      Close [Esc]
+                      {t('common.close')} [Esc]
                   </button>
               </div>
           </div>
@@ -330,7 +332,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
         <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
              <div className="bg-white/60 border border-purple-100/50 shadow-lg shadow-purple-500/5 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
                 <RefreshCw size={14} className="text-purple-600 animate-spin" />
-                <span className="text-[11px] font-black text-gray-700 uppercase tracking-wider">Running Script...</span>
+                <span className="text-[11px] font-black text-gray-700 uppercase tracking-wider">{t('result.executing')}</span>
              </div>
         </div>
       )}
@@ -346,18 +348,18 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
         <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError && !previewResult ? 'bg-red-50/50' : 'bg-gray-50'}`}>
           <div className="flex gap-1">
             <button onClick={() => setActiveTab('console')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'console' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
-              <TerminalIcon size={12} className="inline mr-1.5" /> {hasError ? 'Error Console' : 'Stdout/Stderr'}
+              <TerminalIcon size={12} className="inline mr-1.5" /> {hasError ? t('result.error_console') : 'Stdout/Stderr'}
             </button>
             
             {result?.plotlyData && (
               <button onClick={() => setActiveTab('plot')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'plot' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
-                <BarChart size={12} className="inline mr-1.5" /> Interactive Plot
+                <BarChart size={12} className="inline mr-1.5" /> {t('result.chart')}
               </button>
             )}
 
             {previewResult && (
               <button onClick={() => setActiveTab('preview')} className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200' : 'text-gray-400 hover:text-gray-600'}`}>
-                <Eye size={12} /> Data Preview
+                <Eye size={12} /> {t('connect.preview')}
               </button>
             )}
           </div>
@@ -371,7 +373,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
               <button 
                   onClick={handleCopyLogs}
                   className={`p-1.5 rounded-lg transition-all ${copiedLogs ? 'bg-green-50 text-green-600' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                  title={copiedLogs ? "Copied!" : "Copy Output"}
+                  title={copiedLogs ? t('common.copied') : t('common.copy')}
               >
                   {copiedLogs ? <Check size={14} /> : <Copy size={14} />}
               </button>
@@ -388,7 +390,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
                 <button 
                   onClick={() => setIsCollapsed(true)}
                   className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                  title="Collapse"
+                  title={t('common.close')}
                 >
                   <ChevronDown size={14} />
                 </button>
@@ -402,7 +404,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
          {!result && !previewResult && !isLoading && (
             <div className="h-full flex flex-col items-center justify-center text-gray-300">
                 <TerminalIcon size={24} className="opacity-10 mb-2" />
-                <p className="text-xs font-black uppercase tracking-widest">Ready for Scripting</p>
+                <p className="text-xs font-black uppercase tracking-widest">{t('result.ready')}</p>
             </div>
          )}
 
@@ -445,23 +447,21 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
             <div className={`h-full overflow-auto p-4 font-mono text-[13px] leading-relaxed ${hasError ? 'bg-red-50/5 text-red-700' : 'text-gray-700'}`}>
               {result?.logs?.map((log, idx) => {
                 // Check if this log is a special display block
-                if (log.startsWith('__SI_DISPLAY_BLOCK__:')) {
-                    try {
-                        const payload = JSON.parse(log.substring('__SI_DISPLAY_BLOCK__:'.length));
-                        if (payload.type === 'html') {
-                            return <ConsoleHtml key={idx} content={payload.content} height={payload.height} />;
-                        }
-                        if (payload.type === 'markdown') {
-                            return <ConsoleMarkdown key={idx} content={payload.content} />;
-                        }
-                    } catch (e) {
-                        return <div key={idx} className="text-red-400 text-xs italic">[Rich Content Render Error]</div>;
+                if (log.startsWith('__SI_DISPLAY_BLOCK__:') || log.trim().startsWith('__SI_CMD__:')) {
+                    // ... (existing logic for SI commands)
+                    if (log.startsWith('__SI_DISPLAY_BLOCK__:')) {
+                       try {
+                           const payload = JSON.parse(log.substring('__SI_DISPLAY_BLOCK__:'.length));
+                           if (payload.type === 'html') {
+                               return <ConsoleHtml key={idx} content={payload.content} height={payload.height} />;
+                           }
+                           if (payload.type === 'markdown') {
+                               return <ConsoleMarkdown key={idx} content={payload.content} />;
+                           }
+                       } catch (e) {
+                           return <div key={idx} className="text-red-400 text-xs italic">[Rich Content Render Error]</div>;
+                       }
                     }
-                    return null;
-                }
-
-                // Check for SI_CMD fallback suppression
-                if (log.trim().startsWith('__SI_CMD__:')) {
                     return null;
                 }
 
@@ -510,7 +510,7 @@ const PythonResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, 
                 <Sparkles size={16} className="text-white animate-pulse" />
               )}
               <span className="uppercase tracking-[0.1em]">
-                {isAiLoading ? 'Python Repair in Progress...' : 'AI Magic Fix'}
+                {isAiLoading ? t('result.ai_repairing') : t('result.ai_magic_fix')}
               </span>
             </button>
           </div>

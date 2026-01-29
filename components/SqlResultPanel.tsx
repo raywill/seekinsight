@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ExecutionResult } from '../types';
 import { Table as TableIcon, List, Clock, Hash, Play, Download, AlertCircle, BarChart, Terminal as TerminalIcon, GripHorizontal, Maximize2, Minimize2, Eye, Info, ChevronUp, ChevronDown, RefreshCw, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   result: ExecutionResult | null;
@@ -14,6 +15,7 @@ interface Props {
 const MIN_HEIGHT = 240;
 
 const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onDebug, isAiLoading }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'table' | 'logs' | 'preview'>('table');
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
@@ -230,9 +232,9 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
             <div className="flex items-center gap-3">
                 <div className={`flex items-center gap-2 text-xs font-bold ${hasError ? 'text-red-600' : 'text-gray-500'}`}>
                     {isLoading ? <RefreshCw size={14} className="animate-spin text-blue-500" /> : (hasError ? <AlertCircle size={14} /> : <TerminalIcon size={14} />)}
-                    {isLoading ? 'Executing SQL...' : (
-                        hasError ? 'Execution Failed' : (
-                            result ? `Success: ${result.data.length} rows returned` : (previewResult ? 'Preview Mode Active' : 'Ready to Execute')
+                    {isLoading ? t('result.executing') : (
+                        hasError ? t('result.execution_failed') : (
+                            result ? t('result.success_rows', { count: result.data.length }) : (previewResult ? t('result.preview_mode') : t('result.ready'))
                         )
                     )}
                 </div>
@@ -273,7 +275,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
                     className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
                     onClick={() => setPreviewImage(null)}
                   >
-                      Close [Esc]
+                      {t('common.close')} [Esc]
                   </button>
               </div>
           </div>
@@ -289,21 +291,21 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
       <div className={`relative z-10 px-4 py-2 border-b border-gray-100 flex items-center justify-between shrink-0 ${hasError && !previewResult ? 'bg-red-50/50' : 'bg-gray-50'}`}>
         <div className="flex gap-1">
           <button onClick={() => setActiveTab('table')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>
-            <TableIcon size={12} className="inline mr-1" /> Data Table
+            <TableIcon size={12} className="inline mr-1" /> {t('result.data_table')}
           </button>
           <button onClick={() => setActiveTab('logs')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all ${activeTab === 'logs' ? (hasError ? 'bg-red-600 text-white shadow-md' : 'bg-blue-600 text-white shadow-md') : 'text-gray-400 hover:text-gray-600'}`}>
-            <TerminalIcon size={12} className="inline mr-1" /> {hasError ? 'Error Console' : 'SQL Logs'}
+            <TerminalIcon size={12} className="inline mr-1" /> {hasError ? t('result.error_console') : t('result.logs')}
           </button>
           {previewResult && (
             <button onClick={() => setActiveTab('preview')} className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200' : 'text-gray-400 hover:text-gray-600'}`}>
-              <Eye size={12} /> Data Preview
+              <Eye size={12} /> {t('connect.preview')}
             </button>
           )}
         </div>
         <div className="flex items-center gap-3">
           {activeTab === 'table' && result?.data && result.data.length > 0 && (
             <button onClick={exportToTSV} className="text-[10px] font-black text-blue-600 hover:underline flex items-center gap-1 mr-2">
-              <Download size={10} /> EXPORT TSV <span className="opacity-50 font-normal">({result.data.length} rows)</span>
+              <Download size={10} /> {t('result.export_tsv')} <span className="opacity-50 font-normal">({result.data.length} rows)</span>
             </button>
           )}
           <span className="text-[10px] font-mono text-gray-400 font-bold hidden sm:block">{result?.timestamp || previewResult?.timestamp}</span>
@@ -331,7 +333,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
             <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
                 <div className="bg-white/60 border border-blue-100/50 shadow-lg shadow-blue-500/5 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-200">
                     <RefreshCw size={14} className="text-blue-600 animate-spin" />
-                    <span className="text-[11px] font-black text-gray-700 uppercase tracking-wider">Executing Query...</span>
+                    <span className="text-[11px] font-black text-gray-700 uppercase tracking-wider">{t('result.executing')}</span>
                 </div>
             </div>
          )}
@@ -340,7 +342,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
          {!result && !previewResult && !isLoading && (
             <div className="h-full flex flex-col items-center justify-center text-gray-300">
                 <Play size={24} className="opacity-10 mb-2" />
-                <p className="text-xs font-black uppercase tracking-widest">Awaiting SQL Execution</p>
+                <p className="text-xs font-black uppercase tracking-widest">{t('result.ready')}</p>
             </div>
          )}
 
@@ -414,7 +416,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
                 )) : (
                   <tr>
                     <td colSpan={result.columns.length || 1} className="p-8 text-center text-gray-400 font-bold uppercase tracking-widest italic">
-                      No records returned
+                      {t('result.no_records')}
                     </td>
                   </tr>
                 )}
@@ -428,7 +430,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
               {hasError && (
                 <div className="flex items-center gap-2 mb-4 p-3 bg-red-100/50 border border-red-200 rounded-xl">
                   <AlertCircle size={16} className="text-red-600 shrink-0" />
-                  <span className="font-black uppercase tracking-tight">Execution Failed</span>
+                  <span className="font-black uppercase tracking-tight">{t('result.execution_failed')}</span>
                 </div>
               )}
               {result?.logs?.join('\n') || 'No logs generated.'}
@@ -450,7 +452,7 @@ const SqlResultPanel: React.FC<Props> = ({ result, previewResult, isLoading, onD
                 <Sparkles size={16} className="text-white animate-pulse" />
               )}
               <span className="uppercase tracking-[0.1em]">
-                {isAiLoading ? 'AI Repairing Code...' : 'AI Magic Fix'}
+                {isAiLoading ? t('result.ai_repairing') : t('result.ai_magic_fix')}
               </span>
             </button>
           </div>

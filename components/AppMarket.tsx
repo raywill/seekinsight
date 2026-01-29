@@ -4,6 +4,7 @@ import { PublishedApp, DevMode } from '../types';
 import { fetchApps, deleteApp, incrementAppViews } from '../services/appService';
 import * as Icons from 'lucide-react';
 import { X, Search, ChevronLeft, ArrowUpRight, User, Tag, Code2, PlayCircle, LayoutGrid, Monitor, BarChart3, ShieldCheck, Loader2, Trash2, Home, Eye } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   onClose: () => void;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 const AppMarket: React.FC<Props> = ({ onClose, onHome, onOpenApp, onEditApp, onCloneApp }) => {
+  const { t } = useTranslation();
   const [apps, setApps] = useState<PublishedApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -39,13 +41,13 @@ const AppMarket: React.FC<Props> = ({ onClose, onHome, onOpenApp, onEditApp, onC
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
-      if (!confirm("Are you sure you want to delete this app?")) return;
+      if (!confirm(t('market.delete_confirm'))) return;
       setDeletingId(id);
       const success = await deleteApp(id);
       if (success) {
           setApps(prev => prev.filter(a => a.id !== id));
       } else {
-          alert("Failed to delete app");
+          alert(t('common.error'));
       }
       setDeletingId(null);
   }
@@ -71,8 +73,8 @@ const AppMarket: React.FC<Props> = ({ onClose, onHome, onOpenApp, onEditApp, onC
                 <LayoutGrid size={22} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 leading-tight">Marketplace</h2>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Global Data Portfolio</p>
+                <h2 className="text-xl font-bold text-gray-900 leading-tight">{t('market.title')}</h2>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('market.subtitle')}</p>
               </div>
             </div>
           </div>
@@ -82,7 +84,7 @@ const AppMarket: React.FC<Props> = ({ onClose, onHome, onOpenApp, onEditApp, onC
             className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl transition-all font-bold text-xs uppercase tracking-wider shadow-sm"
           >
             <Home size={16} />
-            Home
+            {t('common.home')}
           </button>
         </div>
 
@@ -90,14 +92,14 @@ const AppMarket: React.FC<Props> = ({ onClose, onHome, onOpenApp, onEditApp, onC
             {/* Search Bar Area */}
             <div className="px-8 py-10 max-w-5xl mx-auto w-full">
               <div className="text-center mb-10">
-                <h3 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Discover the Power of Data Apps</h3>
-                <p className="text-gray-500 font-medium">Browse featured use-cases published and deployed by the SeekInsight community</p>
+                <h3 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">{t('market.discover_title')}</h3>
+                <p className="text-gray-500 font-medium">{t('market.discover_desc')}</p>
               </div>
               <div className="relative group max-w-3xl mx-auto">
                 <input 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search for finance, growth, logistics templates..."
+                  placeholder={t('market.search_placeholder')}
                   className="w-full pl-14 pr-6 py-5 bg-white border-2 border-transparent rounded-3xl text-lg focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 shadow-xl shadow-gray-200/50 transition-all placeholder:text-gray-300"
                 />
                 <Search size={24} className="absolute left-5 top-5 text-gray-300 group-focus-within:text-blue-500 transition-colors" />

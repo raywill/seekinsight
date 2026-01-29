@@ -2,6 +2,7 @@
 import React from 'react';
 import { Boxes, LogOut, PencilLine, Settings, Rocket } from 'lucide-react';
 import { DevMode } from '../types';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   topicName: string;
@@ -38,10 +39,12 @@ const AppHeader: React.FC<Props> = ({
   onOpenSettings,
   onOpenApps
 }) => {
+  const { t } = useTranslation();
+  
   const tabs = [
-    { id: DevMode.INSIGHT_HUB, label: 'Insight Hub' },
-    { id: DevMode.SQL, label: 'SQL Editor' },
-    { id: DevMode.PYTHON, label: 'Python Scripting' }
+    { id: DevMode.INSIGHT_HUB, label: t('header.insight_hub') },
+    { id: DevMode.SQL, label: t('header.sql_editor') },
+    { id: DevMode.PYTHON, label: t('header.python_scripting') }
   ];
 
   return (
@@ -79,7 +82,7 @@ const AppHeader: React.FC<Props> = ({
             >
               <span className="text-sm font-black text-gray-700 tracking-tight group-hover:text-blue-600 truncate block">{topicName}</span>
               {!isNotebookSession && (
-                 <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase whitespace-nowrap">App Mode</span>
+                 <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded uppercase whitespace-nowrap">{t('header.app_mode')}</span>
               )}
             </div>
           )}
@@ -115,7 +118,7 @@ const AppHeader: React.FC<Props> = ({
             <button 
                 onClick={onOpenApps} 
                 className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-blue-600 transition-colors px-2 py-1.5 rounded-lg hover:bg-blue-50"
-                title="Linked Apps"
+                title={t('header.linked_apps')}
             >
                 <Rocket size={18} />
             </button>
@@ -123,7 +126,7 @@ const AppHeader: React.FC<Props> = ({
         <button 
             onClick={onOpenSettings} 
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-gray-700 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"
-            title="Global Settings"
+            title={t('header.global_settings')}
         >
             <Settings size={18} />
         </button>
@@ -133,7 +136,7 @@ const AppHeader: React.FC<Props> = ({
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
         >
             <LogOut size={16} />
-            <span className="hidden sm:inline">Exit</span>
+            <span className="hidden sm:inline">{t('common.exit')}</span>
         </button>
       </div>
     </header>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Database, Search, Loader2, Link as LinkIcon, RefreshCw, Eye, ArrowLeft, Table } from 'lucide-react';
 import { getDatabaseEngine } from '../services/dbService';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isLoading, connectionStatus }) => {
+  const { t } = useTranslation();
   const [databases, setDatabases] = useState<string[]>([]);
   const [fetching, setFetching] = useState(false);
   const [search, setSearch] = useState('');
@@ -95,7 +97,7 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
             </div>
             <div>
               <h3 className="text-lg font-black text-gray-900 leading-none">
-                  {previewDb ? `Preview: ${previewDb}` : 'Connect Database'}
+                  {previewDb ? `${t('connect.preview')}: ${previewDb}` : t('connect.title')}
               </h3>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
                   {previewDb ? 'Schema Inspection' : 'Switch Context & Enrich Metadata'}
@@ -114,7 +116,7 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
                     <input 
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search databases..."
+                        placeholder={t('connect.search_placeholder')}
                         className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                     />
                 </div>
@@ -128,12 +130,12 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
               fetching ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-3 text-gray-400">
                     <Loader2 size={24} className="animate-spin" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Scanning Cluster...</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">{t('connect.scan')}</span>
                 </div>
               ) : filteredDbs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-3 text-gray-400">
                 <Database size={32} className="opacity-20" />
-                <p className="text-sm font-medium">No databases found.</p>
+                <p className="text-sm font-medium">{t('connect.no_dbs')}</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -160,7 +162,7 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
                             disabled={!!connectingDb}
                             className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 text-xs font-bold rounded-lg shadow-sm group-hover:border-purple-200 group-hover:text-purple-600 hover:bg-purple-600 hover:!text-white transition-all disabled:opacity-50"
                         >
-                            {connectingDb === db ? <Loader2 size={14} className="animate-spin" /> : 'Connect'}
+                            {connectingDb === db ? <Loader2 size={14} className="animate-spin" /> : t('connect.connect_btn')}
                         </button>
                     </div>
                     </div>
@@ -177,7 +179,7 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
                         onClick={handleBackToDatabases}
                         className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-purple-600 px-2 py-1.5 rounded-lg hover:bg-purple-50 transition-colors"
                       >
-                          <ArrowLeft size={14} /> Back to Databases
+                          <ArrowLeft size={14} /> {t('connect.back_btn')}
                       </button>
                   </div>
                   {loadingPreview ? (
@@ -224,13 +226,13 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
                  </div>
                  <div>
                     <h3 className="text-xl font-black text-gray-900 uppercase tracking-widest">
-                        {connectionStatus ? 'AI Analysis Active' : 'Connecting...'}
+                        {connectionStatus ? t('connect.analyzing') : t('common.loading')}
                     </h3>
                     <p className="text-xs font-bold text-purple-600 mt-3 max-w-xs mx-auto animate-pulse">
-                        {connectionStatus || "Establishing connection to cluster..."}
+                        {connectionStatus || t('connect.establishing')}
                     </p>
                     <p className="text-[10px] font-medium text-gray-400 mt-2 max-w-xs mx-auto">
-                        We are inferring semantic meaning from your raw data to power better AI suggestions.
+                        {t('connect.inferring')}
                     </p>
                  </div>
             </div>

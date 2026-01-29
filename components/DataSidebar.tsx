@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TableMetadata } from '../types';
 import { Database, Table, ChevronDown, ChevronRight, Upload, Info, Loader2, RefreshCw, FileSpreadsheet, ArrowRight, Cloud, Download, Search, BrainCircuit, Link as LinkIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   tables: TableMetadata[];
@@ -16,6 +17,7 @@ interface Props {
 }
 
 const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStats, onLoadSample, onConnectDB, isUploading, uploadProgress, width, onColumnAction }) => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -97,14 +99,14 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
       <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
         <h2 className="text-sm font-black text-gray-800 flex items-center gap-2 uppercase tracking-tight">
           <Database size={16} className="text-blue-600" />
-          Data Sources
+          {t('sidebar.title')}
         </h2>
         <div className="flex items-center gap-2">
           {isUploading && (
             <div className="flex items-center gap-1.5 text-blue-500 animate-pulse">
               <Loader2 size={12} className="animate-spin" />
               <span className="text-[10px] font-black uppercase tracking-tighter">
-                {uploadProgress !== null ? `${uploadProgress}%` : 'Syncing'}
+                {uploadProgress !== null ? `${uploadProgress}%` : t('sidebar.syncing')}
               </span>
             </div>
           )}
@@ -142,15 +144,15 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
               </div>
 
               <div className="space-y-3 mb-8">
-                <h3 className="text-xs font-black text-[#1e40af] uppercase tracking-wider">Empty Knowledge Vault</h3>
+                <h3 className="text-xs font-black text-[#1e40af] uppercase tracking-wider">{t('sidebar.empty_title')}</h3>
                 <p className="text-[11px] text-[#3b82f6] font-bold leading-relaxed px-2">
-                  Your local data is one click away from becoming insights.
+                  {t('sidebar.empty_desc')}
                 </p>
               </div>
 
               <div className="w-full space-y-4">
                   <label className="w-full py-3 bg-white border border-gray-200 text-gray-500 rounded-xl text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center active:scale-95 shadow-sm">
-                    <Upload size={14} className="mr-2 opacity-60" /> Upload Data File
+                    <Upload size={14} className="mr-2 opacity-60" /> {t('sidebar.upload_file')}
                     <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls,.txt" />
                   </label>
                   
@@ -158,7 +160,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                     onClick={onLoadSample}
                     className="w-full py-3.5 bg-blue-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
-                    <Download size={14} /> Load Sample Dataset
+                    <Download size={14} /> {t('sidebar.load_sample')}
                   </button>
 
                   {onConnectDB && (
@@ -166,7 +168,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                         onClick={onConnectDB}
                         className="w-full py-3.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-purple-100 hover:border-purple-200 transition-all flex items-center justify-center gap-2 active:scale-95"
                     >
-                        <LinkIcon size={14} /> Connect Database
+                        <LinkIcon size={14} /> {t('sidebar.connect_db')}
                     </button>
                   )}
               </div>
@@ -191,7 +193,7 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                   <div
                     onClick={(e) => handleRefresh(e, table.tableName)}
                     className="p-1 hover:bg-blue-100 rounded text-blue-500 transition-colors cursor-pointer"
-                    title="Fetch statistics"
+                    title={t('sidebar.fetch_stats')}
                   >
                     <RefreshCw size={10} />
                   </div>
@@ -266,11 +268,11 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
       <div className="p-4 bg-gray-50/50 text-[10px] text-gray-400 border-t border-gray-100 font-bold uppercase tracking-widest space-y-1 mt-auto">
         <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isUploading ? 'bg-orange-500 animate-pulse' : 'bg-blue-500'}`}></div>
-          {isUploading ? 'Syncing to Cluster...' : 'Infrastructure Active'}
+          {isUploading ? t('sidebar.syncing') : t('sidebar.infra_active')}
         </div>
         <div className="flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-           VPC Node Connected
+           {t('sidebar.vpc_connected')}
         </div>
       </div>
 
@@ -291,14 +293,14 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                 className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-xs font-bold text-gray-700 transition-colors"
             >
                 <Search size={14} className="text-blue-500" />
-                Create Full Text Index
+                {t('sidebar.create_fulltext')}
             </button>
             <button 
                 onClick={() => handleMenuAction('embedding')}
                 className="w-full text-left px-4 py-2 hover:bg-purple-50 flex items-center gap-3 text-xs font-bold text-gray-700 transition-colors"
             >
                 <BrainCircuit size={14} className="text-purple-500" />
-                Create Embedding
+                {t('sidebar.create_embedding')}
             </button>
         </div>
       )}

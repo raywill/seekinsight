@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Suggestion, DevMode } from '../types';
 import { Sparkles, Terminal, Database, ArrowRight, RefreshCw, Layers, Trash2, PencilLine } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   suggestions: Suggestion[];
@@ -12,19 +13,19 @@ interface Props {
   isLoading: boolean;
 }
 
-const GeneratingCard = ({ badgeClass }: { badgeClass: string }) => (
+const GeneratingCard = ({ badgeClass, t }: { badgeClass: string, t: any }) => (
   <div className="bg-white border border-dashed border-blue-200 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[280px] animate-pulse relative overflow-hidden group">
     <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent opacity-50"></div>
     <div className="relative z-10 flex flex-col items-center gap-3">
       <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mb-2 ${badgeClass} opacity-50`}>
-        AI Brainstorming
+        {t('insight.generating_card')}
       </div>
       <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center shadow-inner">
          <RefreshCw size={20} className="animate-spin" />
       </div>
       <div className="text-center">
-        <h4 className="text-sm font-bold text-gray-400">Generating Idea...</h4>
-        <p className="text-[10px] text-gray-300 font-medium mt-1">Analyzing table semantics</p>
+        <h4 className="text-sm font-bold text-gray-400">{t('insight.generating_idea')}</h4>
+        <p className="text-[10px] text-gray-300 font-medium mt-1">{t('connect.inferring').substring(0, 20)}...</p>
       </div>
     </div>
   </div>
@@ -48,12 +49,13 @@ interface SectionProps {
   onDelete: (id: string) => void;
   onApply: (item: Suggestion) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  t: any;
 }
 
 const Section: React.FC<SectionProps> = ({ 
   title, items, icon: Icon, colorClass, badgeClass, isGenerating,
   expandedIds, toggleExpand, editingId, editValue, setEditValue,
-  startEditing, saveEdit, cancelEdit, onDelete, onApply, textareaRef
+  startEditing, saveEdit, cancelEdit, onDelete, onApply, textareaRef, t
 }) => (
   <div className="space-y-6">
     <div className="flex items-center gap-3">
@@ -84,7 +86,7 @@ const Section: React.FC<SectionProps> = ({
                 <button 
                   onClick={(e) => { e.stopPropagation(); onDelete(itemId); }}
                   className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
-                  title="Remove Insight"
+                  title={t('common.delete')}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -147,19 +149,20 @@ const Section: React.FC<SectionProps> = ({
                 onClick={() => onApply(item)}
                 className="w-full py-3 bg-gray-50 text-gray-600 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all group/btn shadow-sm"
               >
-                Apply to Editor
+                {t('insight.apply')}
                 <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
               </button>
             )}
           </div>
         );
       })}
-      {isGenerating && <GeneratingCard badgeClass={badgeClass} />}
+      {isGenerating && <GeneratingCard badgeClass={badgeClass} t={t} />}
     </div>
   </div>
 );
 
 const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate, onFetchMore, isLoading }) => {
+  const { t } = useTranslation();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -228,9 +231,9 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-4">
               <Sparkles className="text-blue-600" size={32} />
-              Insight Hub
+              {t('insight.title')}
             </h2>
-            <p className="text-sm text-gray-500 font-medium mt-2">AI-curated business questions automatically derived from your active data schema.</p>
+            <p className="text-sm text-gray-500 font-medium mt-2">{t('insight.desc')}</p>
           </div>
           <button
             onClick={onFetchMore}
@@ -238,7 +241,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
             className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-black text-gray-700 hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm active:scale-95 disabled:opacity-50"
           >
             {isLoading ? <RefreshCw size={18} className="animate-spin" /> : <Layers size={18} />}
-            Brainstorm More Ideas
+            {t('insight.brainstorm_more')}
           </button>
         </div>
 
@@ -247,21 +250,21 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
             <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mb-8 shadow-inner">
               <Sparkles size={40} />
             </div>
-            <h3 className="text-xl font-black text-gray-900">Discover New Insights</h3>
+            <h3 className="text-xl font-black text-gray-900">{t('insight.discover_title')}</h3>
             <p className="text-sm text-gray-500 max-w-sm mx-auto mt-3 font-medium">
-              We'll analyze your table schema to suggest relevant analysis prompts for SQL and Python.
+              {t('insight.discover_desc')}
             </p>
             <button 
                onClick={onFetchMore}
                className="mt-10 px-10 py-4 bg-blue-600 text-white rounded-[1.5rem] font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 active:scale-95"
             >
-              Start Generating Ideas
+              {t('insight.start_generating')}
             </button>
           </div>
         ) : (
           <div className="space-y-20">
             <Section 
-              title="Strategic Reporting (SQL)" 
+              title={t('insight.sec_sql')}
               items={sqlSuggestions} 
               icon={Database} 
               colorClass="bg-blue-500"
@@ -278,9 +281,10 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
               onDelete={onDelete}
               onApply={onApply}
               textareaRef={textareaRef}
+              t={t}
             />
             <Section 
-              title="Predictive Modeling (Python)" 
+              title={t('insight.sec_python')}
               items={pythonSuggestions} 
               icon={Terminal} 
               colorClass="bg-purple-500"
@@ -297,6 +301,7 @@ const InsightHub: React.FC<Props> = ({ suggestions, onApply, onDelete, onUpdate,
               onDelete={onDelete}
               onApply={onApply}
               textareaRef={textareaRef}
+              t={t}
             />
           </div>
         )}
