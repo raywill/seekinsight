@@ -78,6 +78,18 @@ export class SQLiteEngine implements DatabaseEngine {
     return count;
   }
 
+  async applyColumnComments(tableName: string, comments: Record<string, string>, dbName: string): Promise<void> {
+    const table = this.tables.find(t => t.tableName === tableName);
+    if (table) {
+      table.columns = table.columns.map(col => {
+        if (comments[col.name]) {
+          return { ...col, comment: comments[col.name] };
+        }
+        return col;
+      });
+    }
+  }
+
   // Fix: Added dbName parameter to match DatabaseEngine interface to avoid signature mismatch
   async createTableFromData(name: string, data: any[], dbName: string, aiComments?: Record<string, string>): Promise<TableMetadata> {
     const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();

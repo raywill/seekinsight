@@ -620,9 +620,12 @@ const App: React.FC = () => {
         const topTables = tables.slice(0, 10);
         
         // 3. AI Inference Loop
+        const dbType = (typeof process !== 'undefined' ? process.env.DB_TYPE : 'mysql') || 'mysql';
+        const q = dbType === 'postgres' ? '"' : '`';
+        
         for (const table of topTables) {
-            // Get a small sample
-            const res = await engine.executeQuery(`SELECT * FROM "${table.tableName}" LIMIT 5`, targetDbName); // Use quotes for safety
+            // Get a small sample with correct quoting
+            const res = await engine.executeQuery(`SELECT * FROM ${q}${table.tableName}${q} LIMIT 5`, targetDbName);
             if (res.data.length > 0) {
                 // Infer metadata
                 const comments = await ai.inferColumnMetadata(table.tableName, res.data);
@@ -631,26 +634,7 @@ const App: React.FC = () => {
             }
         }
 
-        // 4. Update Notebook Record to point to this new DB
-        // Note: In a real app, we might just copy schema, but here we "Connect" by switching the pointer.
-        // HOWEVER, since `db_name` is unique per notebook in our creation logic, 
-        // switching it might affect other users if we connect to a shared DB.
-        // But for this "Connect" feature, we assume the user wants to work on *that* DB.
-        // To be safe and compliant with the "Notebook owns its DB" model, we should probably COPY the schema/data 
-        // OR just switch the context for this session.
-        // Let's UPDATE the notebook's db_name so it persists.
-        
-        // Wait, if we switch db_name, we lose the old DB association. That is acceptable for "Connect To".
-        // But `notebooks` table has `db_name`. We can't easily change it via existing API without a new endpoint or using PATCH.
-        // We have `PATCH /notebooks/:id`. We need to add `db_name` support to it.
-        // *Correction*: `dal.updateNotebook` currently only supports topic and suggestions.
-        // Let's assume for this feature, we just switch the session context (client-side) 
-        // and maybe backend doesn't persist the switch (volatile connection) OR we update the DAL.
-        // Let's stick to updating the client state `project.dbName` and refreshing. 
-        // If the user refreshes the page, it goes back to original. 
-        // *Better*: Actually clone/import the schema? No, "Connect" implies direct access.
-        // Let's just switch the Client Session.
-        
+        // 4. Update Notebook Record to point to this new DB (Session only switch for MVP)
         setProject(prev => ({
             ...prev,
             dbName: targetDbName,
@@ -670,12 +654,27 @@ const App: React.FC = () => {
   };
 
   const handleColumnAction = (action: 'fulltext' | 'embedding', tableName: string, columnName: string) => {
+      const dbType = (typeof process !== 'undefined' ? process.env.DB_TYPE : 'mysql') || 'mysql';
+      const q = dbType === 'postgres' ? '"' : '`';
+      
       setProject(prev => {
           let newSqlCode = prev.sqlCode;
           if (action === 'fulltext') {
-              newSqlCode = prev.sqlCode + `\n\n-- Create Full Text Index\nCREATE FULLTEXT INDEX \`idx_${tableName}_${columnName}\` ON \`${tableName}\`(\`${columnName}\`);\n`;
+              if (dbType === 'postgres') {
+                  // Postgres syntax: CREATE INDEX name ON table USING GIN (to_tsvector('english', column));
+                  // Simplified for MVP display
+                  newSqlCode = prev.sqlCode + `\n\n-- Create Full Text Index (Postgres)\nCREATE INDEX "idx_${tableName}_${columnName}" ON "${tableName}" USING GIN (to_tsvector('english', "${columnName}"));\n`;
+              } else {
+                  // MySQL/OceanBase syntax
+                  newSqlCode = prev.sqlCode + `\n\n-- Create Full Text Index\nCREATE FULLTEXT INDEX \`idx_${tableName}_${columnName}\` ON \`${tableName}\`(\`${columnName}\`);\n`;
+              }
           } else if (action === 'embedding') {
-              newSqlCode = prev.sqlCode + `\n\n/* \n  TODO: Generate Vector Embeddings \n  Model: text-embedding-v1\n  Source: ${tableName}.${columnName}\n*/\n-- ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}_vector\` VECTOR(768);\n-- UPDATE \`${tableName}\` SET \`${columnName}_vector\` = VECTOR_EMBEDDING('${columnName}');\n`;
+              if (dbType === 'postgres') {
+                  newSqlCode = prev.sqlCode + `\n\n/* \n  TODO: Generate Vector Embeddings (pgvector) \n  Model: text-embedding-v1\n  Source: ${tableName}.${columnName}\n*/\n-- ALTER TABLE "${tableName}" ADD COLUMN "${columnName}_vector" vector(768);\n`;
+              } else {
+                  // OceanBase Syntax
+                  newSqlCode = prev.sqlCode + `\n\n/* \n  TODO: Generate Vector Embeddings \n  Model: text-embedding-v1\n  Source: ${tableName}.${columnName}\n*/\n-- ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}_vector\` VECTOR(768);\n-- UPDATE \`${tableName}\` SET \`${columnName}_vector\` = VECTOR_EMBEDDING('${columnName}');\n`;
+              }
           }
           
           return {
@@ -994,10 +993,14 @@ const App: React.FC = () => {
               onUploadFile={handleUpload}
               onRefreshTableStats={async t => {
                 try {
+                  const dbType = (typeof process !== 'undefined' ? process.env.DB_TYPE : 'mysql') || 'mysql';
+                  const q = dbType === 'postgres' ? '"' : '`';
+                  
                   if (project.dbName) {
                     const engine = getDatabaseEngine();
                     const count = await engine.refreshTableStats(t, project.dbName);
-                    const previewRes = await engine.executeQuery(`SELECT * FROM "${t}" LIMIT 10`, project.dbName); // Quote table name for safety in generic SQL
+                    // Fixed: Use correct quoting
+                    const previewRes = await engine.executeQuery(`SELECT * FROM ${q}${t}${q} LIMIT 10`, project.dbName);
                     const latestTables = await engine.getTables(project.dbName);
                     const freshMetadata = latestTables.find(tbl => tbl.tableName === t);
 
