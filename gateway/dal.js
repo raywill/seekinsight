@@ -167,9 +167,15 @@ class DataAccessLayer {
             icon_name VARCHAR(50),
             suggestions_json TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            views INT DEFAULT 0
+            views INT DEFAULT 0,
+            is_db_owner BOOLEAN DEFAULT 1
           )
         `);
+        // Migration support for existing tables without is_db_owner
+        try {
+            await sysPool.query(`ALTER TABLE \`${NOTEBOOK_LIST_TABLE}\` ADD COLUMN is_db_owner BOOLEAN DEFAULT 1`);
+        } catch (e) { /* ignore if column exists */ }
+
         // ... Other tables ...
         await sysPool.query(`
           CREATE TABLE IF NOT EXISTS \`${PUBLISHED_APPS_TABLE}\` (
@@ -220,9 +226,14 @@ class DataAccessLayer {
             icon_name VARCHAR(50),
             suggestions_json TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            views INT DEFAULT 0
+            views INT DEFAULT 0,
+            is_db_owner BOOLEAN DEFAULT TRUE
           )
         `);
+        // Migration support
+        try {
+            await sysPool.query(`ALTER TABLE "${NOTEBOOK_LIST_TABLE}" ADD COLUMN is_db_owner BOOLEAN DEFAULT TRUE`);
+        } catch (e) { /* ignore */ }
 
         await sysPool.query(`
           CREATE TABLE IF NOT EXISTS "${PUBLISHED_APPS_TABLE}" (
@@ -333,7 +344,7 @@ class DataAccessLayer {
                 await demoPool.query(`INSERT INTO fitness_metrics (name, record_date, weight_kg, body_fat_pct, waist_cm, resting_heart_rate, sleep_hours, steps, calories_kcal) VALUES ?`, [chunk]);
             }
         }
-        await sysPool.query(`INSERT IGNORE INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, created_at, views) VALUES (?, ?, ?, ?, ?, NOW(), 120)`, [DEMO_NB_ID, DEMO_DB_NAME, 'Health Tracker Demo', 0, 'Activity']);
+        await sysPool.query(`INSERT IGNORE INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, created_at, views, is_db_owner) VALUES (?, ?, ?, ?, ?, NOW(), 120, 1)`, [DEMO_NB_ID, DEMO_DB_NAME, 'Health Tracker Demo', 0, 'Activity']);
 
     } else if (this.type === 'postgres') {
         const rootConn = await this._getRootConnection();
@@ -389,7 +400,7 @@ class DataAccessLayer {
         }
 
         await sysPool.query(
-            `INSERT INTO "${NOTEBOOK_LIST_TABLE}" (id, db_name, topic, user_id, icon_name, created_at, views) VALUES ($1, $2, $3, $4, $5, NOW(), 120) ON CONFLICT (id) DO NOTHING`,
+            `INSERT INTO "${NOTEBOOK_LIST_TABLE}" (id, db_name, topic, user_id, icon_name, created_at, views, is_db_owner) VALUES ($1, $2, $3, $4, $5, NOW(), 120, TRUE) ON CONFLICT (id) DO NOTHING`,
             [DEMO_NB_ID, DEMO_DB_NAME, 'Health Tracker Demo', 0, 'Activity']
         );
     }
@@ -423,13 +434,13 @@ class DataAccessLayer {
       await rootConn.query(`CREATE DATABASE \`${dbName}\``);
       await rootConn.end();
       const sysPool = await getPool(SYSTEM_DB);
-      await sysPool.query(`INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, views) VALUES (?, ?, ?, ?, ?, 0)`, [id, dbName, topic, 0, iconName]);
+      await sysPool.query(`INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, views, is_db_owner) VALUES (?, ?, ?, ?, ?, 0, 1)`, [id, dbName, topic, 0, iconName]);
     } else if (this.type === 'postgres') {
       const rootConn = await this._getRootConnection();
       await rootConn.query(`CREATE DATABASE "${dbName}"`);
       await rootConn.end();
       const sysPool = await getPool(SYSTEM_DB);
-      await sysPool.query(`INSERT INTO "${NOTEBOOK_LIST_TABLE}" (id, db_name, topic, user_id, icon_name, views) VALUES ($1, $2, $3, $4, $5, 0)`, [id, dbName, topic, 0, iconName]);
+      await sysPool.query(`INSERT INTO "${NOTEBOOK_LIST_TABLE}" (id, db_name, topic, user_id, icon_name, views, is_db_owner) VALUES ($1, $2, $3, $4, $5, 0, TRUE)`, [id, dbName, topic, 0, iconName]);
     }
   }
 
@@ -446,11 +457,11 @@ class DataAccessLayer {
         }
         await rootConn.end();
         const sysPool = await getPool(SYSTEM_DB);
-        await sysPool.query(`INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, suggestions_json, views) VALUES (?, ?, ?, ?, ?, ?, 0)`, [id, newDbName, topic, 0, iconName, suggestionsJson]);
+        await sysPool.query(`INSERT INTO \`${NOTEBOOK_LIST_TABLE}\` (id, db_name, topic, user_id, icon_name, suggestions_json, views, is_db_owner) VALUES (?, ?, ?, ?, ?, ?, 0, 1)`, [id, newDbName, topic, 0, iconName, suggestionsJson]);
         const [newNb] = await sysPool.query(`SELECT * FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
         return newNb[0];
     } else if (this.type === 'postgres') {
-        // Postgres Clone Strategy: Use in-memory transfer for MVP compatibility
+        // Postgres Clone Strategy
         const rootConn = await this._getRootConnection();
         await rootConn.query(`CREATE DATABASE "${newDbName}"`);
         await rootConn.end();
@@ -462,14 +473,10 @@ class DataAccessLayer {
         
         for (const row of tablesRes.rows) {
             const table = row.table_name;
-            
-            // 1. Get Schema with Comments using robust catalog query
             const columnsData = await getPgTableSchema(sourcePool, table);
             const colDefs = columnsData.map(c => `"${c.column_name}" ${c.data_type}`).join(', ');
-            
             await targetPool.query(`CREATE TABLE "${table}" (${colDefs})`);
             
-            // 2. Restore Comments (Postgres requires separate statements)
             for (const col of columnsData) {
                 if (col.column_comment) {
                     const safeComment = col.column_comment.replace(/'/g, "''");
@@ -477,7 +484,6 @@ class DataAccessLayer {
                 }
             }
             
-            // 3. Copy Data (Bulk Insert via Memory)
             const dataRes = await sourcePool.query(`SELECT * FROM "${table}"`);
             if (dataRes.rows.length > 0) {
                 const columns = columnsData.map(c => `"${c.column_name}"`).join(', ');
@@ -487,7 +493,6 @@ class DataAccessLayer {
                     let params = [];
                     let placeholders = [];
                     let pIdx = 1;
-                    
                     chunk.forEach(rowData => {
                         let rowPh = [];
                         columnsData.forEach(col => {
@@ -496,18 +501,14 @@ class DataAccessLayer {
                         });
                         placeholders.push(`(${rowPh.join(',')})`);
                     });
-                    
-                    await targetPool.query(
-                        `INSERT INTO "${table}" (${columns}) VALUES ${placeholders.join(',')}`,
-                        params
-                    );
+                    await targetPool.query(`INSERT INTO "${table}" (${columns}) VALUES ${placeholders.join(',')}`, params);
                 }
             }
         }
 
         const sysPool = await getPool(SYSTEM_DB);
         await sysPool.query(
-            `INSERT INTO "${NOTEBOOK_LIST_TABLE}" (id, db_name, topic, user_id, icon_name, suggestions_json, views) VALUES ($1, $2, $3, $4, $5, $6, 0)`,
+            `INSERT INTO "${NOTEBOOK_LIST_TABLE}" (id, db_name, topic, user_id, icon_name, suggestions_json, views, is_db_owner) VALUES ($1, $2, $3, $4, $5, $6, 0, TRUE)`,
             [id, newDbName, topic, 0, iconName, suggestionsJson]
         );
         const newNbRes = await sysPool.query(`SELECT * FROM "${NOTEBOOK_LIST_TABLE}" WHERE id = $1`, [id]);
@@ -515,29 +516,36 @@ class DataAccessLayer {
     }
   }
 
-  async updateNotebook(id, topic, suggestionsJson) {
+  async updateNotebook(id, topic, suggestionsJson, dbName, isDbOwner) {
     const pool = await getPool(SYSTEM_DB);
-    if (this.type === 'mysql') {
-        // ... MySQL logic ...
-        let query = 'UPDATE `' + NOTEBOOK_LIST_TABLE + '` SET ';
-        const params = [];
-        const updates = [];
-        if (topic !== undefined) { updates.push('topic = ?'); params.push(topic); }
-        if (suggestionsJson !== undefined) { updates.push('suggestions_json = ?'); params.push(suggestionsJson); }
-        if (updates.length > 0) {
-            query += updates.join(', ') + ' WHERE id = ?';
+    const updates = [];
+    const params = [];
+    let idx = 1; // For Postgres params
+
+    const addUpdate = (col, val) => {
+        if (val !== undefined) {
+            if (this.type === 'mysql') {
+                updates.push(`${col} = ?`);
+                params.push(val);
+            } else {
+                updates.push(`${col} = $${idx++}`);
+                params.push(val);
+            }
+        }
+    };
+
+    addUpdate('topic', topic);
+    addUpdate('suggestions_json', suggestionsJson);
+    addUpdate('db_name', dbName);
+    addUpdate('is_db_owner', isDbOwner);
+
+    if (updates.length > 0) {
+        if (this.type === 'mysql') {
+            const query = `UPDATE \`${NOTEBOOK_LIST_TABLE}\` SET ${updates.join(', ')} WHERE id = ?`;
             params.push(id);
             await pool.query(query, params);
-        }
-    } else if (this.type === 'postgres') {
-        let query = `UPDATE "${NOTEBOOK_LIST_TABLE}" SET `;
-        const params = [];
-        const updates = [];
-        let idx = 1;
-        if (topic !== undefined) { updates.push(`topic = $${idx++}`); params.push(topic); }
-        if (suggestionsJson !== undefined) { updates.push(`suggestions_json = $${idx++}`); params.push(suggestionsJson); }
-        if (updates.length > 0) {
-            query += updates.join(', ') + ` WHERE id = $${idx}`;
+        } else {
+            const query = `UPDATE "${NOTEBOOK_LIST_TABLE}" SET ${updates.join(', ')} WHERE id = $${idx}`;
             params.push(id);
             await pool.query(query, params);
         }
@@ -548,30 +556,37 @@ class DataAccessLayer {
     const pool = await getPool(SYSTEM_DB);
     if (this.type === 'mysql') {
         // ... MySQL ...
-        const [rows] = await pool.query(`SELECT db_name FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
+        const [rows] = await pool.query(`SELECT db_name, is_db_owner FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
         if (rows.length > 0) {
-            const dbToDrop = rows[0].db_name;
-            const rootConn = await this._getRootConnection();
-            await rootConn.query(`DROP DATABASE IF EXISTS \`${dbToDrop}\``);
-            await rootConn.end();
+            const { db_name, is_db_owner } = rows[0];
+            const isProtected = [SYSTEM_DB, MASTER_DB, 'mysql', 'information_schema', 'performance_schema', 'sys'].includes(db_name);
+            
+            // Only drop if owner and not a system database
+            if (is_db_owner && !isProtected) {
+                const rootConn = await this._getRootConnection();
+                await rootConn.query(`DROP DATABASE IF EXISTS \`${db_name}\``);
+                await rootConn.end();
+            }
         }
         await pool.query(`DELETE FROM \`${PUBLISHED_APPS_TABLE}\` WHERE source_notebook_id = ?`, [id]);
         await pool.query(`DELETE FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
     } else if (this.type === 'postgres') {
-        const res = await pool.query(`SELECT db_name FROM "${NOTEBOOK_LIST_TABLE}" WHERE id = $1`, [id]);
+        const res = await pool.query(`SELECT db_name, is_db_owner FROM "${NOTEBOOK_LIST_TABLE}" WHERE id = $1`, [id]);
         if (res.rows.length > 0) {
-            const dbToDrop = res.rows[0].db_name;
-            const rootConn = await this._getRootConnection();
-            // Postgres cannot drop a DB if there are active connections.
-            // We must terminate them first.
-            await rootConn.query(`
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = $1
-                AND pid <> pg_backend_pid()
-            `, [dbToDrop]);
-            await rootConn.query(`DROP DATABASE IF EXISTS "${dbToDrop}"`);
-            await rootConn.end();
+            const { db_name, is_db_owner } = res.rows[0];
+            const isProtected = [SYSTEM_DB, MASTER_DB, 'postgres'].includes(db_name);
+
+            if (is_db_owner && !isProtected) {
+                const rootConn = await this._getRootConnection();
+                await rootConn.query(`
+                    SELECT pg_terminate_backend(pg_stat_activity.pid)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = $1
+                    AND pid <> pg_backend_pid()
+                `, [db_name]);
+                await rootConn.query(`DROP DATABASE IF EXISTS "${db_name}"`);
+                await rootConn.end();
+            }
         }
         await pool.query(`DELETE FROM "${PUBLISHED_APPS_TABLE}" WHERE source_notebook_id = $1`, [id]);
         await pool.query(`DELETE FROM "${NOTEBOOK_LIST_TABLE}" WHERE id = $1`, [id]);

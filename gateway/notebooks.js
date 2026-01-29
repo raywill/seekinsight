@@ -75,7 +75,8 @@ export default function(app) {
 
   app.patch('/notebooks/:id', async (req, res) => {
     try {
-      await dal.updateNotebook(req.params.id, req.body.topic, req.body.suggestions_json);
+      const { topic, suggestions_json, db_name, is_db_owner } = req.body;
+      await dal.updateNotebook(req.params.id, topic, suggestions_json, db_name, is_db_owner);
       res.json({ success: true });
     } catch (err) {
       if (IS_DEBUG) console.error("[Lobby PATCH Error]:", err);

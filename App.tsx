@@ -196,7 +196,7 @@ const App: React.FC = () => {
       suggestions: initialSuggestions,
       // If tables exist, default to Insight Hub to show suggestions/insights
       // Otherwise stay in SQL mode to allow data import/creation
-      activeMode: tables.length >= 0 ? DevMode.INSIGHT_HUB : DevMode.SQL
+      activeMode: tables.length > 0 ? DevMode.INSIGHT_HUB : DevMode.SQL
     }));
     setCurrentNotebook(nb);
     setDbReady(true);
@@ -634,7 +634,18 @@ const App: React.FC = () => {
             }
         }
 
-        // 4. Update Notebook Record to point to this new DB (Session only switch for MVP)
+        // 4. Update Notebook Record to Persist Connection & Set Ownership to False
+        // This ensures if the user deletes the notebook, the external DB is preserved.
+        await fetch(`${gatewayUrl}/notebooks/${currentNotebook.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                db_name: targetDbName,
+                is_db_owner: false 
+            })
+        });
+
+        // 5. Update Local State
         setProject(prev => ({
             ...prev,
             dbName: targetDbName,
