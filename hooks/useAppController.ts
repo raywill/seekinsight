@@ -457,6 +457,11 @@ export const useAppController = () => {
       ui.setIsConnectingDb(true);
       ui.setConnectStatus("Checking existing notebooks...");
 
+      // Capture state for potential deletion before switching context
+      const currentNbId = proj.currentNotebook?.id;
+      const isCurrentEmpty = proj.project.tables.length === 0;
+      const isDefaultTopic = proj.project.topicName === '未命名主题' || proj.project.topicName === 'Untitled' || proj.project.topicName === 'New Notebook';
+
       try {
           const res = await fetch(`${gatewayUrl}/notebooks`);
           if (res.ok) {
@@ -465,7 +470,16 @@ export const useAppController = () => {
               
               if (existingNb) {
                   ui.setConnectStatus("Switching to existing notebook...");
+                  
+                  // Switch to the existing notebook
                   await handleOpenNotebook(existingNb);
+                  
+                  // If the previous notebook was empty and temporary, delete it
+                  if (currentNbId && isCurrentEmpty && isDefaultTopic) {
+                      fetch(`${gatewayUrl}/notebooks/${currentNbId}`, { method: 'DELETE' })
+                        .catch(e => console.warn("Failed to cleanup temp notebook", e));
+                  }
+
                   ui.setIsConnectDbOpen(false);
                   ui.setIsConnectingDb(false);
                   return;
