@@ -448,6 +448,42 @@ export const useAppController = () => {
       }
   };
 
+  const handleConnectDatabaseWrapper = async (dbName: string) => {
+      if (proj.project.dbName === dbName) {
+          ui.setIsConnectDbOpen(false);
+          return;
+      }
+
+      ui.setIsConnectingDb(true);
+      ui.setConnectStatus("Checking existing notebooks...");
+
+      try {
+          const res = await fetch(`${gatewayUrl}/notebooks`);
+          if (res.ok) {
+              const notebooks: Notebook[] = await res.json();
+              const existingNb = notebooks.find((nb: Notebook) => nb.db_name === dbName);
+              
+              if (existingNb) {
+                  ui.setConnectStatus("Switching to existing notebook...");
+                  await handleOpenNotebook(existingNb);
+                  ui.setIsConnectDbOpen(false);
+                  ui.setIsConnectingDb(false);
+                  return;
+              }
+          }
+      } catch (e) {
+          console.warn("Failed to check existing notebooks", e);
+      }
+
+      await execution.handleConnectDatabase(
+        dbName, 
+        ui.setIsConnectingDb, 
+        ui.setConnectStatus,
+        handleUpdateTopic,
+        (db) => proj.setCurrentNotebook(prev => prev ? { ...prev, db_name: db } : null)
+      );
+  };
+
   return {
     // UI State
     ...ui,
@@ -477,12 +513,7 @@ export const useAppController = () => {
     // Execution
     handleRun: execution.handleRun,
     handleColumnAction: execution.handleColumnAction,
-    handleConnectDatabase: (dbName: string) => execution.handleConnectDatabase(
-        dbName, 
-        ui.setIsConnectingDb, 
-        ui.setConnectStatus,
-        handleUpdateTopic
-    ),
+    handleConnectDatabase: handleConnectDatabaseWrapper,
 
     // AI
     handleSqlAiGenerate: aiLogic.handleSqlAiGenerate,

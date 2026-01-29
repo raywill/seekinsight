@@ -89,7 +89,8 @@ export const useExecutionLogic = ({
     targetDbName: string, 
     setIsConnecting: (v: boolean) => void, 
     setConnectStatus: (v: string) => void,
-    onTopicUpdate: (t: string) => void
+    onTopicUpdate: (t: string) => void,
+    onNotebookUpdate?: (dbName: string) => void
   ) => {
     if (!currentNotebookId) return;
     setIsConnecting(true);
@@ -123,6 +124,10 @@ export const useExecutionLogic = ({
                 is_db_owner: false 
             })
         });
+
+        if (onNotebookUpdate) {
+            onNotebookUpdate(targetDbName);
+        }
 
         setProject(prev => ({
             ...prev,
