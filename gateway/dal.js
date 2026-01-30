@@ -85,6 +85,14 @@ class DataAccessLayer {
 
   // --- Utility: Python Connection String ---
   getConnectionString(dbName) {
+    if (dbName.includes('://')) {
+        // Adapt URI for Python SQLAlchemy
+        if (dbName.startsWith('mysql://')) return dbName.replace('mysql://', 'mysql+mysqlconnector://');
+        if (dbName.startsWith('postgres://')) return dbName.replace('postgres://', 'postgresql+psycopg2://');
+        if (dbName.startsWith('postgresql://')) return dbName.replace('postgresql://', 'postgresql+psycopg2://');
+        return dbName;
+    }
+
     if (this.type === 'mysql') {
         const { user, password, host, port } = MYSQL_CONFIG;
         const encodedPass = password ? `:${encodeURIComponent(password)}` : '';
@@ -139,8 +147,6 @@ class DataAccessLayer {
 
   // --- System Initialization ---
   async initSystem() {
-    // Note: We deliberately ignore LOCK_FILE check in DEV mode or if forced to retry due to partial failure previously
-    // But for safety in this demo, we check it.
     if (fs.existsSync(LOCK_FILE)) return; 
 
     try {
@@ -149,7 +155,6 @@ class DataAccessLayer {
       const rootConn = await this._getRootConnection();
       
       if (this.type === 'mysql') {
-        // ... MySQL Init Logic (Same as before) ...
         await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${SYSTEM_DB}\``);
         await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${MASTER_DB}\``);
         await rootConn.end();
@@ -161,7 +166,7 @@ class DataAccessLayer {
         await sysPool.query(`
           CREATE TABLE IF NOT EXISTS \`${NOTEBOOK_LIST_TABLE}\` (
             id VARCHAR(50) PRIMARY KEY,
-            db_name VARCHAR(100) NOT NULL,
+            db_name TEXT NOT NULL, -- Migrated to TEXT for long URIs
             topic VARCHAR(200) DEFAULT '未命名主题',
             user_id INT DEFAULT 0,
             icon_name VARCHAR(50),
@@ -171,12 +176,11 @@ class DataAccessLayer {
             is_db_owner BOOLEAN DEFAULT 1
           )
         `);
-        // Migration support for existing tables without is_db_owner
-        try {
-            await sysPool.query(`ALTER TABLE \`${NOTEBOOK_LIST_TABLE}\` ADD COLUMN is_db_owner BOOLEAN DEFAULT 1`);
-        } catch (e) { /* ignore if column exists */ }
+        
+        // Migration supports
+        try { await sysPool.query(`ALTER TABLE \`${NOTEBOOK_LIST_TABLE}\` MODIFY COLUMN db_name TEXT NOT NULL`); } catch(e) {}
+        try { await sysPool.query(`ALTER TABLE \`${NOTEBOOK_LIST_TABLE}\` ADD COLUMN is_db_owner BOOLEAN DEFAULT 1`); } catch (e) {}
 
-        // ... Other tables ...
         await sysPool.query(`
           CREATE TABLE IF NOT EXISTS \`${PUBLISHED_APPS_TABLE}\` (
             id VARCHAR(50) PRIMARY KEY,
@@ -186,7 +190,7 @@ class DataAccessLayer {
             author VARCHAR(100) DEFAULT 'Anonymous',
             type VARCHAR(20) NOT NULL, 
             code MEDIUMTEXT,
-            source_db_name VARCHAR(100),
+            source_db_name TEXT, -- TEXT for URIs
             source_notebook_id VARCHAR(50),
             params_schema TEXT,
             snapshot_json LONGTEXT,
@@ -194,14 +198,15 @@ class DataAccessLayer {
             views INT DEFAULT 0
           )
         `);
+        // App migration support
+        try { await sysPool.query(`ALTER TABLE \`${PUBLISHED_APPS_TABLE}\` MODIFY COLUMN source_db_name TEXT`); } catch(e) {}
+
         await sysPool.query(`CREATE TABLE IF NOT EXISTS \`${SHARE_SNAPSHOTS_TABLE}\` (id VARCHAR(12) PRIMARY KEY, app_id VARCHAR(50), params_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
         await sysPool.query(`CREATE TABLE IF NOT EXISTS \`${USER_SETTINGS_TABLE}\` (user_id VARCHAR(50) PRIMARY KEY, settings_json TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)`);
 
         await this._initDemoData(sysPool);
 
       } else if (this.type === 'postgres') {
-        // Postgres Init Logic
-        // Check if DBs exist
         const checkDb = async (name) => {
             const res = await rootConn.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [name]);
             return res.rows.length > 0;
@@ -216,11 +221,10 @@ class DataAccessLayer {
 
         const sysPool = await getPool(SYSTEM_DB);
         
-        // Postgres DDL
         await sysPool.query(`
           CREATE TABLE IF NOT EXISTS "${NOTEBOOK_LIST_TABLE}" (
             id VARCHAR(50) PRIMARY KEY,
-            db_name VARCHAR(100) NOT NULL,
+            db_name TEXT NOT NULL,
             topic VARCHAR(200) DEFAULT 'Untitled',
             user_id INT DEFAULT 0,
             icon_name VARCHAR(50),
@@ -230,10 +234,9 @@ class DataAccessLayer {
             is_db_owner BOOLEAN DEFAULT TRUE
           )
         `);
-        // Migration support
-        try {
-            await sysPool.query(`ALTER TABLE "${NOTEBOOK_LIST_TABLE}" ADD COLUMN is_db_owner BOOLEAN DEFAULT TRUE`);
-        } catch (e) { /* ignore */ }
+        
+        try { await sysPool.query(`ALTER TABLE "${NOTEBOOK_LIST_TABLE}" ALTER COLUMN db_name TYPE TEXT`); } catch(e) {}
+        try { await sysPool.query(`ALTER TABLE "${NOTEBOOK_LIST_TABLE}" ADD COLUMN is_db_owner BOOLEAN DEFAULT TRUE`); } catch (e) {}
 
         await sysPool.query(`
           CREATE TABLE IF NOT EXISTS "${PUBLISHED_APPS_TABLE}" (
@@ -244,7 +247,7 @@ class DataAccessLayer {
             author VARCHAR(100) DEFAULT 'Anonymous',
             type VARCHAR(20) NOT NULL, 
             code TEXT,
-            source_db_name VARCHAR(100),
+            source_db_name TEXT,
             source_notebook_id VARCHAR(50),
             params_schema TEXT,
             snapshot_json TEXT,
@@ -252,6 +255,7 @@ class DataAccessLayer {
             views INT DEFAULT 0
           )
         `);
+        try { await sysPool.query(`ALTER TABLE "${PUBLISHED_APPS_TABLE}" ALTER COLUMN source_db_name TYPE TEXT`); } catch(e) {}
 
         await sysPool.query(`CREATE TABLE IF NOT EXISTS "${SHARE_SNAPSHOTS_TABLE}" (id VARCHAR(12) PRIMARY KEY, app_id VARCHAR(50), params_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
         
@@ -270,7 +274,6 @@ class DataAccessLayer {
       console.log("System initialization complete.");
     } catch (e) {
       console.error("Initialization Failed:", e);
-      // Ensure we don't leave a lock file on partial failure, allowing retry
       if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
     }
   }
@@ -281,7 +284,6 @@ class DataAccessLayer {
     try {
         if (this.type === 'mysql') {
             const [rows] = await rootConn.query(`SHOW DATABASES`);
-            // Filter system databases
             const systemDbs = ['information_schema', 'mysql', 'performance_schema', 'sys', SYSTEM_DB, MASTER_DB];
             return rows.map(r => r.Database).filter(db => !systemDbs.includes(db));
         } else if (this.type === 'postgres') {
@@ -295,7 +297,7 @@ class DataAccessLayer {
     return [];
   }
 
-  // ... (Rest of the file remains unchanged, including _loadDatasets, _initDemoData, Notebook CRUD, etc.)
+  // ... (Rest of the file remains unchanged)
   async _loadDatasets(pool) {
     for (const ds of DATASETS) {
         const filePath = path.join(process.cwd(), 'datasets', this.type, ds.fileName);
@@ -305,7 +307,6 @@ class DataAccessLayer {
             if (this.type === 'mysql') {
                 await pool.query(sqlContent);
             } else {
-                // Postgres: split statements
                 const statements = sqlContent.split(';').filter(s => s.trim().length > 0);
                 for (const stmt of statements) {
                     await pool.query(stmt);
@@ -326,7 +327,6 @@ class DataAccessLayer {
     const DEMO_NB_ID = 'demo_fitness_001';
 
     if (this.type === 'mysql') {
-        // ... MySQL Demo Data Logic ...
         const rootConn = await this._getRootConnection();
         await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${DEMO_DB_NAME}\``);
         await rootConn.end();
@@ -370,7 +370,7 @@ class DataAccessLayer {
 
         const fitnessData = generateFitnessData();
         if (fitnessData.length > 0) {
-            const batchSize = 100; // Smaller batch for PG parameter limit
+            const batchSize = 100;
             for (let i = 0; i < fitnessData.length; i += batchSize) {
                 const chunk = fitnessData.slice(i, i + batchSize);
                 let placeholders = [];
@@ -379,15 +379,15 @@ class DataAccessLayer {
                 
                 chunk.forEach(row => {
                     let rowPh = [];
-                    rowPh.push(`$${paramCount++}`); // name
-                    rowPh.push(`$${paramCount++}`); // date
-                    rowPh.push(`$${paramCount++}`); // weight
-                    rowPh.push(`$${paramCount++}`); // fat
-                    rowPh.push(`$${paramCount++}`); // waist
-                    rowPh.push(`$${paramCount++}`); // rhr
-                    rowPh.push(`$${paramCount++}`); // sleep
-                    rowPh.push(`$${paramCount++}`); // steps
-                    rowPh.push(`$${paramCount++}`); // cals
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
+                    rowPh.push(`$${paramCount++}`);
                     placeholders.push(`(${rowPh.join(',')})`);
                     flatValues.push(row.name, row.date, row.weight_kg, row.body_fat_pct, row.waist_cm, row.resting_heart_rate, row.sleep_hours, row.steps, row.calories_kcal);
                 });
@@ -446,7 +446,6 @@ class DataAccessLayer {
 
   async cloneNotebook(newDbName, sourceDbName, id, topic, iconName, suggestionsJson) {
     if (this.type === 'mysql') {
-        // ... Existing MySQL Logic ...
         const rootConn = await this._getRootConnection();
         await rootConn.query(`CREATE DATABASE \`${newDbName}\``);
         const [tables] = await rootConn.query(`SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'`, [sourceDbName]);
@@ -461,7 +460,6 @@ class DataAccessLayer {
         const [newNb] = await sysPool.query(`SELECT * FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
         return newNb[0];
     } else if (this.type === 'postgres') {
-        // Postgres Clone Strategy
         const rootConn = await this._getRootConnection();
         await rootConn.query(`CREATE DATABASE "${newDbName}"`);
         await rootConn.end();
@@ -520,7 +518,7 @@ class DataAccessLayer {
     const pool = await getPool(SYSTEM_DB);
     const updates = [];
     const params = [];
-    let idx = 1; // For Postgres params
+    let idx = 1;
 
     const addUpdate = (col, val) => {
         if (val !== undefined) {
@@ -555,14 +553,14 @@ class DataAccessLayer {
   async deleteNotebook(id) {
     const pool = await getPool(SYSTEM_DB);
     if (this.type === 'mysql') {
-        // ... MySQL ...
         const [rows] = await pool.query(`SELECT db_name, is_db_owner FROM \`${NOTEBOOK_LIST_TABLE}\` WHERE id = ?`, [id]);
         if (rows.length > 0) {
             const { db_name, is_db_owner } = rows[0];
             const isProtected = [SYSTEM_DB, MASTER_DB, 'mysql', 'information_schema', 'performance_schema', 'sys'].includes(db_name);
             
-            // Only drop if owner and not a system database
-            if (is_db_owner && !isProtected) {
+            // Only drop if owner and not a system/protected database and NOT an external connection URI
+            const isUri = db_name.includes('://');
+            if (is_db_owner && !isProtected && !isUri) {
                 const rootConn = await this._getRootConnection();
                 await rootConn.query(`DROP DATABASE IF EXISTS \`${db_name}\``);
                 await rootConn.end();
@@ -575,8 +573,9 @@ class DataAccessLayer {
         if (res.rows.length > 0) {
             const { db_name, is_db_owner } = res.rows[0];
             const isProtected = [SYSTEM_DB, MASTER_DB, 'postgres'].includes(db_name);
+            const isUri = db_name.includes('://');
 
-            if (is_db_owner && !isProtected) {
+            if (is_db_owner && !isProtected && !isUri) {
                 const rootConn = await this._getRootConnection();
                 await rootConn.query(`
                     SELECT pg_terminate_backend(pg_stat_activity.pid)
@@ -645,7 +644,6 @@ class DataAccessLayer {
   async updateApp(id, appData) {
     const pool = await getPool(SYSTEM_DB);
     if (this.type === 'mysql') {
-        // ...
         await pool.query(
             `UPDATE \`${PUBLISHED_APPS_TABLE}\` SET 
               title = ?, description = ?, prompt = ?, author = ?, type = ?, code = ?, 
@@ -734,93 +732,6 @@ class DataAccessLayer {
     }
   }
 
-  // --- Dataset Operations ---
-  async importDataset(dbName, datasetId) {
-    const dataset = DATASETS.find(d => d.id === datasetId);
-    if (!dataset) throw new Error("Dataset not found");
-
-    const userPool = await getPool(dbName);
-    const masterPool = await getPool(MASTER_DB);
-
-    if (this.type === 'mysql') {
-        // ... MySQL logic ...
-        const [sourceTables] = await masterPool.query(
-            `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE ?`,
-            [MASTER_DB, `${dataset.prefix}_%`]
-        );
-        for (const row of sourceTables) {
-            const sourceTable = row.TABLE_NAME;
-            const targetTable = sourceTable.substring(dataset.prefix.length + 1);
-            if (!targetTable) continue;
-            const [exists] = await userPool.query(`SHOW TABLES LIKE ?`, [targetTable]);
-            if (exists.length > 0) await userPool.query(`DROP TABLE \`${targetTable}\``);
-            await userPool.query(`CREATE TABLE \`${targetTable}\` LIKE \`${MASTER_DB}\`.\`${sourceTable}\``);
-            await userPool.query(`INSERT INTO \`${targetTable}\` SELECT * FROM \`${MASTER_DB}\`.\`${sourceTable}\``);
-        }
-    } else if (this.type === 'postgres') {
-        // Postgres logic: Read from Master table, Create in User DB
-        // NOTE: In Postgres, MASTER_DB and User DB are separate databases. We can't do cross-db SELECT easily.
-        // For MVP, we will READ into memory from Master Pool and INSERT into User Pool.
-        
-        const tablesRes = await masterPool.query(
-            `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE $1`,
-            [`${dataset.prefix}_%`]
-        );
-        
-        for (const row of tablesRes.rows) {
-            const sourceTable = row.table_name;
-            const targetTable = sourceTable.substring(dataset.prefix.length + 1);
-            if (!targetTable) continue;
-            
-            // 1. Get Schema with Comments
-            const columnsData = await getPgTableSchema(masterPool, sourceTable);
-            const colDefs = columnsData.map(c => `"${c.column_name}" ${c.data_type}`).join(', ');
-            
-            await userPool.query(`DROP TABLE IF EXISTS "${targetTable}"`);
-            await userPool.query(`CREATE TABLE "${targetTable}" (${colDefs})`);
-            
-            // 2. Restore Comments (Postgres requires separate statements)
-            for (const col of columnsData) {
-                if (col.column_comment) {
-                    const safeComment = col.column_comment.replace(/'/g, "''");
-                    await userPool.query(`COMMENT ON COLUMN "${targetTable}"."${col.column_name}" IS '${safeComment}'`);
-                }
-            }
-            
-            // 3. Data Transfer
-            const dataRes = await masterPool.query(`SELECT * FROM "${sourceTable}"`);
-            if (dataRes.rows.length > 0) {
-                // Construct bulk insert
-                const columns = columnsData.map(c => `"${c.column_name}"`).join(', ');
-                
-                // Batching for safety
-                const batchSize = 100;
-                for (let i = 0; i < dataRes.rows.length; i += batchSize) {
-                    const chunk = dataRes.rows.slice(i, i + batchSize);
-                    let params = [];
-                    let placeholders = [];
-                    let pIdx = 1;
-                    
-                    chunk.forEach(rowData => {
-                        let rowPh = [];
-                        columnsData.forEach(col => {
-                            rowPh.push(`$${pIdx++}`);
-                            params.push(rowData[col.column_name]);
-                        });
-                        placeholders.push(`(${rowPh.join(',')})`);
-                    });
-                    
-                    await userPool.query(
-                        `INSERT INTO "${targetTable}" (${columns}) VALUES ${placeholders.join(',')}`,
-                        params
-                    );
-                }
-            }
-        }
-    }
-    return dataset.topicName;
-  }
-
   // --- Generic SQL Execution ---
   async executeUserQuery(dbName, sql) {
     const pool = await getPool(dbName);
@@ -855,28 +766,22 @@ class DataAccessLayer {
 
     } else if (this.type === 'postgres') {
         try {
-            // Postgres 'query' returns { rows, fields, rowCount, command }
-            // It does NOT support multiple statements by default in the same way MySQL driver does (returning array of results).
-            // However, we handle single statements mostly.
-            
             const result = await pool.query(sql);
             
             if (Array.isArray(result)) {
-                // If using a driver extension or method that supports multi-statements returning array
                 const lastRes = result[result.length - 1];
                 return {
                     rows: lastRes.rows,
-                    columns: lastRes.fields.map(f => f.name)
+                    columns: lastRes.fields ? lastRes.fields.map(f => f.name) : []
                 };
             }
             
             if (result.command === 'SELECT' || (result.rows && result.rows.length > 0)) {
                 return {
                     rows: result.rows,
-                    columns: result.fields.map(f => f.name)
+                    columns: result.fields ? result.fields.map(f => f.name) : []
                 };
             } else {
-                // Non-SELECT (INSERT, UPDATE, CREATE)
                 return {
                     rows: [{
                         status: 'Success',

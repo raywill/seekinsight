@@ -151,6 +151,15 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
               </div>
 
               <div className="w-full space-y-4">
+                  {onConnectDB && (
+                    <button 
+                        onClick={onConnectDB}
+                        className="w-full py-3.5 bg-purple-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-purple-700 shadow-lg shadow-purple-200 transition-all flex items-center justify-center gap-2 active:scale-95"
+                    >
+                        <LinkIcon size={14} /> {t('sidebar.connect_db')}
+                    </button>
+                  )}
+
                   <label className="w-full py-3 bg-white border border-gray-200 text-gray-500 rounded-xl text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center active:scale-95 shadow-sm">
                     <Upload size={14} className="mr-2 opacity-60" /> {t('sidebar.upload_file')}
                     <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.xlsx,.xls,.txt" />
@@ -158,19 +167,10 @@ const DataSidebar: React.FC<Props> = ({ tables, onUploadFile, onRefreshTableStat
                   
                   <button 
                     onClick={onLoadSample}
-                    className="w-full py-3.5 bg-blue-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 active:scale-95"
+                    className="w-full py-3.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-100 hover:border-blue-200 transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
                     <Download size={14} /> {t('sidebar.load_sample')}
                   </button>
-
-                  {onConnectDB && (
-                    <button 
-                        onClick={onConnectDB}
-                        className="w-full py-3.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-xl text-[11px] font-black uppercase tracking-widest cursor-pointer hover:bg-purple-100 hover:border-purple-200 transition-all flex items-center justify-center gap-2 active:scale-95"
-                    >
-                        <LinkIcon size={14} /> {t('sidebar.connect_db')}
-                    </button>
-                  )}
               </div>
             </div>
           </div>

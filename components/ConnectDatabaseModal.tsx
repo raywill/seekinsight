@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Database, Search, Loader2, Link as LinkIcon, RefreshCw, Eye, ArrowLeft, Table } from 'lucide-react';
+import { X, Database, Search, Loader2, Link as LinkIcon, RefreshCw, Eye, ArrowLeft, Table, Globe, Server } from 'lucide-react';
 import { getDatabaseEngine } from '../services/dbService';
 import { useTranslation } from 'react-i18next';
 
@@ -12,13 +12,33 @@ interface Props {
   connectionStatus?: string; // New prop for detailed status message
 }
 
+interface ExternalDbConfig {
+  type: string;
+  host: string;
+  port: string;
+  user: string;
+  password: string;
+  database: string;
+}
+
 const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isLoading, connectionStatus }) => {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<'internal' | 'external'>('internal');
   const [databases, setDatabases] = useState<string[]>([]);
   const [fetching, setFetching] = useState(false);
   const [search, setSearch] = useState('');
   const [connectingDb, setConnectingDb] = useState<string | null>(null);
   
+  // External DB Form
+  const [externalConfig, setExternalConfig] = useState<ExternalDbConfig>({
+    type: (typeof process !== 'undefined' ? process.env.DB_TYPE : 'mysql') || 'mysql',
+    host: 'localhost',
+    port: '3306',
+    user: 'root',
+    password: '',
+    database: ''
+  });
+
   // Preview Mode State
   const [previewDb, setPreviewDb] = useState<string | null>(null);
   const [previewTables, setPreviewTables] = useState<string[]>([]);
@@ -32,8 +52,17 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
       // Reset view state on open
       setPreviewDb(null);
       setPreviewTables([]);
+      setActiveTab('internal');
     }
   }, [isOpen]);
+
+  // Auto-set default port based on type
+  useEffect(() => {
+      setExternalConfig(prev => ({
+          ...prev,
+          port: prev.type === 'postgres' ? '5432' : '3306'
+      }));
+  }, [externalConfig.type]);
 
   const fetchDatabases = async () => {
     setFetching(true);
@@ -58,6 +87,18 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
     } finally {
         setConnectingDb(null);
     }
+  };
+
+  const handleExternalConnect = () => {
+      const { type, host, port, user, password, database } = externalConfig;
+      if (!host || !port || !user || !database) return;
+      
+      // Construct URI: type://user:pass@host:port/db
+      // Encode password to handle special characters
+      const encodedPass = password ? `:${encodeURIComponent(password)}` : '';
+      const uri = `${type}://${user}${encodedPass}@${host}:${port}/${database}`;
+      
+      handleConnect(uri);
   };
 
   const handleViewTables = async (db: string) => {
@@ -88,7 +129,7 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={!isLoading && !connectingDb ? onClose : undefined}></div>
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
         
         <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-3">
@@ -110,7 +151,27 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
         </div>
 
         {!previewDb && (
-            <div className="p-4 border-b border-gray-100">
+            <div className="px-8 pt-4 pb-2">
+                <div className="flex bg-gray-100 p-1 rounded-xl">
+                    <button 
+                        onClick={() => setActiveTab('internal')}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'internal' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <Database size={14} /> Internal DB
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('external')}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'external' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <Globe size={14} /> External DB
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {/* INTERNAL DB TAB */}
+        {activeTab === 'internal' && !previewDb && (
+            <div className="p-4 border-b border-gray-100 mx-4">
                 <div className="relative">
                     <Search size={16} className="absolute left-3 top-3 text-gray-400" />
                     <input 
@@ -123,10 +184,10 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
             </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-2 bg-white relative">
+        <div className="flex-1 overflow-y-auto p-4 bg-white relative">
           
           {/* Main Database List View */}
-          {!previewDb && (
+          {activeTab === 'internal' && !previewDb && (
               fetching ? (
                 <div className="flex flex-col items-center justify-center h-40 gap-3 text-gray-400">
                     <Loader2 size={24} className="animate-spin" />
@@ -169,6 +230,88 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
                 ))}
                 </div>
               )
+          )}
+
+          {/* External Connection Form */}
+          {activeTab === 'external' && (
+              <div className="p-2 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Type</label>
+                          <select 
+                            value={externalConfig.type}
+                            onChange={e => setExternalConfig({...externalConfig, type: e.target.value})}
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-purple-400"
+                          >
+                              <option value="mysql">MySQL</option>
+                              <option value="postgres">PostgreSQL</option>
+                          </select>
+                      </div>
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Host</label>
+                          <input 
+                            value={externalConfig.host}
+                            onChange={e => setExternalConfig({...externalConfig, host: e.target.value})}
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-purple-400"
+                            placeholder="127.0.0.1"
+                          />
+                      </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Port</label>
+                          <input 
+                            value={externalConfig.port}
+                            onChange={e => setExternalConfig({...externalConfig, port: e.target.value})}
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-purple-400"
+                            placeholder="3306"
+                          />
+                      </div>
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Database</label>
+                          <input 
+                            value={externalConfig.database}
+                            onChange={e => setExternalConfig({...externalConfig, database: e.target.value})}
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-purple-400"
+                            placeholder="my_db"
+                          />
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">User</label>
+                          <input 
+                            value={externalConfig.user}
+                            onChange={e => setExternalConfig({...externalConfig, user: e.target.value})}
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-purple-400"
+                            placeholder="root"
+                          />
+                      </div>
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Password</label>
+                          <input 
+                            type="password"
+                            value={externalConfig.password}
+                            onChange={e => setExternalConfig({...externalConfig, password: e.target.value})}
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-purple-400"
+                            placeholder="••••••"
+                          />
+                      </div>
+                  </div>
+
+                  <div className="pt-4">
+                      <button 
+                        onClick={handleExternalConnect}
+                        disabled={!!connectingDb || !externalConfig.host || !externalConfig.database}
+                        className="w-full py-3.5 bg-purple-600 text-white rounded-xl text-sm font-black shadow-lg shadow-purple-500/30 hover:bg-purple-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                          {connectingDb ? <Loader2 size={16} className="animate-spin" /> : <Server size={16} />}
+                          Connect External Database
+                      </button>
+                  </div>
+              </div>
           )}
 
           {/* Table Preview View */}
