@@ -70,11 +70,13 @@ export async function getPool(dbName) {
           if (protocol.startsWith('mysql')) type = 'mysql';
           if (protocol.startsWith('postgres') || protocol.startsWith('postgresql')) type = 'postgres';
           
+          // FIX: Decode URI components for username and password
+          // URL parser keeps them encoded (e.g., 'root%40sys'), but DB driver needs raw string ('root@sys')
           uriConfig = {
               host: parsed.hostname,
               port: parsed.port ? parseInt(parsed.port) : undefined,
-              user: parsed.username,
-              password: parsed.password,
+              user: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+              password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
               database: parsed.pathname.replace('/', '')
           };
       } catch (e) {

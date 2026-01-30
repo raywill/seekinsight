@@ -94,9 +94,10 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
       if (!host || !port || !user || !database) return;
       
       // Construct URI: type://user:pass@host:port/db
-      // Encode password to handle special characters
+      // FIX: Encode user AND password to handle special chars like '@' or ':' in username/password
+      const encodedUser = encodeURIComponent(user);
       const encodedPass = password ? `:${encodeURIComponent(password)}` : '';
-      const uri = `${type}://${user}${encodedPass}@${host}:${port}/${database}`;
+      const uri = `${type}://${encodedUser}${encodedPass}@${host}:${port}/${database}`;
       
       handleConnect(uri);
   };
