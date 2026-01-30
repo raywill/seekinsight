@@ -135,8 +135,19 @@ export const useExecutionLogic = ({
             tables: tables 
         }));
         
-        // Use database name directly as the topic
-        onTopicUpdate(targetDbName);
+        // Use database name directly as the topic, extracting from URI if needed
+        let displayTopic = targetDbName;
+        if (targetDbName.includes('://')) {
+            try {
+                const url = new URL(targetDbName);
+                if (url.pathname && url.pathname.length > 1) {
+                    displayTopic = url.pathname.substring(1); // remove leading slash
+                }
+            } catch (e) {
+                // ignore parsing error
+            }
+        }
+        onTopicUpdate(displayTopic);
 
     } catch (e: any) {
         console.error("Connect DB Failed", e);

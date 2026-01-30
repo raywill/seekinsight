@@ -53,16 +53,27 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
       setPreviewDb(null);
       setPreviewTables([]);
       setActiveTab('internal');
+
+      // Load cached external config
+      try {
+        const saved = localStorage.getItem('si_external_db_config');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            setExternalConfig(prev => ({
+                ...prev,
+                type: parsed.type || prev.type,
+                host: parsed.host || prev.host,
+                port: parsed.port || prev.port,
+                user: parsed.user || prev.user,
+                database: parsed.database || prev.database,
+                password: '' // Explicitly do not restore password
+            }));
+        }
+      } catch (e) {
+          // ignore
+      }
     }
   }, [isOpen]);
-
-  // Auto-set default port based on type
-  useEffect(() => {
-      setExternalConfig(prev => ({
-          ...prev,
-          port: prev.type === 'postgres' ? '5432' : '3306'
-      }));
-  }, [externalConfig.type]);
 
   const fetchDatabases = async () => {
     setFetching(true);
@@ -93,6 +104,11 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
       const { type, host, port, user, password, database } = externalConfig;
       if (!host || !port || !user || !database) return;
       
+      // Save to localStorage (excluding password)
+      localStorage.setItem('si_external_db_config', JSON.stringify({
+          type, host, port, user, database
+      }));
+
       // Construct URI: type://user:pass@host:port/db
       // FIX: Encode user AND password to handle special chars like '@' or ':' in username/password
       const encodedUser = encodeURIComponent(user);
@@ -241,7 +257,14 @@ const ConnectDatabaseModal: React.FC<Props> = ({ isOpen, onClose, onConnect, isL
                           <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Type</label>
                           <select 
                             value={externalConfig.type}
-                            onChange={e => setExternalConfig({...externalConfig, type: e.target.value})}
+                            onChange={e => {
+                                const newType = e.target.value;
+                                setExternalConfig(prev => ({
+                                    ...prev, 
+                                    type: newType,
+                                    port: newType === 'postgres' ? '5432' : '3306'
+                                }));
+                            }}
                             className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-purple-400"
                           >
                               <option value="mysql">MySQL</option>
