@@ -33,10 +33,12 @@ export class MySQLEngine implements DatabaseEngine {
 
   async getTables(dbName: string): Promise<TableMetadata[]> {
     try {
+      // FIX: Use DATABASE() instead of '${dbName}' to correctly handle connection URIs
+      // DATABASE() returns the actual name of the database currently connected to.
       const tablesInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME 
         FROM information_schema.TABLES 
-        WHERE TABLE_SCHEMA = '${dbName}' 
+        WHERE TABLE_SCHEMA = DATABASE() 
         AND TABLE_NAME NOT LIKE '\\_\\_%'
       `, dbName);
       
@@ -45,7 +47,7 @@ export class MySQLEngine implements DatabaseEngine {
       const columnsInfoRes = await this.executeQuery(`
         SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_COMMENT 
         FROM information_schema.COLUMNS 
-        WHERE TABLE_SCHEMA = '${dbName}'
+        WHERE TABLE_SCHEMA = DATABASE()
         AND TABLE_NAME NOT LIKE '\\_\\_%'
         ORDER BY TABLE_NAME, ORDINAL_POSITION
       `, dbName);
@@ -93,10 +95,11 @@ export class MySQLEngine implements DatabaseEngine {
 
   async applyColumnComments(tableName: string, comments: Record<string, string>, dbName: string): Promise<void> {
     // 1. Fetch current schema to get types (MySQL requires full column definition to change comment)
+    // FIX: Use DATABASE() here as well
     const columnsRes = await this.executeQuery(`
       SELECT COLUMN_NAME, COLUMN_TYPE
       FROM information_schema.COLUMNS 
-      WHERE TABLE_SCHEMA = '${dbName}' AND TABLE_NAME = '${tableName}'
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${tableName}'
     `, dbName);
     
     const colTypes: Record<string, string> = {};
